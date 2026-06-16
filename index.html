@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greysteel · Hampton Roads Priority Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1a73e8;--blue-light:#e8f0fe;--green:#188038;--green-light:#e6f4ea;
+  --yellow:#f29900;--yellow-light:#fef7e0;--orange:#fa7b17;--orange-light:#fce8d2;
+  --red:#d93025;--red-light:#fce8e6;--purple:#7c3aed;--purple-light:#ede9fe;
+  --text:#202124;--text2:#5f6368;--text3:#80868b;
+  --border:#dadce0;--bg:#f8f9fa;--white:#fff;
+  --shadow:0 1px 3px rgba(60,64,67,.15),0 1px 2px rgba(60,64,67,.3);
+  --shadow-lg:0 4px 12px rgba(60,64,67,.15),0 2px 6px rgba(60,64,67,.1);
+  --header:56px;--toolbar:48px;
+}
+html,body{height:100%;font-family:'Roboto',sans-serif;font-size:14px;color:var(--text);background:var(--bg)}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select{font-family:inherit}
+header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;z-index:200;}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;white-space:nowrap}
+.logo-g{width:32px;height:32px;background:var(--blue);color:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Google Sans',sans-serif;font-size:18px;font-weight:600;}
+.logo-name{font-family:'Google Sans',sans-serif;font-size:16px;font-weight:500;color:var(--text)}
+.logo-sep{color:var(--border);font-size:18px;font-weight:300}
+.logo-page{font-family:'Google Sans',sans-serif;font-size:15px;color:var(--text2)}
+.search-bar{flex:1;max-width:480px;position:relative;}
+.search-bar input{width:100%;height:36px;border:1px solid var(--border);border-radius:24px;padding:0 16px 0 40px;font-size:14px;color:var(--text);background:var(--bg);outline:none;transition:all .2s;}
+.search-bar input:focus{background:var(--white);border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-light)}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.hdr-btn{height:36px;padding:0 16px;border-radius:4px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;transition:background .15s;color:var(--text2);}
+.hdr-btn:hover{background:var(--bg)}
+.hdr-btn.active{color:var(--blue);background:var(--blue-light)}
+.hdr-badge{background:var(--text2);color:#fff;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:500;}
+.loading-spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toolbar{position:fixed;top:var(--header);left:0;right:0;height:var(--toolbar);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;z-index:190;overflow-x:auto;}
+.tier-filter{display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:2px;flex-shrink:0;}
+.tier-btn{padding:3px 12px;border-radius:16px;font-size:12px;font-weight:500;transition:all .15s;color:var(--text2);white-space:nowrap;}
+.tier-btn:hover{background:var(--border)}
+.tier-btn.active{color:#fff}
+.tier-btn[data-tier="all"].active{background:var(--text2)}
+.tier-btn[data-tier="hot"].active{background:var(--red)}
+.tier-btn[data-tier="warm"].active{background:var(--orange)}
+.tier-btn[data-tier="watch"].active{background:var(--yellow);color:#202124}
+.tier-btn[data-tier="cold"].active{background:var(--green)}
+.toolbar-sep{width:1px;height:24px;background:var(--border);margin:0 4px;flex-shrink:0;}
+.sort-select{height:32px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:13px;color:var(--text);background:var(--white);outline:none;cursor:pointer;flex-shrink:0;}
+.src-filter{display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:2px;flex-shrink:0;}
+.src-btn{padding:3px 10px;border-radius:16px;font-size:11px;font-weight:500;transition:all .15s;color:var(--text2);white-space:nowrap;}
+.src-btn:hover{background:var(--border)}
+.src-btn.active{color:#fff;background:var(--purple)}
+.tb-count{margin-left:auto;font-size:11px;color:var(--text2);white-space:nowrap;flex-shrink:0;}
+.weights-panel{position:fixed;top:calc(var(--header) + var(--toolbar));right:0;width:360px;background:var(--white);border-left:1px solid var(--border);border-bottom:1px solid var(--border);border-bottom-left-radius:8px;box-shadow:var(--shadow-lg);z-index:500;transform:translateY(-110%);opacity:0;pointer-events:none;transition:transform .25s ease,opacity .2s ease;}
+.weights-panel.open{transform:translateY(0);opacity:1;pointer-events:all}
+.wp-header{padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.wp-title{font-family:'Google Sans',sans-serif;font-size:14px;font-weight:500}
+.wp-body{padding:16px}
+.weight-row{margin-bottom:16px}
+.weight-label{display:flex;justify-content:space-between;margin-bottom:6px}
+.wl-name{font-size:13px;font-weight:500;color:var(--text)}
+.wl-val{font-size:13px;font-weight:600;color:var(--blue)}
+.weight-slider{width:100%;height:4px;border-radius:2px;background:var(--border);-webkit-appearance:none;outline:none;cursor:pointer;}
+.weight-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.hp-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.hp-chip{padding:3px 12px;border-radius:16px;font-size:12px;font-weight:500;border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all .15s;background:var(--white);}
+.hp-chip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.hp-custom-row{display:flex;gap:6px;margin-top:8px;align-items:center}
+.hp-input{width:80px;height:30px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:13px;outline:none;}
+.hp-input:focus{border-color:var(--blue)}
+.hp-add{height:30px;padding:0 12px;background:var(--blue);color:#fff;border-radius:4px;font-size:12px;font-weight:500;}
+.hp-add:hover{background:#1557b0}
+.recalc-btn{width:100%;height:36px;background:var(--blue);color:#fff;border-radius:4px;font-size:13px;font-weight:500;margin-top:4px;}
+.recalc-btn:hover{background:#1557b0}
+.main{margin-top:calc(var(--header) + var(--toolbar));height:calc(100vh - var(--header) - var(--toolbar));display:flex;overflow:hidden;}
+.list-panel{width:420px;flex-shrink:0;overflow-y:auto;background:var(--white);border-right:1px solid var(--border);}
+.map-panel{flex:1;position:relative}
+#map{width:100%;height:100%}
+.prop-card{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+.prop-card:hover{background:var(--bg)}
+.prop-card.selected{background:var(--blue-light)}
+.pc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.pc-address{font-size:13px;font-weight:500;color:var(--text);line-height:1.4}
+.pc-sub{font-size:11px;color:var(--text2);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pc-src-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:.02em;}
+.pc-src-badge.reonomy{background:var(--blue-light);color:var(--blue)}
+.pc-src-badge.trepp{background:var(--purple-light);color:var(--purple)}
+.pc-src-badge.both{background:#f3e8ff;color:#6d28d9}
+.score-badge{flex-shrink:0;min-width:44px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Google Sans',sans-serif;font-size:13px;font-weight:600;}
+.score-badge.hot{background:var(--red-light);color:var(--red)}
+.score-badge.warm{background:var(--orange-light);color:var(--orange)}
+.score-badge.watch{background:var(--yellow-light);color:#c17800}
+.score-badge.cold{background:var(--green-light);color:var(--green)}
+.pc-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.pc-chip{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500;background:var(--bg);color:var(--text2);border:1px solid var(--border);}
+.pc-chip.distress{background:#fce8e6;color:#d93025;border-color:#f5c6c2}
+.pc-chip.trepp-distress{background:var(--purple-light);color:var(--purple);border-color:#c4b5fd}
+.pc-chip.maturity{background:var(--blue-light);color:var(--blue);border-color:#aecbfa}
+.pc-chip.hold{background:var(--yellow-light);color:#c17800;border-color:#fde68a}
+.pc-chip.market{background:var(--green-light);color:var(--green);border-color:#a8d5b5}
+.empty-state{padding:60px 20px;text-align:center;color:var(--text2);display:flex;flex-direction:column;align-items:center;gap:8px}
+.skeleton{height:80px;background:var(--border);border-radius:4px;margin-bottom:1px;animation:shimmer 1.4s infinite}
+@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}
+.detail-drawer{position:fixed;right:0;top:0;bottom:0;width:480px;background:var(--white);box-shadow:-4px 0 16px rgba(60,64,67,.15);z-index:600;transform:translateX(100%);transition:transform .35s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;overflow:hidden;}
+.detail-drawer.open{transform:translateX(0)}
+#drawerContent{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;}
+.dd-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;flex-shrink:0;}
+.dd-close{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:background .15s;flex-shrink:0;}
+.dd-close:hover{background:var(--bg)}
+.dd-title{font-family:'Google Sans',sans-serif;font-size:16px;font-weight:500;line-height:1.3}
+.dd-sub{font-size:12px;color:var(--text2);margin-top:3px}
+.dd-score-big{margin-left:auto;flex-shrink:0;width:56px;height:56px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.dd-score-big.hot{background:var(--red-light)}.dd-score-big.warm{background:var(--orange-light)}.dd-score-big.watch{background:var(--yellow-light)}.dd-score-big.cold{background:var(--green-light)}
+.ddsb-num{font-family:'Google Sans',sans-serif;font-size:24px;font-weight:600}
+.ddsb-label{font-size:9px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;margin-top:1px}
+.hot .ddsb-num,.hot .ddsb-label{color:var(--red)}.warm .ddsb-num,.warm .ddsb-label{color:var(--orange)}.watch .ddsb-num,.watch .ddsb-label{color:#c17800}.cold .ddsb-num,.cold .ddsb-label{color:var(--green)}
+.dd-body{flex:1;overflow-y:scroll;padding:16px 20px 40px;display:flex;flex-direction:column;gap:20px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;min-height:0;}
+.dd-section{display:flex;flex-direction:column;gap:0}
+.dd-section-title{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.score-breakdown{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.sb-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:6px;}
+.sb-cat{width:80px;flex-shrink:0;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;}
+.sb-bar-wrap{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.sb-bar{height:100%;border-radius:3px;transition:width .4s ease}
+.sb-bar.hold{background:var(--yellow)}.sb-bar.maturity{background:var(--blue)}.sb-bar.distress{background:var(--red)}.sb-bar.market{background:var(--green)}
+.sb-score{width:32px;text-align:right;font-size:12px;font-weight:600;flex-shrink:0}
+.sb-reasons{list-style:none;display:flex;flex-direction:column;gap:4px;padding:4px 0 0 4px}
+.sb-reasons li{font-size:12px;color:var(--text2);display:flex;align-items:flex-start;gap:6px;padding:3px 0;}
+.sb-reasons li::before{content:'•';color:var(--text3);flex-shrink:0}
+.sb-reasons li.trepp-signal{color:var(--purple)}
+.sb-reasons li.trepp-signal::before{content:'T';font-size:9px;font-weight:700;color:var(--purple);background:var(--purple-light);border-radius:2px;padding:0 2px;line-height:1.4;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dg-section-head{grid-column:1/-1;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:6px 0 4px;border-bottom:1px solid var(--border);margin-top:4px;}
+.dg-section-head.reonomy{color:var(--blue)}
+.dg-section-head.trepp{color:var(--purple)}
+.dg-section-head.costar{color:var(--green)}
+.dg-section-head.sale{color:var(--orange)}
+.dg-section-head.mortgage{color:var(--text2)}
+.dg-item{padding:8px 10px;background:var(--bg);border-radius:6px;}
+.dg-item.full{grid-column:1/-1}
+.dg-label{font-size:11px;color:var(--text3);margin-bottom:2px}
+.dg-val{font-size:12px;font-weight:500;color:var(--text)}
+.dg-val.warn{color:var(--red)}
+.dg-val.caution{color:var(--orange)}
+.dg-val.ok{color:var(--green)}
+.contact-card{padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;}
+.cc-name{font-size:13px;font-weight:500}
+.cc-title{font-size:12px;color:var(--text2);margin-top:2px}
+.cc-contact{font-size:12px;color:var(--blue);margin-top:4px;display:flex;flex-direction:column;gap:2px}
+.reo-link{display:inline-flex;align-items:center;gap:4px;color:var(--blue);font-size:13px;font-weight:500;text-decoration:none;padding:8px 0;}
+.reo-link:hover{text-decoration:underline}
+.map-dot{border-radius:50%;border:2px solid rgba(255,255,255,.8);cursor:pointer;transition:transform .1s;}
+.map-dot:hover{transform:scale(1.3)}
+.map-dot.hot{background:var(--red)}.map-dot.warm{background:var(--orange)}.map-dot.watch{background:var(--yellow)}.map-dot.cold{background:var(--green)}
+.map-dot.selected{transform:scale(1.5);box-shadow:0 0 0 4px rgba(26,115,232,.35);}
+.leaflet-tooltip{background:var(--text);color:#fff;border:none;border-radius:4px;font-size:11px;padding:4px 8px;font-family:'Roboto',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.leaflet-tooltip::before{border-top-color:var(--text)}
+.map-legend{position:absolute;bottom:24px;left:16px;z-index:400;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 14px;box-shadow:var(--shadow);}
+.ml-title{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.ml-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.ml-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.ml-label{font-size:12px;color:var(--text)}
+.leaflet-control-zoom a{font-size:18px !important;color:var(--text) !important;background:var(--white) !important;border-color:var(--border) !important;}
+.leaflet-control-zoom a:hover{background:var(--bg) !important;color:var(--blue) !important}
+.overlay-backdrop{position:fixed;inset:0;background:rgba(32,33,36,.5);z-index:599;opacity:0;pointer-events:none;transition:opacity .2s;}
+.overlay-backdrop.show{opacity:1;pointer-events:all}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="#">
+    <div class="logo-g">G</div>
+    <span class="logo-name">Greysteel</span>
+    <span class="logo-sep">/</span>
+    <span class="logo-page">Hampton Roads Dashboard</span>
+  </a>
+  <div class="search-bar">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input type="text" id="searchInput" placeholder="Search address, owner, submarket, loan name...">
+  </div>
+  <div class="header-right">
+    <div id="loadingSpinner" class="loading-spinner" style="display:none"></div>
+    <span id="totalBadge" class="hdr-badge">–</span>
+    <button class="hdr-btn" id="weightsToggleBtn" onclick="toggleWeights()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Scoring Weights
+    </button>
+  </div>
+</header>
+<div class="toolbar">
+  <div class="tier-filter">
+    <button class="tier-btn active" data-tier="all" onclick="setTier('all')">All</button>
+    <button class="tier-btn" data-tier="hot" onclick="setTier('hot')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d93025;margin-right:5px;vertical-align:middle"></span>Hot</button>
+    <button class="tier-btn" data-tier="warm" onclick="setTier('warm')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#fa7b17;margin-right:5px;vertical-align:middle"></span>Warm</button>
+    <button class="tier-btn" data-tier="watch" onclick="setTier('watch')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f29900;margin-right:5px;vertical-align:middle"></span>Watch</button>
+    <button class="tier-btn" data-tier="cold" onclick="setTier('cold')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#188038;margin-right:5px;vertical-align:middle"></span>Cold</button>
+  </div>
+  <div class="toolbar-sep"></div>
+  <div class="src-filter">
+    <button class="src-btn active" data-src="all" onclick="setSrc('all')">All Sources</button>
+    <button class="src-btn" data-src="trepp" onclick="setSrc('trepp')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:4px"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Has Trepp</button>
+    <button class="src-btn" data-src="trepp-only" onclick="setSrc('trepp-only')">Trepp Only</button>
+  </div>
+  <div class="toolbar-sep"></div>
+  <select class="sort-select" id="loanSrcSelect" onchange="applyFilters()" style="font-size:12px;">
+    <option value="all">All Loan Sources</option>
+    <option value="Fannie Mae">Fannie Mae</option>
+    <option value="Freddie Mac">Freddie Mac</option>
+    <option value="CMBS">CMBS</option>
+    <option value="CRE CLO">CRE CLO</option>
+    <option value="FHA">FHA</option>
+    <option value="Ginnie Mae">Ginnie Mae</option>
+  </select>
+  <div class="toolbar-sep"></div>
+  <select class="sort-select" id="sortSelect" onchange="applyFilters()">
+    <option value="score">Sort: Priority Score</option>
+    <option value="maturity">Sort: Soonest Maturity</option>
+    <option value="hold">Sort: Longest Hold</option>
+    <option value="sale_amount">Sort: Sale Price</option>
+    <option value="balance">Sort: Loan Balance</option>
+  </select>
+  <span class="tb-count" id="tbCount"></span>
+  <span class="tb-count" id="matchInfo" style="color:var(--text3)"></span>
+  <span id="geocodeStatus" style="display:none;font-size:11px;color:var(--purple);flex-shrink:0;"></span>
+</div>
+<div class="weights-panel" id="weightsPanel">
+  <div class="wp-header">
+    <span class="wp-title">Scoring Weights & Configuration</span>
+    <button onclick="toggleWeights()" style="color:var(--text2);padding:4px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  </div>
+  <div class="wp-body">
+    <div class="weight-row">
+      <div class="weight-label"><span class="wl-name" style="display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12L12 3l9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Hold Period</span><span class="wl-val" id="wHoldVal">3</span></div>
+      <input type="range" class="weight-slider" id="wHold" min="0" max="5" value="3" step="1" oninput="document.getElementById('wHoldVal').textContent=this.value">
+    </div>
+    <div class="weight-row">
+      <div class="weight-label"><span class="wl-name" style="display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Loan Maturity</span><span class="wl-val" id="wMatVal">4</span></div>
+      <input type="range" class="weight-slider" id="wMat" min="0" max="5" value="4" step="1" oninput="document.getElementById('wMatVal').textContent=this.value">
+    </div>
+    <div class="weight-row">
+      <div class="weight-label"><span class="wl-name" style="display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Distress Signals</span><span class="wl-val" id="wDistVal">5</span></div>
+      <input type="range" class="weight-slider" id="wDist" min="0" max="5" value="5" step="1" oninput="document.getElementById('wDistVal').textContent=this.value">
+    </div>
+    <div class="weight-row">
+      <div class="weight-label"><span class="wl-name" style="display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Market Signals</span><span class="wl-val" id="wMktVal">2</span></div>
+      <input type="range" class="weight-slider" id="wMkt" min="0" max="5" value="2" step="1" oninput="document.getElementById('wMktVal').textContent=this.value">
+    </div>
+    <div class="weight-row">
+      <div class="weight-label"><span class="wl-name">Hold Period Milestones (years)</span></div>
+      <div class="hp-row" id="holdChips">
+        <button class="hp-chip active" data-yr="3" onclick="toggleHP(this)">3yr</button>
+        <button class="hp-chip active" data-yr="5" onclick="toggleHP(this)">5yr</button>
+        <button class="hp-chip active" data-yr="7" onclick="toggleHP(this)">7yr</button>
+        <button class="hp-chip active" data-yr="10" onclick="toggleHP(this)">10yr</button>
+      </div>
+      <div class="hp-custom-row">
+        <input type="number" class="hp-input" id="customHP" placeholder="e.g. 12" min="1" max="30">
+        <button class="hp-add" onclick="addCustomHP()">Add</button>
+      </div>
+    </div>
+    <button class="recalc-btn" onclick="recalculate()">Recalculate Scores</button>
+  </div>
+</div>
+<div class="main">
+  <div class="list-panel" id="listPanel">
+    <div id="loadingList">
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      <div class="skeleton"></div><div class="skeleton"></div>
+    </div>
+  </div>
+  <div class="map-panel">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="ml-title">Priority Score</div>
+      <div class="ml-row"><div class="ml-dot" style="background:#d93025"></div><span class="ml-label">Hot (70–100)</span></div>
+      <div class="ml-row"><div class="ml-dot" style="background:#fa7b17"></div><span class="ml-label">Warm (50–69)</span></div>
+      <div class="ml-row"><div class="ml-dot" style="background:#f29900"></div><span class="ml-label">Watch (30–49)</span></div>
+      <div class="ml-row"><div class="ml-dot" style="background:#188038"></div><span class="ml-label">Cold (0–29)</span></div>
+    </div>
+  </div>
+</div>
+<div class="overlay-backdrop" id="backdrop" onclick="closeDrawer()"></div>
+<div class="detail-drawer" id="detailDrawer"><div id="drawerContent"></div></div>
+<script>
+const SUPABASE_PLACEHOLDER=null; // data now loaded from local JSON files
+let allData=[],filtered=[],selectedId=null;
+let activeTier='all',activeSrc='all',searchQ='';
+let map,markersLayer;
+let holdPeriods=[3,5,7,10];
+const IC={
+  trepp:`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block;margin-right:3px;flex-shrink:0"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  alert:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block;margin-right:3px;flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  phone:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block;margin-right:4px"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.43 2.18 2 2 0 012.42.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.39 1.85.65 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  email:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block;margin-right:4px"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M2 7l10 7 10-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  building:`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M9 21V9h6v12M3 9h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+};
+function parseD(v){if(!v||v==='-')return null;const d=new Date(v);return isNaN(d)?null:d;}
+function fmtMoney(v){const n=parseFloat(String(v||'').replace(/,/g,''));return isNaN(n)?null:'$'+Math.round(n).toLocaleString();}
+function fmtDate(v){const d=parseD(v);return d?d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):null;}
+function yearsSince(d){return d?(new Date()-d)/(365.25*24*3600*1000):null;}
+function daysUntil(d){return d?(d-new Date())/(24*3600*1000):null;}
+function normalizeAddr(s){
+  return (s||'').toLowerCase().trim().replace(/\s+/g,' ').replace(/\bstreet\b/g,'st').replace(/\bavenue\b/g,'ave').replace(/\bboulevard\b/g,'blvd').replace(/\bdrive\b/g,'dr').replace(/\broad\b/g,'rd').replace(/\bcourt\b/g,'ct').replace(/\bnorthwest\b/g,'nw').replace(/\bnortheast\b/g,'ne').replace(/\bsouthwest\b/g,'sw').replace(/\bsoutheast\b/g,'se').replace(/[.,#]/g,'').trim();
+}
+function haversineMeters(lat1,lng1,lat2,lng2){
+  const R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function getWeights(){
+  return {holdPeriod:+document.getElementById('wHold').value,loanMaturity:+document.getElementById('wMat').value,distress:+document.getElementById('wDist').value,marketSignals:+document.getElementById('wMkt').value};
+}
+</script>
+</body>
+</html>
+<script>
+function scoreProperty(p){
+  const details=[];const t=p._trepp;const catScores={};
+  // HOLD PERIOD
+  const sd1=parseD(p.sale_recorded_date||p.sale_date),sd2=parseD(p.sale2_recorded_date);
+  const saleDate=(sd1&&sd2)?(sd1>sd2?sd1:sd2):(sd1||sd2);
+  if(saleDate){
+    const yrs=yearsSince(saleDate),saleDateStr=fmtDate(saleDate);
+    let best=0,bestLabel='';
+    for(const m of holdPeriods){
+      const monthsTo=(m-yrs)*12;let s=0,lbl='';
+      if(monthsTo>9||monthsTo<-24){s=0;}
+      else if(monthsTo>0){s=Math.round(60+40*(9-monthsTo)/9);lbl=`${Math.round(monthsTo)} month${Math.round(monthsTo)!==1?'s':''} away from ${m}-yr hold milestone (sold ${saleDateStr})`;}
+      else{const mp=-monthsTo;if(mp<=6){s=Math.round(100-20*(mp/6));lbl=`Just hit ${m}-yr hold milestone (sold ${saleDateStr})`;}else if(mp<=12){s=Math.round(80-20*((mp-6)/6));lbl=`${Math.round(mp)} months past ${m}-yr hold (sold ${saleDateStr})`;}else if(mp<=24){s=Math.round(60-30*((mp-12)/12));lbl=`${yrs.toFixed(1)} yrs since sale — past ${m}-yr milestone (sold ${saleDateStr})`;}}
+      if(s>best){best=s;bestLabel=lbl;}
+    }
+    catScores.holdPeriod=best;
+    if(best>0&&bestLabel)details.push({cat:'Hold Period',label:bestLabel});
+    else{const next=[...holdPeriods].sort((a,b)=>a-b).find(m=>m>yrs);const mo=next?Math.round((next-yrs)*12):null;details.push({cat:'Hold Period',label:mo?`${yrs.toFixed(1)} yrs since last sale — ${mo}mo until ${next}-yr milestone (sold ${saleDateStr})`:`${yrs.toFixed(1)} yrs since last sale (sold ${saleDateStr})`});}
+  }
+  // LOAN MATURITY
+  const periodsPast=t?parseFloat(t.periods_past_maturity)||0:0;
+  const remainTerm=t?parseFloat(t.remaining_term)||null:null;
+  const tMatDate=t?parseD(t.maturity_date):null;
+  let effectiveMat=tMatDate,matOverrideNote=null;
+  if(tMatDate&&remainTerm!==null){
+    const daysFromMat=daysUntil(tMatDate),daysFromRemain=remainTerm*30.44;
+    if(daysFromMat>365&&daysFromRemain<180){effectiveMat=new Date(Date.now()+daysFromRemain*86400000);matOverrideNote=`Trepp: Servicer remaining term (${remainTerm}mo) conflicts with maturity date — using remaining term`;}
+  }
+  let matScore=0;
+  if(t&&(effectiveMat||periodsPast>0)){
+    const lender=t.originator||t.source||'';const bal=fmtMoney(t.current_balance);
+    const lStr=lender?` (${lender}${bal?', '+bal:''})`:bal?` (${bal})`:'';
+    if(periodsPast>0){matScore=95;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: ${Math.round(periodsPast)} period${periodsPast!==1?'s':''} past original maturity${lStr} — matured ${fmtDate(tMatDate)}`,trepp:true});}
+    else if(effectiveMat){
+      const days=daysUntil(effectiveMat),ds=fmtDate(effectiveMat);
+      if(days<0){const dp=Math.abs(days);if(dp<=180){matScore=90;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Loan matured ${Math.round(dp)} days ago${lStr} — ${ds}`,trepp:true});}else if(dp<=365){matScore=70;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Loan matured ${Math.round(dp/30)} months ago${lStr} — ${ds}`,trepp:true});}else{matScore=30;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Loan matured >1yr ago${lStr} — ${ds}`,trepp:true});}}
+      else if(days<=90){matScore=95;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures in ${Math.round(days)} days — ${ds}${lStr}`,trepp:true});}
+      else if(days<=180){matScore=85;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures in ${Math.round(days/30)} months — ${ds}${lStr}`,trepp:true});}
+      else if(days<=365){matScore=70;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures within 1 year — ${ds}${lStr}`,trepp:true});}
+      else if(days<=730){matScore=45;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures in ~${Math.round(days/365)} yrs — ${ds}${lStr}`,trepp:true});}
+      else if(days<=1095){matScore=20;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures in ~${Math.round(days/365)} yrs — ${ds}${lStr}`,trepp:true});}
+      else{details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Maturity ${ds}${lStr} (>3 yrs away)`,trepp:true});}
+    }
+    if(matOverrideNote)details.push({cat:'Loan Maturity',label:`${IC.trepp}${matOverrideNote}`,trepp:true});
+    if(remainTerm!==null&&!matOverrideNote)details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: ${remainTerm} months remaining term`,trepp:true});
+    if(matScore>0)catScores.loanMaturity=matScore;
+  } else if(!t){
+    const STALE=-365;
+    const mats=[{date:parseD(p.mortgage_maturity_date),amt:parseFloat(p.mortgage_amount)||0,lender:p.mortgage_standardized_name||p.mortgage_recorded_name,name:'Primary loan'},{date:parseD(p.mortgage2_maturity_date),amt:parseFloat(p.mortgage2_amount)||0,lender:p.mortgage2_standardized_name||p.mortgage2_recorded_name,name:'Second loan'}].filter(m=>m.date&&daysUntil(m.date)>STALE);
+    const fut=mats.filter(m=>daysUntil(m.date)>0).sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
+    const pas=mats.filter(m=>daysUntil(m.date)<=0).sort((a,b)=>daysUntil(b.date)-daysUntil(a.date));
+    const act=fut.length?fut:pas;
+    if(act.length){for(const {date,name,lender,amt} of act.slice(0,1)){
+      const days=daysUntil(date),ls=lender?` (${lender}${amt?' — '+fmtMoney(amt):''})`:'',ds=fmtDate(date);let s=0,lbl='';
+      if(days<0){const dp=Math.abs(days);if(dp<=180){s=90;lbl=`${name}${ls} matured ${Math.round(dp)} days ago — ${ds}`;}else if(dp<=365){s=70;lbl=`${name}${ls} matured ${Math.round(dp/30)} months ago — ${ds}`;}else{s=30;lbl=`${name}${ls} matured >1yr ago — ${ds}`;}}
+      else if(days<=90){s=95;lbl=`${name}${ls} matures in ${Math.round(days)} days — ${ds}`;}
+      else if(days<=180){s=85;lbl=`${name}${ls} matures in ${Math.round(days/30)} months — ${ds}`;}
+      else if(days<=365){s=70;lbl=`${name}${ls} matures within 1 year — ${ds}`;}
+      else if(days<=730){s=45;lbl=`${name}${ls} matures in ~${Math.round(days/365)} yrs — ${ds}`;}
+      else if(days<=1095){s=20;lbl=`${name}${ls} matures in ~${Math.round(days/365)} yrs — ${ds}`;}
+      if(s>0)catScores.loanMaturity=s;if(lbl)details.push({cat:'Loan Maturity',label:lbl});
+    }}
+  }
+  // DISTRESS
+  let dSignals=[];
+  const prefoActive=p.preforeclosure_active_flag===true||p.preforeclosure_active_flag==='true'||p.preforeclosure_active_flag==='True';
+  if(prefoActive){const rd=fmtDate(p.preforeclosure_recording_date),pl=p.preforeclosure_plaintiff_1?` — Filed by: ${p.preforeclosure_plaintiff_1}`:'';const dt=p.preforeclosure_doc_type?` (${p.preforeclosure_doc_type})`:'',dc=p.preforeclosure_deed_category?` — ${p.preforeclosure_deed_category}`:'';dSignals.push({s:100,label:`${IC.alert}Active preforeclosure${dt}${dc}${rd?', recorded '+rd:''}${pl}`});}
+  const auction=parseD(p.preforeclosure_auction_date);
+  if(auction){const d=daysUntil(auction);const tm=p.preforeclosure_auction_time?` at ${p.preforeclosure_auction_time}`:'';const loc=p.preforeclosure_street_address_of_auction_call?` — ${p.preforeclosure_street_address_of_auction_call}`:'';const tr=p.preforeclosure_trustee_name?` — Trustee: ${p.preforeclosure_trustee_name}`:'';if(d>0&&d<180)dSignals.push({s:90,label:`Foreclosure auction in ${Math.round(d)} days (${fmtDate(auction)}${tm})${loc}${tr}`});else if(d>0)dSignals.push({s:50,label:`Foreclosure auction scheduled: ${fmtDate(auction)}${tm}${loc}`});else dSignals.push({s:60,label:`Foreclosure auction date passed (${fmtDate(auction)})${tr}`});}
+  if(p.preforeclosure_final_judgement_amount&&parseFloat(p.preforeclosure_final_judgement_amount)>0)dSignals.push({s:70,label:`Final judgement: ${fmtMoney(p.preforeclosure_final_judgement_amount)}${p.preforeclosure_plaintiff_1?' — Plaintiff: '+p.preforeclosure_plaintiff_1:''}`});
+  if(p.preforeclosure_recording_date&&!prefoActive&&!auction&&!(parseFloat(p.preforeclosure_final_judgement_amount)>0))dSignals.push({s:40,label:`Preforeclosure filing on record${p.preforeclosure_doc_type?' ('+p.preforeclosure_doc_type+')':''} — ${fmtDate(p.preforeclosure_recording_date)}`});
+  if(t){
+    const delinq=(t.delinquency_status||'').toLowerCase(),watchlist=(t.watchlist_status||'').toLowerCase(),specServ=(t.spec_serv_status||'').toLowerCase();
+    const dscr=parseFloat(t.dscr_noi)||null,ltv=parseFloat(t.ltv)||null,modLoan=(t.modified_loan||'').toLowerCase();
+    const timesDelinq=parseFloat(t.num_times_known_delinquent_last_12_months)||0;
+    const reoDate=t.reo_date&&t.reo_date!=='-',bankrupt=t.bankruptcy_date&&t.bankruptcy_date!=='-';
+    if(specServ==='yes'){const reason=t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?` — Reason: ${t.special_servicer_transfer_reason}`:'';const ss=t.special_servicer&&t.special_servicer!=='-'?` (${t.special_servicer})`:'';dSignals.push({s:100,label:`${IC.trepp}Trepp: ${IC.alert}In special servicing${ss}${reason}`,trepp:true});}
+    if(reoDate)dSignals.push({s:100,label:`${IC.trepp}Trepp: REO — became real estate owned ${fmtDate(t.reo_date)}`,trepp:true});
+    if(bankrupt)dSignals.push({s:95,label:`${IC.trepp}Trepp: Bankruptcy filed ${fmtDate(t.bankruptcy_date)}`,trepp:true});
+    if(delinq&&delinq!=='current'&&delinq!=='-')dSignals.push({s:90,label:`${IC.trepp}Trepp: Loan delinquent — status: ${t.delinquency_status}`,trepp:true});
+    if(timesDelinq>0)dSignals.push({s:Math.min(75,50+timesDelinq*10),label:`${IC.trepp}Trepp: Delinquent ${timesDelinq}x in last 12 months`,trepp:true});
+    if(watchlist==='yes'){const wd=t.watchlist_date&&t.watchlist_date!=='-'?` since ${fmtDate(t.watchlist_date)}`:'';dSignals.push({s:65,label:`${IC.trepp}Trepp: On watchlist${wd}`,trepp:true});}
+    if(dscr!==null&&dscr>0){if(dscr<1.0)dSignals.push({s:80,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — loan not covering debt service`,trepp:true});else if(dscr<1.25)dSignals.push({s:50,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — stressed (below 1.25)`,trepp:true});else dSignals.push({s:0,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — healthy`,trepp:true});}
+    if(ltv!==null&&ltv>0){if(ltv>90)dSignals.push({s:60,label:`${IC.trepp}Trepp: LTV ${ltv.toFixed(1)}% — critically overleveraged`,trepp:true});else if(ltv>80)dSignals.push({s:35,label:`${IC.trepp}Trepp: LTV ${ltv.toFixed(1)}% — overleveraged`,trepp:true});else dSignals.push({s:0,label:`${IC.trepp}Trepp: LTV ${ltv.toFixed(1)}%`,trepp:true});}
+    if(modLoan==='yes'){const mt=t.modification_type_servicer&&t.modification_type_servicer!=='-'?` (${t.modification_type_servicer})`:'';dSignals.push({s:40,label:`${IC.trepp}Trepp: Loan has been modified${mt}`,trepp:true});}
+    if(periodsPast>0&&!effectiveMat)dSignals.push({s:85,label:`${IC.trepp}Trepp: ${Math.round(periodsPast)} period${periodsPast!==1?'s':''} past maturity`,trepp:true});
+    if(dSignals.length===0)dSignals.push({s:0,label:`${IC.trepp}Trepp: Loan current — no distress signals`,trepp:true});
+  } else if(dSignals.length===0){dSignals.push({s:0,label:'No distress signals on record (no Trepp data)'});}
+  const maxDist=Math.max(...dSignals.map(d=>d.s));
+  dSignals.forEach(d=>details.push({cat:'Distress',label:d.label,trepp:!!d.trepp}));
+  if(maxDist>0)catScores.distress=maxDist;
+  // MARKET
+  let mSignals=[];
+  const occ=t?parseFloat(t.occupancy_pct)||null:null;const vacancy=parseFloat(p.vacancy)||null;
+  if(occ!==null&&!isNaN(occ)){const vEq=100-occ;if(vEq>20)mSignals.push({s:75,label:`${IC.trepp}Trepp: Occupancy ${occ.toFixed(1)}% — high vacancy (${vEq.toFixed(1)}%)`,trepp:true});else if(vEq>10)mSignals.push({s:45,label:`${IC.trepp}Trepp: Occupancy ${occ.toFixed(1)}% — elevated vacancy`,trepp:true});else mSignals.push({s:0,label:`${IC.trepp}Trepp: Occupancy ${occ.toFixed(1)}% — healthy`,trepp:true});}
+  else if(vacancy!==null&&!isNaN(vacancy)){if(vacancy>20)mSignals.push({s:75,label:`CoStar vacancy: ${vacancy.toFixed(1)}% — high`});else if(vacancy>10)mSignals.push({s:45,label:`CoStar vacancy: ${vacancy.toFixed(1)}% — elevated`});else mSignals.push({s:0,label:`CoStar vacancy: ${vacancy.toFixed(1)}% — healthy`});}
+  const capRate=t?parseFloat(t.most_recent_implied_cap_rate_noi)||null:parseFloat(p.actual_cap_rate)||null;
+  if(capRate!==null&&!isNaN(capRate)&&capRate>0){const src=t?IC.trepp+'Trepp':'CoStar';if(capRate<4.5)mSignals.push({s:35,label:`${src}: Cap rate ${capRate.toFixed(2)}% — compressed`,trepp:!!t});else mSignals.push({s:0,label:`${src}: Cap rate ${capRate.toFixed(2)}%`,trepp:!!t});}
+  if(t&&t.debt_yield_noi){const dy=parseFloat(t.debt_yield_noi);if(!isNaN(dy)&&dy>0){if(dy<6)mSignals.push({s:40,label:`${IC.trepp}Trepp: Debt yield ${dy.toFixed(2)}% — compressed`,trepp:true});else mSignals.push({s:0,label:`${IC.trepp}Trepp: Debt yield ${dy.toFixed(2)}%`,trepp:true});}}
+  const yrB=parseFloat(p.year_built||t?.year_built);
+  if(!isNaN(yrB)){const age=new Date().getFullYear()-Math.round(yrB);const lastReno=parseFloat(p.year_renovated||t?.renovation_year);const yearsAgoReno=!isNaN(lastReno)?new Date().getFullYear()-Math.round(lastReno):null;const noRecentReno=yearsAgoReno===null||yearsAgoReno>10;if(age>60&&noRecentReno)mSignals.push({s:30,label:`Aging building: built ${Math.round(yrB)} (${age} yrs), no renovation in last 10 yrs`});else if(!isNaN(lastReno))mSignals.push({s:0,label:`Built ${Math.round(yrB)}, renovated ${Math.round(lastReno)}`});}
+  const maxMkt=Math.max(...mSignals.map(m=>m.s),0);
+  mSignals.forEach(m=>details.push({cat:'Market',label:m.label,trepp:!!m.trepp}));
+  if(maxMkt>0)catScores.marketSignals=maxMkt;
+  const sources=[];if(p._hasCostar)sources.push(`CoStar (${p._matchMethod})`);if(t)sources.push('Trepp');
+  details.push({cat:'Market',label:sources.length?`Data sources: ${sources.join(', ')}`:'Data source: Reonomy only'});
+  // WEIGHTED FINAL — pressure-gated
+  const w=getWeights();
+  const weightMap={holdPeriod:w.holdPeriod,loanMaturity:w.loanMaturity,distress:w.distress,marketSignals:w.marketSignals};
+  const distressScore=catScores.distress??0,maturityScore=catScores.loanMaturity??0,holdScore=catScores.holdPeriod??0,marketScore=catScores.marketSignals??0;
+  const tCritical=t&&((t.spec_serv_status||'').toLowerCase()==='yes'||(t.reo_date&&t.reo_date!=='-')||(t.bankruptcy_date&&t.bankruptcy_date!=='-')||((t.delinquency_status||'').toLowerCase()!=='current'&&(t.delinquency_status||'').toLowerCase()!=='-'&&t.delinquency_status));
+  const pressureExists=distressScore>0||maturityScore>0||tCritical;
+  let finalScore,scoringMode;
+  if(pressureExists){let weightedSum=0,wAvailable=0;for(const [cat,score] of Object.entries(catScores)){weightedSum+=score*weightMap[cat];wAvailable+=weightMap[cat];}finalScore=wAvailable>0?Math.round(weightedSum/wAvailable):0;scoringMode='pressure';}
+  else{const holdContrib=Math.min(holdScore*0.40,40);const marketContrib=Math.min(marketScore*0.09,9);finalScore=Math.round(holdContrib+marketContrib);scoringMode='no-pressure';}
+  const tier=finalScore>=70?'hot':finalScore>=50?'warm':finalScore>=30?'watch':'cold';
+  const cats={holdPeriod:holdScore,loanMaturity:maturityScore,distress:distressScore,marketSignals:marketScore};
+  if(scoringMode==='no-pressure')details.push({cat:'Score',label:'No active pressure signals — score capped at Watch (max 49). Hold period and market signals shown for context only.'});
+  else{const missing=4-Object.keys(catScores).length;if(missing>0)details.push({cat:'Score',label:`Score renormalized — ${Object.keys(catScores).length} of 4 categories have data`});if(tCritical&&!catScores.loanMaturity&&!catScores.holdPeriod)details.push({cat:'Score',label:`${IC.trepp}Trepp critical flag present — pressure gate bypassed, full distress scoring applied`});}
+  return {score:finalScore,tier,details,cats};
+}
+</script>
+</body>
+</html>
+<script>
+// ─── DATA LOADING (local JSON files) ───
+async function loadData(){
+  setLoading(true);
+  document.getElementById('loadingList').style.display='block';
+  const [props,trepps,costarArr]=await Promise.all([
+    fetch('data_reonomy.json').then(r=>r.json()),
+    fetch('data_trepp.json').then(r=>r.json()),
+    fetch('data_costar.json').then(r=>r.json()),
+  ]);
+  // Trepp address index
+  const treppByAddr={};
+  (trepps||[]).forEach(t=>{
+    const fullAddr=normalizeAddr((t.address||'')+(t.city?' '+t.city:''));if(fullAddr)treppByAddr[fullAddr]=t;
+    const addrOnly=normalizeAddr(t.address||'');if(addrOnly&&!treppByAddr[addrOnly])treppByAddr[addrOnly]=t;
+    const nameKey=normalizeAddr(t.property_name||'');if(nameKey&&!treppByAddr[nameKey])treppByAddr[nameKey]=t;
+  });
+  // CoStar indexes
+  const costarByAddr={},costarByCoord={};
+  (costarArr||[]).forEach(c=>{
+    const ak=normalizeAddr(c.property_address||'');if(ak)costarByAddr[ak]=c;
+    const lat=parseFloat(c.latitude),lng=parseFloat(c.longitude);
+    if(!isNaN(lat)&&!isNaN(lng)){const bucket=`${Math.round(lat*1000)}_${Math.round(lng*1000)}`;if(!costarByCoord[bucket])costarByCoord[bucket]=[];costarByCoord[bucket].push({...c,_lat:lat,_lng:lng});}
+  });
+  let teppMatchCount=0,costarMatchCount=0;const usedTreppIds=new Set();
+  allData=(props||[]).map(p=>{
+    const pak=normalizeAddr((p.address_line_1||'')+(p.address_city?' '+p.address_city:''));
+    const pak2=normalizeAddr(p.address_line_1||'');
+    const tMatch=treppByAddr[pak]||treppByAddr[pak2]||null;
+    if(tMatch){teppMatchCount++;usedTreppIds.add(tMatch.id);}
+    const cak=normalizeAddr(p.address_line_1||'');
+    let cMatch=costarByAddr[cak]||null,cMethod=cMatch?'addr':null;
+    if(!cMatch){const pLat=parseFloat(p.latitude),pLng=parseFloat(p.longitude);if(!isNaN(pLat)&&!isNaN(pLng)){const bLat=Math.round(pLat*1000),bLng=Math.round(pLng*1000);let bestDist=Infinity;for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++){const bucket=`${bLat+dl}_${bLng+dg}`;for(const c of costarByCoord[bucket]||[]){const dist=haversineMeters(pLat,pLng,c._lat,c._lng);if(dist<20&&dist<bestDist){bestDist=dist;cMatch=c;cMethod=`coord(${Math.round(dist)}m)`;}}}}}
+    if(cMatch)costarMatchCount++;
+    const merged={...p,sale_amount:cMatch?.sale_price||p.sale_amount,sale_recorded_date:cMatch?.sale_date||p.sale_recorded_date,sales_price_per_sf:cMatch?.price_per_sf||p.sales_price_per_sf,price_per_unit:cMatch?.price_per_unit||p.price_per_unit,vacancy:cMatch?.vacancy||p.vacancy,actual_cap_rate:cMatch?.actual_cap_rate||p.actual_cap_rate,building_class:cMatch?.building_class,submarket_name:cMatch?.submarket_name,buyer_true_company:cMatch?.buyer_true_company,seller_true_company:cMatch?.seller_true_company,_reonomy_sale_amount:p.sale_amount,_hasCostar:!!cMatch,_matchMethod:cMethod,_costar:cMatch||null,_trepp:tMatch||null,_source:tMatch?'both':'reonomy'};
+    const {score,tier,details,cats}=scoreProperty(merged);
+    return {...merged,_score:score,_tier:tier,_details:details,_cats:cats};
+  });
+  const treppOnly=(trepps||[]).filter(t=>!usedTreppIds.has(t.id));
+  treppOnly.forEach(t=>{
+    const pseudo={id:`trepp_${t.id}`,address_line_1:t.address||t.property_name,address_city:t.city,address_state:t.state,address_full:[t.address||t.property_name,t.city,t.state].filter(Boolean).join(', '),property_type:t.normalized_property_type||t.property_type,property_subtype:t.trepp_subtype,year_built:t.year_built,total_units:t.number_of_units,latitude:t.latitude?parseFloat(t.latitude):null,longitude:t.longitude?parseFloat(t.longitude):null,_trepp:t,_hasCostar:false,_costar:null,_source:'trepp',_matchMethod:null};
+    const {score,tier,details,cats}=scoreProperty(pseudo);
+    allData.push({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats});
+  });
+  const total=allData.length;
+  document.getElementById('totalBadge').textContent=total.toLocaleString();
+  document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp matches · ${costarMatchCount} CoStar matches · ${treppOnly.length} Trepp-only`;
+  setLoading(false);
+  document.getElementById('loadingList').style.display='none';
+  initMap();
+  applyFilters();
+  // geocodeTreppOnly();  // disabled — coordinates now baked into data_trepp.json
+}
+async function geocodeTreppOnly(){
+  const ungeocoded=allData.filter(p=>p._source==='trepp'&&!p.latitude);
+  if(!ungeocoded.length)return;
+  document.getElementById('geocodeStatus').textContent=`Geocoding ${ungeocoded.length} remaining addresses...`;
+  document.getElementById('geocodeStatus').style.display='inline';
+  let done=0;
+  for(const p of ungeocoded){
+    const addr=[p.address_line_1,p.address_city,p.address_state].filter(Boolean).join(', ');
+    try{const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=us`;const res=await fetch(url,{headers:{'Accept-Language':'en'}});const data=await res.json();if(data&&data.length){p.latitude=parseFloat(data[0].lat);p.longitude=parseFloat(data[0].lon);}}catch(e){}
+    done++;document.getElementById('geocodeStatus').textContent=`Geocoding... ${done}/${ungeocoded.length}`;
+    if(done%5===0)renderMap();
+    await new Promise(r=>setTimeout(r,1100));
+  }
+  document.getElementById('geocodeStatus').style.display='none';renderMap();
+}
+// ─── FILTERING & SORTING ───
+function applyFilters(){
+  let data=[...allData];
+  if(searchQ){const q=searchQ.toLowerCase();data=data.filter(p=>(p.address_line_1||p.address||'').toLowerCase().includes(q)||(p.address_city||p.city||'').toLowerCase().includes(q)||(p.reported_owner_name||'').toLowerCase().includes(q)||(p._trepp?.property_name||'').toLowerCase().includes(q)||(p._trepp?.loan_name||'').toLowerCase().includes(q)||(p._trepp?.originator||'').toLowerCase().includes(q)||(p._trepp?.trepp_submarket||'').toLowerCase().includes(q)||(p.submarket_name||'').toLowerCase().includes(q));}
+  if(activeTier!=='all')data=data.filter(p=>p._tier===activeTier);
+  if(activeSrc==='trepp')data=data.filter(p=>p._trepp);else if(activeSrc==='trepp-only')data=data.filter(p=>p._source==='trepp');
+  const loanSrc=document.getElementById('loanSrcSelect')?.value||'all';
+  if(loanSrc!=='all')data=data.filter(p=>p._trepp&&(p._trepp.source||'').includes(loanSrc));
+  const sort=document.getElementById('sortSelect').value;
+  if(sort==='score')data.sort((a,b)=>b._score-a._score);
+  else if(sort==='maturity'){const getBest=p=>{const STALE=-365*24*3600*1000,now=new Date();const tm=p._trepp?parseD(p._trepp.maturity_date):null;const m1=parseD(p.mortgage_maturity_date),m2=parseD(p.mortgage2_maturity_date);const candidates=[tm,m1,m2].filter(d=>d&&(d-now)>STALE);if(!candidates.length)return null;const fut=candidates.filter(d=>d>now);return fut.length?fut.reduce((a,b)=>a<b?a:b):candidates.reduce((a,b)=>a>b?a:b);};data.sort((a,b)=>{const da=getBest(a),db=getBest(b);if(!da&&!db)return 0;if(!da)return 1;if(!db)return -1;return da-db;});}
+  else if(sort==='hold')data.sort((a,b)=>{const ya=yearsSince(parseD(a.sale_recorded_date||a.sale_date))||0;const yb=yearsSince(parseD(b.sale_recorded_date||b.sale_date))||0;return yb-ya;});
+  else if(sort==='sale_amount')data.sort((a,b)=>(parseFloat(b.sale_amount)||0)-(parseFloat(a.sale_amount)||0));
+  else if(sort==='balance')data.sort((a,b)=>{const ba=parseFloat(a._trepp?.current_balance)||0;const bb=parseFloat(b._trepp?.current_balance)||0;return bb-ba;});
+  filtered=data;renderList();renderMap();
+  document.getElementById('tbCount').textContent=`Showing ${filtered.length.toLocaleString()} of ${allData.length.toLocaleString()}`;
+}
+document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value;applyFilters();});
+function setTier(t){activeTier=t;document.querySelectorAll('.tier-btn').forEach(b=>b.classList.toggle('active',b.dataset.tier===t));applyFilters();}
+function setSrc(s){activeSrc=s;document.querySelectorAll('.src-btn').forEach(b=>b.classList.toggle('active',b.dataset.src===s));applyFilters();}
+// ─── LIST RENDER ───
+function renderList(){
+  const panel=document.getElementById('listPanel');
+  if(!filtered.length){panel.innerHTML=`<div class="empty-state">${IC.building}<div>No properties match your filters</div></div>`;return;}
+  panel.innerHTML=filtered.map(p=>propCard(p)).join('');
+}
+function propCard(p){
+  const addr=p.address_line_1||p.address||p._trepp?.address||p._trepp?.property_name||'Unknown Address';
+  const city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(', ');
+  const subtype=p.property_subtype||p._trepp?.trepp_subtype||'';
+  const units=p.total_units||p._trepp?.number_of_units||null;
+  const srcLabel=p._source==='trepp'?'Trepp only':p._trepp?'Reonomy + Trepp':'Reonomy';
+  const srcCls=p._source==='trepp'?'trepp':p._trepp?'both':'reonomy';
+  const chips=buildChips(p);
+  return `<div class="prop-card${p.id===selectedId?' selected':''}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span></div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
+}
+function buildChips(p){
+  const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
+  if(t){if((t.spec_serv_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Special Servicer'});if((t.reo_date||'')!=='-'&&t.reo_date)chips.push({cls:'trepp-distress',label:'REO'});const delinq=(t.delinquency_status||'').toLowerCase();if(delinq&&delinq!=='current'&&delinq!=='-')chips.push({cls:'trepp-distress',label:`${t.delinquency_status}`});if((t.watchlist_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Watchlist'});const dscr=parseFloat(t.dscr_noi);if(!isNaN(dscr)&&dscr>0&&dscr<1.25)chips.push({cls:'trepp-distress',label:`DSCR ${dscr.toFixed(2)}`});}
+  if(p.preforeclosure_active_flag===true||p.preforeclosure_active_flag==='true'||p.preforeclosure_active_flag==='True')chips.push({cls:'distress',label:'Preforeclosure'});
+  const matCandidates=[t?parseD(t.maturity_date):null,parseD(p.mortgage_maturity_date),parseD(p.mortgage2_maturity_date)].filter(d=>d&&(d-now)>STALE);
+  const futureMats=matCandidates.filter(d=>d>now);
+  const bestMat=futureMats.length?futureMats.reduce((a,b)=>a<b?a:b):matCandidates.reduce((a,b)=>a>b?a:b,null);
+  if(bestMat){const d=daysUntil(bestMat);const src=t&&parseD(t.maturity_date)&&parseD(t.maturity_date).getTime()===bestMat.getTime()?'⬡ ':'';chips.push({cls:'maturity',label:`${src}Mat. ${fmtDate(bestMat)}${d<0?' (past)':''}`});}
+  const sd1=parseD(p.sale_recorded_date||p.sale_date),sd2=parseD(p.sale2_recorded_date);const sd=(sd1&&sd2)?(sd1>sd2?sd1:sd2):(sd1||sd2);
+  if(sd)chips.push({cls:'hold',label:`${Math.round(yearsSince(sd)*10)/10} yr hold`});
+  const occ=t?parseFloat(t.occupancy_pct):null;
+  if(occ!==null&&!isNaN(occ)&&(100-occ)>10)chips.push({cls:'market',label:`${occ.toFixed(0)}% occ.`});
+  else if(p.vacancy&&parseFloat(p.vacancy)>10)chips.push({cls:'market',label:`${parseFloat(p.vacancy).toFixed(0)}% vacant`});
+  return chips.slice(0,5);
+}
+</script>
+</body>
+</html>
+<script>
+// ─── MAP (Hampton Roads, no boundary) ───
+function initMap(){
+  if(map)return;
+  map=L.map('map',{center:[36.85,-76.28],zoom:10,zoomControl:false});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CARTO',maxZoom:19}).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  markersLayer=L.layerGroup().addTo(map);
+  L.DomEvent.disableScrollPropagation(document.getElementById('detailDrawer'));
+}
+function renderMap(){
+  if(!map)return;
+  markersLayer.clearLayers();
+  filtered.forEach(p=>{
+    const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);
+    if(isNaN(lat)||isNaN(lng))return;
+    const sel=p.id===selectedId;const sz=sel?14:9;
+    const tierColor={hot:'#d93025',warm:'#fa7b17',watch:'#f29900',cold:'#188038'}[p._tier];
+    const icon=L.divIcon({className:'',html:`<div class="map-dot${sel?' selected':''}" style="width:${sz}px;height:${sz}px;background:${tierColor};border-color:rgba(255,255,255,.8)"></div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+    const addr=p.address_line_1||p.address||p._trepp?.address||p._trepp?.property_name||'';
+    const m=L.marker([lat,lng],{icon});
+    const srcTag=p._trepp?'⬡ Trepp':'';
+    m.bindTooltip(`<b>${addr}</b><br>Score: ${p._score} · ${p._tier}${srcTag?' · '+srcTag:''}`,{direction:'top',offset:[0,-4]});
+    m.on('click',()=>selectProperty(p.id,true));
+    markersLayer.addLayer(m);
+  });
+}
+// ─── DETAIL DRAWER ───
+function selectProperty(id,fromMap=false){
+  selectedId=id;
+  const p=allData.find(x=>String(x.id)===String(id));
+  if(!p)return;
+  renderList();renderMap();
+  const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);
+  const hasCoords=!isNaN(lat)&&!isNaN(lng);
+  if(fromMap&&hasCoords){map.flyTo([lat,lng],16,{animate:true,duration:0.7});setTimeout(()=>openDrawer(p),750);}
+  else{if(hasCoords)map.panTo([lat,lng],{animate:true,duration:0.3});openDrawer(p);}
+}
+function openDrawer(p){
+  const addr=p.address_line_1||p.address||p._trepp?.address||p._trepp?.property_name||'Unknown';
+  const city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(', ');
+  const tierLabel={hot:'Hot',warm:'Warm',watch:'Watch',cold:'Cold'}[p._tier];
+  const catLabels={holdPeriod:'Hold',loanMaturity:'Maturity',distress:'Distress',marketSignals:'Market'};
+  const catBars=Object.entries(p._cats).map(([k,v])=>`<div class="sb-row"><span class="sb-cat">${catLabels[k]||k}</span><div class="sb-bar-wrap"><div class="sb-bar ${k==='holdPeriod'?'hold':k==='loanMaturity'?'maturity':k==='distress'?'distress':'market'}" style="width:${v}%"></div></div><span class="sb-score">${v}</span></div>`).join('');
+  const reasonsList=p._details.length?`<ul class="sb-reasons">${p._details.map(d=>`<li class="${d.trepp?'trepp-signal':''}">${d.label}</li>`).join('')}</ul>`:'<p style="font-size:12px;color:var(--text2)">No specific signals detected</p>';
+  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${addr}</div><div class="dd-sub">${city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div></div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body"><div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div><div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
+  document.getElementById('detailDrawer').classList.add('open');
+  document.getElementById('backdrop').classList.add('show');
+}
+function buildDetailGrid(p){
+  const t=p._trepp,c=p._costar;const now=new Date(),STALE=-365*24*3600*1000;
+  const mat1=parseD(p.mortgage_maturity_date),mat2=parseD(p.mortgage2_maturity_date);
+  const mat1V=mat1&&(mat1-now)>STALE,mat2V=mat2&&(mat2-now)>STALE;
+  const sec=(title,cls,rows)=>{const f=rows.filter(r=>r&&r[1]!=null&&r[1]!==''&&r[1]!==undefined);if(!f.length)return '';return `<div class="dg-section-head ${cls}">${title}</div>`+f.map(([lbl,val,full,valCls])=>`<div class="dg-item${full?' full':''}"><div class="dg-label">${lbl}</div><div class="dg-val${valCls?' '+valCls:''}">${val}</div></div>`).join('');};
+  const dscr=t?parseFloat(t.dscr_noi):null,ltv=t?parseFloat(t.ltv):null;
+  const dscrCls=dscr?dscr<1.0?'warn':dscr<1.25?'caution':'ok':null;const ltvCls=ltv?ltv>90?'warn':ltv>80?'caution':'ok':null;
+  const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
+  sec('Sale Data','sale',[['Sale Price',fmtMoney(p.sale_amount)],['Sale Date',fmtDate(p.sale_recorded_date)],['Price/SF',p.sales_price_per_sf?`$${parseFloat(p.sales_price_per_sf).toFixed(2)}`:null],['Price/Unit',fmtMoney(p.price_per_unit)],['Source',p._hasCostar?`CoStar (${p._matchMethod})`:'Reonomy'],p._hasCostar?['Prior Sale (Reo)',fmtMoney(p._reonomy_sale_amount)]:null])+
+  (t?sec('Trepp Loan Data','trepp',[['Property Name',t.property_name,true],['Loan Name',t.loan_name,true],['Source',t.source],['Originator',t.originator],['Origination Date',fmtDate(t.origination_date)],['Current Balance',fmtMoney(t.current_balance)],['Original Balance',fmtMoney(t.original_balance)],['Loan Rate',t.loan_rate?t.loan_rate+'%':null],['Rate Type',t.rate_type],['Amortization',t.amortization_type],['Loan Purpose',t.loan_purpose],['Maturity Date',fmtDate(t.maturity_date)],['UW Maturity',fmtDate(t.uw_maturity_date)],['Remaining Term',t.remaining_term?t.remaining_term+' months':null],['Periods Past Mat.',t.periods_past_maturity>0?t.periods_past_maturity:null],['DSCR (NOI)',dscr?dscr.toFixed(2):null,false,dscrCls],['DSCR (NCF)',t.dscr_ncf?parseFloat(t.dscr_ncf).toFixed(2):null],['LTV',ltv?ltv.toFixed(1)+'%':null,false,ltvCls],['Debt Yield (NOI)',t.debt_yield_noi?parseFloat(t.debt_yield_noi).toFixed(2)+'%':null],['Occupancy',t.occupancy_pct?parseFloat(t.occupancy_pct).toFixed(1)+'%':null],['Delinquency',t.delinquency_status&&t.delinquency_status!=='-'?t.delinquency_status:null,false,t?.delinquency_status&&t.delinquency_status.toLowerCase()!=='current'?'warn':null],['Watchlist',t.watchlist_status&&t.watchlist_status!=='-'?t.watchlist_status:null,false,t?.watchlist_status?.toLowerCase()==='yes'?'caution':null],['Special Servicer',t.spec_serv_status&&t.spec_serv_status!=='-'?t.spec_serv_status:null,false,t?.spec_serv_status?.toLowerCase()==='yes'?'warn':null],['Spec. Serv. Name',t.special_servicer&&t.special_servicer!=='-'?t.special_servicer:null,true],['Transfer Reason',t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?t.special_servicer_transfer_reason:null,true],['Modified',t.modified_loan&&t.modified_loan!=='-'?t.modified_loan:null],['Mod. Type',t.modification_type_servicer&&t.modification_type_servicer!=='-'?t.modification_type_servicer:null,true],['Extension Type',t.extension_type&&t.extension_type!=='-'?t.extension_type:null],['Rem. Extension Periods',t.remaining_extension_option_periods>0?t.remaining_extension_option_periods:null],['NOI',fmtMoney(t.noi)],['NCF',fmtMoney(t.ncf)],['Revenues',fmtMoney(t.revenues)],['Property Appraisal',fmtMoney(t.property_appraisal_value)],['Owner 1',t.owner_1_name&&t.owner_1_name!=='-'?t.owner_1_name:null,true],['Owner 1 Phone',t.owner_1_phone&&t.owner_1_phone!=='-'?t.owner_1_phone:null],['Owner 1 Email',t.owner_1_email&&t.owner_1_email!=='-'?t.owner_1_email:null,true],['Bankruptcy Date',t.bankruptcy_date&&t.bankruptcy_date!=='-'?fmtDate(t.bankruptcy_date):null,false,'warn'],['REO Date',t.reo_date&&t.reo_date!=='-'?fmtDate(t.reo_date):null,false,'warn']]):'<div style="padding:10px 0;font-size:12px;color:var(--text2)">⬡ No Trepp loan data matched for this property</div>')+
+  (mat1V||mat2V?sec('Reonomy Mortgage','mortgage',[mat1V?['Lender',p.mortgage_standardized_name||p.mortgage_recorded_name,true]:null,mat1V?['Amount',fmtMoney(p.mortgage_amount)]:null,mat1V?['Maturity',fmtDate(p.mortgage_maturity_date)]:null,mat2V?['Lender 2',p.mortgage2_standardized_name||p.mortgage2_recorded_name,true]:null,mat2V?['Amount 2',fmtMoney(p.mortgage2_amount)]:null,mat2V?['Maturity 2',fmtDate(p.mortgage2_maturity_date)]:null]):'')+
+  (c?sec('CoStar Market Data','costar',[['County',c.property_county],['Submarket',c.submarket_name],['Building Class',c.building_class],['Vacancy',c.vacancy?parseFloat(c.vacancy).toFixed(1)+'%':null],['Cap Rate',c.actual_cap_rate?parseFloat(c.actual_cap_rate).toFixed(2)+'%':null],['Buyer',c.buyer_true_company,true],['Seller',c.seller_true_company,true],['Match',p._matchMethod]]):'');
+  return `<div class="detail-grid">${grid}</div>`;
+}
+function buildContacts(p){
+  const cs=[{name:p.contact_name,co:p.contact_company_name,title:p.contact_title,phone:p.contact_phone_1,email:p.contact_email_1},{name:p.contact_2_name,co:p.contact_2_company_name,title:p.contact_2_title,phone:p.contact_2_phone_1,email:p.contact_2_email_1},{name:p.contact_3_name,co:p.contact_3_company_name,title:p.contact_3_title,phone:p.contact_3_phone_1,email:p.contact_3_email_1}];
+  const html=cs.filter(c=>c.name).map(c=>`<div class="contact-card"><div class="cc-name">${c.name}</div>${c.title?`<div class="cc-title">${c.title}</div>`:''}${c.co?`<div class="cc-title" style="color:var(--text)">${c.co}</div>`:''}<div class="cc-contact">${c.phone?`<span style="display:flex;align-items:center">${IC.phone}${c.phone}</span>`:''}${c.email?`<span style="display:flex;align-items:center">${IC.email}${c.email}</span>`:''}</div></div>`).join('');
+  if(!html&&p._trepp?.owner_1_name&&p._trepp.owner_1_name!=='-'){const t=p._trepp;return `<div class="contact-card"><div class="cc-name">${t.owner_1_name}</div><div class="cc-title" style="color:var(--text2)">⬡ Trepp Owner</div><div class="cc-contact">${t.owner_1_phone&&t.owner_1_phone!=='-'?`<span style="display:flex;align-items:center">${IC.phone}${t.owner_1_phone}</span>`:''}${t.owner_1_email&&t.owner_1_email!=='-'?`<span style="display:flex;align-items:center">${IC.email}${t.owner_1_email}</span>`:''}</div></div>`;}
+  return html;
+}
+function closeDrawer(){selectedId=null;document.getElementById('detailDrawer').classList.remove('open');document.getElementById('backdrop').classList.remove('show');renderList();renderMap();}
+// ─── WEIGHTS ───
+function toggleWeights(){const p=document.getElementById('weightsPanel'),b=document.getElementById('weightsToggleBtn');if(p.classList.contains('open')){p.classList.remove('open');b.classList.remove('active');}else{p.classList.add('open');b.classList.add('active');}}
+function toggleHP(btn){btn.classList.toggle('active');}
+function addCustomHP(){const inp=document.getElementById('customHP');const yr=parseFloat(inp.value);if(isNaN(yr)||yr<1||yr>50)return;const container=document.getElementById('holdChips');if(container.querySelector(`[data-yr="${yr}"]`))return;const chip=document.createElement('button');chip.className='hp-chip active';chip.dataset.yr=yr;chip.textContent=`${yr}yr`;chip.onclick=()=>toggleHP(chip);container.appendChild(chip);inp.value='';}
+function recalculate(){holdPeriods=Array.from(document.querySelectorAll('.hp-chip.active')).map(c=>parseFloat(c.dataset.yr));allData=allData.map(p=>{const {score,tier,details,cats}=scoreProperty(p);return {...p,_score:score,_tier:tier,_details:details,_cats:cats};});applyFilters();toggleWeights();}
+function setLoading(v){document.getElementById('loadingSpinner').style.display=v?'block':'none';}
+// ─── INIT ───
+loadData();
+</script>
+</body>
+</html>
