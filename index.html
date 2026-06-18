@@ -188,6 +188,8 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 /* SF flag on list cards */
 .pc-sf-flag{display:inline-flex;align-items:center;gap:3px;background:#00A1E0;color:#fff;font-size:9px;font-weight:700;letter-spacing:.03em;padding:1px 6px;border-radius:9px;text-transform:uppercase;}
 .pc-sf-flag svg{width:9px;height:9px}
+.sf-match-badge{display:inline-flex;align-items:center;gap:5px;background:#00A1E0;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;flex-shrink:0;}
+.sf-match-badge svg{width:12px;height:12px}
 </style>
 </head>
 <body>
@@ -245,6 +247,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
   </select>
   <span class="tb-count" id="tbCount"></span>
   <span class="tb-count" id="matchInfo" style="color:var(--text3)"></span>
+  <span id="sfMatchBadge" class="sf-match-badge" style="display:none"></span>
   <span id="geocodeStatus" style="display:none;font-size:11px;color:var(--purple);flex-shrink:0;"></span>
 </div>
 <div class="weights-panel" id="weightsPanel">
@@ -500,17 +503,20 @@ async function loadData(){
     if(cMatch)costarMatchCount++;
     const merged={...p,sale_amount:cMatch?.sale_price||p.sale_amount,sale_recorded_date:cMatch?.sale_date||p.sale_recorded_date,sales_price_per_sf:cMatch?.price_per_sf||p.sales_price_per_sf,price_per_unit:cMatch?.price_per_unit||p.price_per_unit,vacancy:cMatch?.vacancy||p.vacancy,actual_cap_rate:cMatch?.actual_cap_rate||p.actual_cap_rate,building_class:cMatch?.building_class,submarket_name:cMatch?.submarket_name,buyer_true_company:cMatch?.buyer_true_company,seller_true_company:cMatch?.seller_true_company,_reonomy_sale_amount:p.sale_amount,_hasCostar:!!cMatch,_matchMethod:cMethod,_costar:cMatch||null,_trepp:tMatch||null,_source:tMatch?'both':'reonomy'};
     const {score,tier,details,cats}=scoreProperty(merged);
-    return {...merged,_score:score,_tier:tier,_details:details,_cats:cats};
+    return decorateSF({...merged,_score:score,_tier:tier,_details:details,_cats:cats});
   });
   const treppOnly=(trepps||[]).filter(t=>!usedTreppIds.has(t.id));
   treppOnly.forEach(t=>{
     const pseudo={id:`trepp_${t.id}`,address_line_1:t.address||t.property_name,address_city:t.city,address_state:t.state,address_full:[t.address||t.property_name,t.city,t.state].filter(Boolean).join(', '),property_type:t.normalized_property_type||t.property_type,property_subtype:t.trepp_subtype,year_built:t.year_built,total_units:t.number_of_units,latitude:t.latitude?parseFloat(t.latitude):null,longitude:t.longitude?parseFloat(t.longitude):null,_trepp:t,_hasCostar:false,_costar:null,_source:'trepp',_matchMethod:null};
     const {score,tier,details,cats}=scoreProperty(pseudo);
-    allData.push({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats});
+    allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
   });
   const total=allData.length;
   document.getElementById('totalBadge').textContent=total.toLocaleString();
-  document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp matches · ${costarMatchCount} CoStar matches · ${treppOnly.length} Trepp-only`;
+  const _sfKeys=new Set();allData.forEach(p=>{if(!p._hasSF)return;const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);const key=normalizeAddr((p.address_line_1||p.address||p._trepp?.address||'')+' '+(p.address_city||p.city||''))||((!isNaN(lat)&&!isNaN(lng))?(Math.round(lat*1e5)+'_'+Math.round(lng*1e5)):('id_'+p.id));_sfKeys.add(key);});const sfMatchCount=_sfKeys.size;
+  window._sfMatchCount=sfMatchCount;
+  {const b=document.getElementById('sfMatchBadge');b.innerHTML=`${IC.cloud} ${sfMatchCount.toLocaleString()} Properties matched to Salesforce`;b.style.display='inline-flex';}
+  document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only`;
   setLoading(false);
   document.getElementById('loadingList').style.display='none';
   initMap();
@@ -553,6 +559,15 @@ document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.ta
 function setTier(t){activeTier=t;document.querySelectorAll('.tier-btn').forEach(b=>b.classList.toggle('active',b.dataset.tier===t));applyFilters();}
 function setSrc(s){activeSrc=s;document.querySelectorAll('.src-btn').forEach(b=>b.classList.toggle('active',b.dataset.src===s));applyFilters();}
 // ─── LIST RENDER ───
+function updateSelectedCard(){
+  const panel=document.getElementById('listPanel');
+  const prev=panel.querySelector('.prop-card.selected');
+  if(prev)prev.classList.remove('selected');
+  if(selectedId!=null){
+    const c=panel.querySelector('.prop-card[data-id="'+selectedId+'"]');
+    if(c)c.classList.add('selected');
+  }
+}
 function renderList(){
   const panel=document.getElementById('listPanel');
   if(!filtered.length){panel.innerHTML=`<div class="empty-state">${IC.building}<div>No properties match your filters</div></div>`;return;}
@@ -566,7 +581,7 @@ function propCard(p){
   const srcLabel=p._source==='trepp'?'Trepp only':p._trepp?'Reonomy + Trepp':'Reonomy';
   const srcCls=p._source==='trepp'?'trepp':p._trepp?'both':'reonomy';
   const chips=buildChips(p);
-  return `<div class="prop-card${p.id===selectedId?' selected':''}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${hasSF(p)?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
+  return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
 }
 function buildChips(p){
   const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
@@ -596,9 +611,17 @@ function initMap(){
   markersLayer=L.layerGroup().addTo(map);
   L.DomEvent.disableScrollPropagation(document.getElementById('detailDrawer'));
 }
-function renderMap(){
+let _markerById={},_lastFilterSig='';
+function filterSignature(){
+  // Cheap signature of the filtered set (ids + count). Changes only when the set changes.
+  return filtered.length+'|'+(filtered.length?filtered[0].id+'_'+filtered[filtered.length-1].id:'');
+}
+function renderMap(force){
   if(!map)return;
-  markersLayer.clearLayers();
+  const sig=filterSignature();
+  if(!force&&sig===_lastFilterSig){updateSelectedMarker();return;}
+  _lastFilterSig=sig;
+  markersLayer.clearLayers();_markerById={};
   filtered.forEach(p=>{
     const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);
     if(isNaN(lat)||isNaN(lng))return;
@@ -611,14 +634,29 @@ function renderMap(){
     m.bindTooltip(`<b>${addr}</b><br>Score: ${p._score} · ${p._tier}${srcTag?' · '+srcTag:''}`,{direction:'top',offset:[0,-4]});
     m.on('click',()=>selectProperty(p.id,true));
     markersLayer.addLayer(m);
+    _markerById[p.id]=m;
   });
+}
+let _prevSelectedId=null;
+function updateSelectedMarker(){
+  // Update only the dots whose selection state changed — no full rebuild.
+  const ids=[_prevSelectedId,selectedId];
+  ids.forEach(id=>{
+    if(id==null)return;const m=_markerById[id];if(!m)return;
+    const p=filtered.find(x=>x.id===id);if(!p)return;
+    const sel=id===selectedId;const sz=sel?14:9;
+    const tierColor={hot:'#d93025',warm:'#fa7b17',watch:'#f29900',cold:'#188038'}[p._tier];
+    m.setIcon(L.divIcon({className:'',html:`<div class="map-dot${sel?' selected':''}" style="width:${sz}px;height:${sz}px;background:${tierColor};border-color:rgba(255,255,255,.8)"></div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]}));
+  });
+  _prevSelectedId=selectedId;
 }
 // ─── DETAIL DRAWER ───
 function selectProperty(id,fromMap=false){
+  _prevSelectedId=selectedId;
   selectedId=id;
   const p=allData.find(x=>String(x.id)===String(id));
   if(!p)return;
-  renderList();renderMap();
+  updateSelectedCard();updateSelectedMarker();
   const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);
   const hasCoords=!isNaN(lat)&&!isNaN(lng);
   if(fromMap&&hasCoords){map.flyTo([lat,lng],16,{animate:true,duration:0.7});setTimeout(()=>openDrawer(p),750);}
@@ -649,15 +687,24 @@ function buildDetailGrid(p){
   (c?sec('CoStar Market Data','costar',[['County',c.property_county],['Submarket',c.submarket_name],['Building Class',c.building_class],['Vacancy',c.vacancy?parseFloat(c.vacancy).toFixed(1)+'%':null],['Cap Rate',c.actual_cap_rate?parseFloat(c.actual_cap_rate).toFixed(2)+'%':null],['Buyer',c.buyer_true_company,true],['Seller',c.seller_true_company,true],['Match',p._matchMethod]]):'');
   return `<div class="detail-grid">${grid}</div>`;
 }
-function hasSF(p){return !!(p.sf_owner_name||p.sf_owner_phone||p.sf_owner_email||p.sf_ownership_entity||p.sf_contacts_json);}
-function buildSalesforceContacts(p){
-  if(!hasSF(p))return '';
+function hasSF(p){const hasFlat=!!(p.sf_owner_name||p.sf_owner_phone||p.sf_owner_email||p.sf_ownership_entity);let hasJson=false;if(p.sf_contacts_json){try{const cc=JSON.parse(p.sf_contacts_json)||[];hasJson=cc.some(c=>(c.name&&c.name.trim())||(c.phones&&c.phones.length)||(c.emails&&c.emails.length));}catch(e){}}return hasFlat||hasJson;}
+function decorateSF(p){
+  // Parse SF JSON once and cache on the object so renders never re-parse.
   let contacts=[];
   if(p.sf_contacts_json){try{contacts=JSON.parse(p.sf_contacts_json)||[];}catch(e){contacts=[];}}
-  // Fallback: build a single contact from flat fields if JSON missing
   if(!contacts.length&&(p.sf_owner_name||p.sf_owner_phone||p.sf_owner_email)){
     contacts=[{name:(p.sf_owner_name||'').split(' | ')[0]||'',emails:(p.sf_owner_email||'').split(' | ').filter(Boolean),phones:(p.sf_owner_phone||'').split(' | ').filter(Boolean)}];
   }
+  contacts=contacts.filter(c=>(c.name&&c.name.trim())||(c.phones&&c.phones.length)||(c.emails&&c.emails.length));
+  p._sfContacts=contacts;
+  p._hasSF=contacts.length>0||!!(p.sf_ownership_entity&&p.sf_ownership_entity.trim());
+  return p;
+}
+function buildSalesforceContacts(p){
+  if(p._hasSF===undefined)decorateSF(p);
+  if(!p._hasSF)return '';
+  let contacts=p._sfContacts||[];
+  if(!contacts.length&&!(p.sf_ownership_entity&&p.sf_ownership_entity.trim()))return '';
   const method=p.sf_match_method?` · matched by ${p.sf_match_method}`:'';
   const entity=(p.sf_ownership_entity||'').split(' | ').filter(Boolean);
   const cardsHtml=contacts.map(c=>{
@@ -680,12 +727,12 @@ function buildContacts(p){
   if(!html&&p._trepp?.owner_1_name&&p._trepp.owner_1_name!=='-'){const t=p._trepp;return `<div class="contact-card"><div class="cc-name">${t.owner_1_name}</div><div class="cc-title" style="color:var(--text2)">⬡ Trepp Owner</div><div class="cc-contact">${t.owner_1_phone&&t.owner_1_phone!=='-'?`<span style="display:flex;align-items:center">${IC.phone}${t.owner_1_phone}</span>`:''}${t.owner_1_email&&t.owner_1_email!=='-'?`<span style="display:flex;align-items:center">${IC.email}${t.owner_1_email}</span>`:''}</div></div>`;}
   return html;
 }
-function closeDrawer(){selectedId=null;document.getElementById('detailDrawer').classList.remove('open');document.getElementById('backdrop').classList.remove('show');renderList();renderMap();}
+function closeDrawer(){_prevSelectedId=selectedId;selectedId=null;document.getElementById('detailDrawer').classList.remove('open');document.getElementById('backdrop').classList.remove('show');updateSelectedCard();updateSelectedMarker();}
 // ─── WEIGHTS ───
 function toggleWeights(){const p=document.getElementById('weightsPanel'),b=document.getElementById('weightsToggleBtn');if(p.classList.contains('open')){p.classList.remove('open');b.classList.remove('active');}else{p.classList.add('open');b.classList.add('active');}}
 function toggleHP(btn){btn.classList.toggle('active');}
 function addCustomHP(){const inp=document.getElementById('customHP');const yr=parseFloat(inp.value);if(isNaN(yr)||yr<1||yr>50)return;const container=document.getElementById('holdChips');if(container.querySelector(`[data-yr="${yr}"]`))return;const chip=document.createElement('button');chip.className='hp-chip active';chip.dataset.yr=yr;chip.textContent=`${yr}yr`;chip.onclick=()=>toggleHP(chip);container.appendChild(chip);inp.value='';}
-function recalculate(){holdPeriods=Array.from(document.querySelectorAll('.hp-chip.active')).map(c=>parseFloat(c.dataset.yr));allData=allData.map(p=>{const {score,tier,details,cats}=scoreProperty(p);return {...p,_score:score,_tier:tier,_details:details,_cats:cats};});applyFilters();toggleWeights();}
+function recalculate(){holdPeriods=Array.from(document.querySelectorAll('.hp-chip.active')).map(c=>parseFloat(c.dataset.yr));allData=allData.map(p=>{const {score,tier,details,cats}=scoreProperty(p);return decorateSF({...p,_score:score,_tier:tier,_details:details,_cats:cats});});applyFilters();toggleWeights();}
 function setLoading(v){document.getElementById('loadingSpinner').style.display=v?'block':'none';}
 // ─── INIT ───
 loadData();
