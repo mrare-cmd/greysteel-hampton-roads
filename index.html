@@ -170,6 +170,24 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .leaflet-control-zoom a:hover{background:var(--bg) !important;color:var(--blue) !important}
 .overlay-backdrop{position:fixed;inset:0;background:rgba(32,33,36,.5);z-index:599;opacity:0;pointer-events:none;transition:opacity .2s;}
 .overlay-backdrop.show{opacity:1;pointer-events:all}
+
+/* ── Salesforce owner contacts (prominent) ── */
+.sf-block{border:2px solid #00A1E0;border-radius:10px;background:linear-gradient(180deg,#e8f7fe 0%,#ffffff 60%);padding:14px 16px;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,161,224,.18);}
+.sf-block-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.sf-badge{display:inline-flex;align-items:center;gap:5px;background:#00A1E0;color:#fff;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:12px;}
+.sf-badge svg{width:12px;height:12px}
+.sf-block-sub{font-size:11px;color:#0277a8;font-weight:500;}
+.sf-contact{background:#fff;border:1px solid #b6e6f7;border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.sf-contact:last-child{margin-bottom:0}
+.sf-c-name{font-size:14px;font-weight:600;color:#0a3d4d;}
+.sf-c-line{font-size:12.5px;color:var(--text);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.sf-c-line a{color:#0277a8;text-decoration:none;font-weight:500;}
+.sf-c-line a:hover{text-decoration:underline}
+.sf-c-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;min-width:46px;}
+.sf-entity{font-size:12px;color:#0a3d4d;font-weight:500;margin-bottom:8px;padding:6px 10px;background:#d4f0fb;border-radius:6px;}
+/* SF flag on list cards */
+.pc-sf-flag{display:inline-flex;align-items:center;gap:3px;background:#00A1E0;color:#fff;font-size:9px;font-weight:700;letter-spacing:.03em;padding:1px 6px;border-radius:9px;text-transform:uppercase;}
+.pc-sf-flag svg{width:9px;height:9px}
 </style>
 </head>
 <body>
@@ -299,6 +317,7 @@ const IC={
   alert:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block;margin-right:3px;flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
   phone:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block;margin-right:4px"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.43 2.18 2 2 0 012.42.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.39 1.85.65 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   email:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block;margin-right:4px"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M2 7l10 7 10-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  cloud:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block"><path d="M6.5 19a4.5 4.5 0 010-9 5.5 5.5 0 0110.6-1.5A4 4 0 1118 19H6.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
   building:`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M9 21V9h6v12M3 9h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
 };
 function parseD(v){if(!v||v==='-')return null;const d=new Date(v);return isNaN(d)?null:d;}
@@ -547,7 +566,7 @@ function propCard(p){
   const srcLabel=p._source==='trepp'?'Trepp only':p._trepp?'Reonomy + Trepp':'Reonomy';
   const srcCls=p._source==='trepp'?'trepp':p._trepp?'both':'reonomy';
   const chips=buildChips(p);
-  return `<div class="prop-card${p.id===selectedId?' selected':''}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span></div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
+  return `<div class="prop-card${p.id===selectedId?' selected':''}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${hasSF(p)?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
 }
 function buildChips(p){
   const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
@@ -612,7 +631,7 @@ function openDrawer(p){
   const catLabels={holdPeriod:'Hold',loanMaturity:'Maturity',distress:'Distress',marketSignals:'Market'};
   const catBars=Object.entries(p._cats).map(([k,v])=>`<div class="sb-row"><span class="sb-cat">${catLabels[k]||k}</span><div class="sb-bar-wrap"><div class="sb-bar ${k==='holdPeriod'?'hold':k==='loanMaturity'?'maturity':k==='distress'?'distress':'market'}" style="width:${v}%"></div></div><span class="sb-score">${v}</span></div>`).join('');
   const reasonsList=p._details.length?`<ul class="sb-reasons">${p._details.map(d=>`<li class="${d.trepp?'trepp-signal':''}">${d.label}</li>`).join('')}</ul>`:'<p style="font-size:12px;color:var(--text2)">No specific signals detected</p>';
-  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${addr}</div><div class="dd-sub">${city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div></div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body"><div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div><div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
+  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${addr}</div><div class="dd-sub">${city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div></div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div><div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
   document.getElementById('detailDrawer').classList.add('open');
   document.getElementById('backdrop').classList.add('show');
 }
@@ -629,6 +648,31 @@ function buildDetailGrid(p){
   (mat1V||mat2V?sec('Reonomy Mortgage','mortgage',[mat1V?['Lender',p.mortgage_standardized_name||p.mortgage_recorded_name,true]:null,mat1V?['Amount',fmtMoney(p.mortgage_amount)]:null,mat1V?['Maturity',fmtDate(p.mortgage_maturity_date)]:null,mat2V?['Lender 2',p.mortgage2_standardized_name||p.mortgage2_recorded_name,true]:null,mat2V?['Amount 2',fmtMoney(p.mortgage2_amount)]:null,mat2V?['Maturity 2',fmtDate(p.mortgage2_maturity_date)]:null]):'')+
   (c?sec('CoStar Market Data','costar',[['County',c.property_county],['Submarket',c.submarket_name],['Building Class',c.building_class],['Vacancy',c.vacancy?parseFloat(c.vacancy).toFixed(1)+'%':null],['Cap Rate',c.actual_cap_rate?parseFloat(c.actual_cap_rate).toFixed(2)+'%':null],['Buyer',c.buyer_true_company,true],['Seller',c.seller_true_company,true],['Match',p._matchMethod]]):'');
   return `<div class="detail-grid">${grid}</div>`;
+}
+function hasSF(p){return !!(p.sf_owner_name||p.sf_owner_phone||p.sf_owner_email||p.sf_ownership_entity||p.sf_contacts_json);}
+function buildSalesforceContacts(p){
+  if(!hasSF(p))return '';
+  let contacts=[];
+  if(p.sf_contacts_json){try{contacts=JSON.parse(p.sf_contacts_json)||[];}catch(e){contacts=[];}}
+  // Fallback: build a single contact from flat fields if JSON missing
+  if(!contacts.length&&(p.sf_owner_name||p.sf_owner_phone||p.sf_owner_email)){
+    contacts=[{name:(p.sf_owner_name||'').split(' | ')[0]||'',emails:(p.sf_owner_email||'').split(' | ').filter(Boolean),phones:(p.sf_owner_phone||'').split(' | ').filter(Boolean)}];
+  }
+  const method=p.sf_match_method?` · matched by ${p.sf_match_method}`:'';
+  const entity=(p.sf_ownership_entity||'').split(' | ').filter(Boolean);
+  const cardsHtml=contacts.map(c=>{
+    const nm=(c.name||'').trim()||'(unnamed contact)';
+    const phones=(c.phones||[]).filter(Boolean);
+    const emails=(c.emails||[]).filter(Boolean);
+    const phoneLine=phones.length?`<div class="sf-c-line"><span class="sf-c-label">Phone</span>${phones.map(ph=>`<a href="tel:${ph.replace(/[^0-9+]/g,'')}">${ph}</a>`).join('<span style="color:var(--text3)">·</span>')}</div>`:'';
+    const emailLine=emails.length?`<div class="sf-c-line"><span class="sf-c-label">Email</span>${emails.map(em=>`<a href="mailto:${em}">${em}</a>`).join('<span style="color:var(--text3)">·</span>')}</div>`:'';
+    return `<div class="sf-contact"><div class="sf-c-name">${nm}</div>${phoneLine}${emailLine}</div>`;
+  }).join('');
+  return `<div class="sf-block">
+    <div class="sf-block-head"><span class="sf-badge">${IC.cloud} Salesforce</span><span class="sf-block-sub">Owner contact${contacts.length>1?'s ('+contacts.length+')':''} from your CRM${method}</span></div>
+    ${entity.length?`<div class="sf-entity">Ownership: ${entity.join(', ')}</div>`:''}
+    ${cardsHtml}
+  </div>`;
 }
 function buildContacts(p){
   const cs=[{name:p.contact_name,co:p.contact_company_name,title:p.contact_title,phone:p.contact_phone_1,email:p.contact_email_1},{name:p.contact_2_name,co:p.contact_2_company_name,title:p.contact_2_title,phone:p.contact_2_phone_1,email:p.contact_2_email_1},{name:p.contact_3_name,co:p.contact_3_company_name,title:p.contact_3_title,phone:p.contact_3_phone_1,email:p.contact_3_email_1}];
