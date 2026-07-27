@@ -803,6 +803,8 @@ function parseFile(buf,fname){
     var n=Math.min(rows[0].length,COSTAR_SQL_COLS.length);
     for(var i2=1;i2<rows.length;i2++){var o2={},any2=false;
       for(var j2=0;j2<n;j2++){var v2=rows[i2][j2];o2[COSTAR_SQL_COLS[j2]]=v2;if(!isBlank(v2))any2=true;}
+      if(typeof o2.property_address==="string"){o2.property_address=o2.property_address.replace(/\s*\(part of [^)]*\)\s*/gi," ").replace(/\s+/g," ").trim();}
+      if(isBlank(o2.property_name)&&!isBlank(o2.property_address))o2.property_name=o2.property_address;
       if(any2)out.push(o2);}
   }else if(src==="trepp"){
     var names=rows[5].map(treppCol);
