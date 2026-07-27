@@ -739,3 +739,449 @@ loadData();
 </script>
 </body>
 </html>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+"use strict";
+var WORKER="https://hampton-push.mrareshide.workers.dev/";
+var REPO="mrare-cmd/greysteel-hampton-roads";
+var NULLS={"-":1,"nan":1,"None":1,"":1,"N/A":1,"n/a":1};
+
+var COSTAR_SQL_COLS=['property_name','property_address','sale_price','sale_date','number_of_units','price_per_unit','building_sf','price_per_sf','affordable_type','vacancy','year_built','pro_forma_cap_rate','actual_cap_rate','building_class','buyer_true_company','seller_true_company','listing_broker_company','transaction_notes','age','asking_price','assessed_year','building_condition','building_materials','buyer_true_address','buyer_true_city','buyer_true_contact_name','buyer_true_phone','buyer_true_post_direction','buyer_true_pre_direction','buyer_true_state','buyer_true_street_name','buyer_true_street_number','buyer_true_zip_code','buyer_recorded_address','buyer_recorded_city','buyer_recorded_company','buyer_recorded_contact_name','buyer_recorded_phone','buyer_recorded_state','buyer_recorded_street_name','buyer_recorded_street_number','buyer_recorded_street_post_direction','buyer_recorded_street_pre_direction','buyer_recorded_zip_code','buyers_broker_address','buyers_broker_agent_first_name','buyers_broker_agent_last_name','buyers_broker_city','buyers_broker_phone','buyers_broker_state','buyers_broker_street_name','buyers_broker_street_number','buyers_broker_street_post_direction','buyers_broker_street_pre_direction','buyers_broker_zip_code','ceiling_height','comp_id','comps_number','corner','coverage','description_text','document_number','down_payment','fire_sprinkler','first_trust_deed_balance','first_trust_deed_lender','first_trust_deed_payment','first_trust_deed_terms','floor_area_ratio','frontage','gim','grm','gross_income','improvement_ratio','land_area_ac','land_area_sf','land_improvements','land_sf_gross','land_sf_net','latitude','legal_description','listing_broker_address','listing_broker_agent_first_name','listing_broker_agent_last_name','listing_broker_city','listing_broker_phone','listing_broker_state','listing_broker_street_name','listing_broker_street_number','listing_broker_street_post_direction','listing_broker_street_pre_direction','listing_broker_zip_code','loading_docks','longitude','lot_dimensions','map_code','map_page','map_x','map_y','market','market_time','multi_sale_name','net_income','non_arms_length_reasons','number_of_1_bedroom_units','number_of_2_bedroom_units','number_of_3_bedroom_units','number_of_beds','number_of_cranes','number_of_floors','number_of_other_bedroom_units','number_of_parking_spaces','number_of_rooms','number_of_studio_units','number_of_tenants','one_bedroom_mix','other_mix','parcel_number_1_min','parcel_number_2_max','parking_ratio','percent_office','portfolio_city','portfolio_county','portfolio_name','portfolio_state','portfolio_zip','power','price_per_ac_land','price_per_ac_land_net','price_per_room','price_per_sf_net'];
+var COSTAR_NUM=new Set(['sale_price','number_of_units','price_per_unit','building_sf','price_per_sf','vacancy','year_built','pro_forma_cap_rate','actual_cap_rate','age','asking_price','down_payment','first_trust_deed_balance','gim','grm','gross_income','land_area_ac','land_area_sf','land_sf_gross','land_sf_net','latitude','longitude','net_income','number_of_1_bedroom_units','number_of_2_bedroom_units','number_of_3_bedroom_units','number_of_beds','number_of_cranes','number_of_floors','number_of_other_bedroom_units','number_of_parking_spaces','number_of_rooms','number_of_studio_units','number_of_tenants','price_per_ac_land','price_per_ac_land_net','price_per_room','price_per_sf_net']);
+var TREPP_NUM=new Set(['number_of_properties','number_of_notes','trustee_loan_id','year_built','renovation_year','number_of_units','occupancy_pct','ltv','secur_dscr_noi','secur_dscr_ncf','dscr_noi','dscr_ncf','debt_yield_noi','debt_yield_ncf','noi_sqft_or_unit','ncf_sqft_or_unit','expense_sqft_or_unit','balance_sqft_or_unit','noi','pct_change_noi','ncf','pct_change_ncf','revenues','expenses','real_estate_taxes','property_appraisal_value','original_loan_appraised_value','property_appraisal_per_size','most_recent_implied_cap_rate_noi','most_recent_implied_cap_rate_ncf','original_balance','original_balance_sqft_or_unit','current_balance','allocated_balance_pct','loan_rate','estimated_spread_to_tsy','original_term','num_times_known_delinquent_last_12_months','seasoning','remaining_term','periods_past_maturity','remaining_extension_option_periods','prepayment_penalty_exposure_pct','appraisal_reduction','most_recent_aser_amount','cumulative_aser_amount','balance_before_disposition','loss_amount','loss_pct','months_to_recover','penalty_amount','penalty_pct','liquidation_sales_price','net_proceeds_received_on_liquidation','liquidation_expense','zip','securitization_year','sales_price','loan_number','split_orig_trustee_loan_id']);
+var SF_FIELDS=['sf_property_id','sf_match_method','sf_owner_name','sf_owner_email','sf_owner_phone','sf_owner_mobile','sf_ownership_entity','sf_primary_contact_name','sf_primary_contact_email','sf_primary_contact_phone','sf_contact_count','sf_contacts_json'];
+
+function treppCol(c){
+  c=String(c).toLowerCase().trim();
+  c=c.replace(/%/g,'pct').replace(/#/g,'num').replace(/\$/g,'_dollars');
+  c=c.replace(/[^a-z0-9_]/g,'_').replace(/_+/g,'_').replace(/^_+|_+$/g,'');
+  return c;
+}
+function cleanVal(v,numeric){
+  if(v===null||v===undefined)return null;
+  var s=String(v).trim();
+  if(NULLS[s]===1)return null;
+  if(numeric){var n=Number(s.replace(/[,%$]/g,''));return isNaN(n)?null:n;}
+  return (typeof v==="number")?v:s;
+}
+function isBlank(v){return v===null||v===undefined||(typeof v==="string"&&v.trim()==="");}
+function inferNumeric(rows,extra){
+  var s=new Set(extra||[]);
+  var lim=Math.min(rows.length,300);
+  for(var i=0;i<lim;i++){var r=rows[i];for(var k in r){if(typeof r[k]==="number")s.add(k);}}
+  return s;
+}
+
+// ── source detection + parsing ──
+function detect(headers){
+  var h=headers.map(function(x){return String(x||"").trim();});
+  if(h.indexOf("reonomy_id")>=0)return "reonomy";
+  if(h.indexOf("Comp ID")>=0)return "costar";
+  if(h.indexOf("Primary Contact: Full Name")>=0)return "salesforce";
+  return null;
+}
+function parseFile(buf,fname){
+  var wb=XLSX.read(buf,{type:"array"});
+  var ws=wb.Sheets[wb.SheetNames[0]];
+  var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null});
+  if(!rows.length)throw new Error(fname+": empty file");
+  var src=detect(rows[0]||[]);
+  if(!src){
+    // Trepp headers live on row 6 (index 5)
+    if(rows.length>5&&rows[5]&&rows[5].some(function(c){return String(c||"")==="Trepp Real ID";}))src="trepp";
+  }
+  if(!src)throw new Error(fname+": could not identify source (need Reonomy, CoStar, Trepp, or a Salesforce report)");
+  var out=[];
+  if(src==="reonomy"){
+    var hd=rows[0];
+    for(var i=1;i<rows.length;i++){var o={},any=false;
+      for(var j=0;j<hd.length;j++){if(hd[j]==null)continue;var v=rows[i][j];o[String(hd[j]).trim()]=v;if(!isBlank(v))any=true;}
+      if(any)out.push(o);}
+  }else if(src==="costar"){
+    var n=Math.min(rows[0].length,COSTAR_SQL_COLS.length);
+    for(var i2=1;i2<rows.length;i2++){var o2={},any2=false;
+      for(var j2=0;j2<n;j2++){var v2=rows[i2][j2];o2[COSTAR_SQL_COLS[j2]]=v2;if(!isBlank(v2))any2=true;}
+      if(any2)out.push(o2);}
+  }else if(src==="trepp"){
+    var names=rows[5].map(treppCol);
+    for(var i3=6;i3<rows.length;i3++){var o3={},any3=false;
+      for(var j3=0;j3<names.length;j3++){if(!names[j3])continue;var v3=rows[i3][j3];o3[names[j3]]=v3;if(!isBlank(v3))any3=true;}
+      if(any3)out.push(o3);}
+  }else{ // salesforce csv/xlsx
+    var hd4=rows[0];
+    for(var i4=1;i4<rows.length;i4++){var o4={},any4=false;
+      for(var j4=0;j4<hd4.length;j4++){if(hd4[j4]==null)continue;var v4=rows[i4][j4];o4[String(hd4[j4]).trim()]=v4==null?"":String(v4);if(!isBlank(v4))any4=true;}
+      if(any4)out.push(o4);}
+  }
+  return {source:src,rows:out,fname:fname};
+}
+
+// ── keyed merge (blank never overwrites) ──
+function keyReonomy(r){if(!isBlank(r.reonomy_id))return "r:"+String(r.reonomy_id).trim();if(!isBlank(r.apn))return "a:"+String(r.apn).trim();return null;}
+function keyCostar(r){return isBlank(r.comp_id)?null:"c:"+String(r.comp_id).trim();}
+function keyTrepp(r){var a=isBlank(r.trepp_real_id)?"":String(r.trepp_real_id).trim();var b=isBlank(r.trustee_loan_id)?"":String(r.trustee_loan_id).trim();if(!a&&!b)return null;return "t:"+a+"|"+b;}
+
+function mergeInto(cur,incoming,keyOf,extraNum){
+  var numeric=inferNumeric(cur,extraNum);
+  var idx=new Map(),maxId=0;
+  cur.forEach(function(r){var k=keyOf(r);if(k)idx.set(k,r);var n=Number(r.id);if(!isNaN(n)&&n>maxId)maxId=n;});
+  var st={added:0,updated:0,unchanged:0,skipped:0};
+  incoming.forEach(function(raw){
+    var row={};
+    for(var c in raw){row[c]=cleanVal(raw[c],numeric.has(c));}
+    var k=keyOf(row);
+    if(!k){st.skipped++;return;}
+    var ex=idx.get(k);
+    if(!ex){maxId+=1;row.id=maxId;cur.push(row);idx.set(k,row);st.added++;}
+    else{
+      var ch=0;
+      for(var c2 in row){var nv=row[c2];if(nv===null)continue;if(ex[c2]!==nv){ex[c2]=nv;ch++;}}
+      if(ch>0)st.updated++;else st.unchanged++;
+    }
+  });
+  return st;
+}
+
+// ── Salesforce matching (port of enrich_from_csv.py) ──
+function normAddr(s){
+  if(!s)return "";
+  s=String(s).toLowerCase().trim().replace(/\?+$/,"").trim();
+  var rep=[[/\bstreet\b/g,"st"],[/\bavenue\b/g,"ave"],[/\bboulevard\b/g,"blvd"],[/\bdrive\b/g,"dr"],[/\broad\b/g,"rd"],[/\bcourt\b/g,"ct"],[/\blane\b/g,"ln"],[/\bnorthwest\b/g,"nw"],[/\bnortheast\b/g,"ne"],[/\bsouthwest\b/g,"sw"],[/\bsoutheast\b/g,"se"],[/\bcircle\b/g,"cir"],[/\bplace\b/g,"pl"],[/\bsquare\b/g,"sq"],[/\bparkway\b/g,"pkwy"],[/\bterrace\b/g,"ter"],[/\bhighway\b/g,"hwy"],[/\bcommons\b/g,"cmns"]];
+  rep.forEach(function(p){s=s.replace(p[0],p[1]);});
+  s=s.replace(/[.,#?]/g,"").replace(/\s+/g," ");
+  return s.trim();
+}
+function normApn(s){
+  if(!s)return "";
+  s=String(s);
+  var m=s.match(/min:?\s*([0-9a-z\-]+)/i);
+  if(m)s=m[1];
+  return s.toLowerCase().replace(/[^a-z0-9]/g,"");
+}
+function streetNum(s){var m=String(s||"").match(/^\s*(\d+)/);return m?m[1]:"";}
+function haversine(a,b,c,d){var R=6371000,p1=a*Math.PI/180,p2=c*Math.PI/180,dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180;var x=Math.sin(dp/2)*Math.sin(dp/2)+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)*Math.sin(dl/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function sim(a,b){
+  if(a===b)return 1;var m=a.length,n=b.length;if(!m||!n)return 0;
+  var prev=new Array(n+1),curr=new Array(n+1),i,j;
+  for(j=0;j<=n;j++)prev[j]=j;
+  for(i=1;i<=m;i++){curr[0]=i;
+    for(j=1;j<=n;j++){curr[j]=Math.min(prev[j]+1,curr[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));}
+    var t=prev;prev=curr;curr=t;}
+  return 1-prev[n]/Math.max(m,n);
+}
+function buildSFGroups(csvRows){
+  var groups=new Map();
+  csvRows.forEach(function(r){
+    var apn=normApn(r["Assessor's Parcel Number(s)"]||"");
+    var addr=normAddr(r["Street Address"]||"");
+    var key=apn||addr;
+    if(!key)return;
+    var g=groups.get(key);
+    if(!g){
+      g={apn:apn,addrNorm:addr,street:String(r["Street Address"]||"").trim().replace(/\?+$/,"").trim(),
+         lat:parseFloat(r["Latitude"]),lng:parseFloat(r["Longitude"]),
+         names:[],emails:[],phones:[],entities:[],contacts:new Map()};
+      if(isNaN(g.lat)||isNaN(g.lng)){g.lat=null;g.lng=null;}
+      groups.set(key,g);
+    }
+    var name=String(r["Primary Contact: Full Name"]||"").trim();
+    var email=String(r["Primary Contact Email"]||"").trim();
+    var p1=String(r["Primary Contact Phone"]||"").trim();
+    var p2=String(r["Contact Phone"]||"").trim();
+    var ent=String(r["Ownership Entity"]||"").trim();
+    if(name&&g.names.indexOf(name)<0)g.names.push(name);
+    if(email&&g.emails.indexOf(email)<0)g.emails.push(email);
+    [p1,p2].forEach(function(p){if(p&&g.phones.indexOf(p)<0)g.phones.push(p);});
+    if(ent&&g.entities.indexOf(ent)<0)g.entities.push(ent);
+    if(name||email||p1||p2){
+      var ck=name||email||p1||p2;
+      var c=g.contacts.get(ck);
+      if(!c){c={name:name,emails:[],phones:[]};g.contacts.set(ck,c);}
+      if(email&&c.emails.indexOf(email)<0)c.emails.push(email);
+      [p1,p2].forEach(function(p){if(p&&c.phones.indexOf(p)<0)c.phones.push(p);});
+    }
+  });
+  return groups;
+}
+function sfMatchAll(datasets,csvRows){
+  var groups=buildSFGroups(csvRows);
+  var byApn=new Map(),byAddr=new Map(),coords=[],byNum=new Map();
+  groups.forEach(function(g){
+    if(g.apn)byApn.set(g.apn,g);
+    if(g.addrNorm)byAddr.set(g.addrNorm,g);
+    if(g.lat!==null)coords.push(g);
+    var n=streetNum(g.street);
+    if(n){if(!byNum.has(n))byNum.set(n,[]);byNum.get(n).push(g);}
+  });
+  function match(addr,apn,lat,lng){
+    var na=normApn(apn);
+    if(na&&byApn.has(na))return [byApn.get(na),"apn"];
+    var nad=normAddr(addr);
+    if(nad&&byAddr.has(nad))return [byAddr.get(nad),"address"];
+    var fl=parseFloat(lat),fg=parseFloat(lng);
+    if(!isNaN(fl)&&!isNaN(fg)){
+      var best=null,bd=21;
+      for(var i=0;i<coords.length;i++){var g=coords[i];var d=haversine(fl,fg,g.lat,g.lng);if(d<20&&d<bd){best=g;bd=d;}}
+      if(best)return [best,"coord("+Math.round(bd)+"m)"];
+    }
+    if(nad){
+      var num=streetNum(addr),b2=null,br=0,list=byNum.get(num)||[];
+      for(var j=0;j<list.length;j++){var r2=sim(nad,list[j].addrNorm);if(r2>br){b2=list[j];br=r2;}}
+      if(b2&&br>=0.85)return [b2,"fuzzy("+br.toFixed(2)+")"];
+    }
+    return [null,null];
+  }
+  var cfg={reonomy:{addr:"address_line_1",apn:"apn"},trepp:{addr:"address",apn:"assessor_parcel_num"},costar:{addr:"property_address",apn:null}};
+  var counts={};
+  ["reonomy","trepp","costar"].forEach(function(ds){
+    var rows=datasets[ds],c=cfg[ds],matched=0;
+    rows.forEach(function(row){
+      SF_FIELDS.forEach(function(f){row[f]=null;});
+      var res=match(row[c.addr],c.apn?row[c.apn]:null,row.latitude,row.longitude);
+      var g=res[0];
+      if(!g)return;
+      var contacts=[];
+      g.contacts.forEach(function(v){contacts.push(v);});
+      if(!contacts.length&&!g.entities.length)return;
+      row.sf_match_method=res[1];
+      row.sf_owner_name=g.names.join(" | ")||null;
+      row.sf_owner_email=g.emails.join(" | ")||null;
+      row.sf_owner_phone=g.phones.join(" | ")||null;
+      row.sf_ownership_entity=g.entities.join(" | ")||null;
+      row.sf_primary_contact_name=g.names[0]||null;
+      row.sf_primary_contact_email=g.emails[0]||null;
+      row.sf_primary_contact_phone=g.phones[0]||null;
+      row.sf_contact_count=contacts.length;
+      row.sf_contacts_json=JSON.stringify(contacts);
+      matched++;
+    });
+    counts[ds]=matched;
+  });
+  return counts;
+}
+
+// ── Census geocoding for new Trepp rows ──
+function geocodeOne(addr,city,zip){
+  var q=encodeURIComponent(String(addr)+", "+String(city||"")+", VA "+String(zip||""));
+  var u="https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address="+q+"&benchmark=Public_AR_Current&format=json";
+  return fetch(u).then(function(r){return r.json();}).then(function(j){
+    var m=j&&j.result&&j.result.addressMatches&&j.result.addressMatches[0];
+    return m?{lat:m.coordinates.y,lng:m.coordinates.x}:null;
+  }).catch(function(){return null;});
+}
+
+// ── GitHub commit via worker ──
+function getShas(){
+  return fetch("https://api.github.com/repos/"+REPO+"/git/trees/main").then(function(r){
+    if(!r.ok)throw new Error("Could not read repo file list (HTTP "+r.status+")");
+    return r.json();
+  }).then(function(j){
+    var m={};(j.tree||[]).forEach(function(t){m[t.path]=t.sha;});return m;
+  });
+}
+function b64(str){
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onload=function(){res(String(fr.result).split(",")[1]);};
+    fr.onerror=rej;
+    fr.readAsDataURL(new Blob([str]));
+  });
+}
+function commitFile(path,contentStr,sha,pw){
+  return b64(contentStr).then(function(content){
+    var body={message:"Dashboard upload: "+path,branch:"main",content:content};
+    if(sha)body.sha=sha;
+    return fetch(WORKER+"?path="+encodeURIComponent(path),{
+      method:"POST",
+      headers:{"Content-Type":"application/json","X-Password":pw},
+      body:JSON.stringify(body)
+    });
+  }).then(function(r){
+    if(r.status===401)throw new Error("Wrong password");
+    if(!r.ok)return r.text().then(function(t){throw new Error(path+": HTTP "+r.status+" "+t.slice(0,200));});
+    return true;
+  });
+}
+
+// ── UI ──
+var css="#upModalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:3000;display:none;align-items:center;justify-content:center}"+
+"#upModalOverlay.show{display:flex}"+
+"#upModal{background:#fff;border-radius:12px;width:560px;max-width:92vw;max-height:88vh;overflow:auto;padding:20px 22px;box-shadow:0 8px 40px rgba(0,0,0,.25);font-size:13.5px}"+
+"#upModal h3{margin:0 0 4px;font-size:17px}"+
+"#upModal .up-sub{color:#666;font-size:12px;margin-bottom:14px}"+
+"#upModal input[type=password]{width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:7px;margin-bottom:12px;font-size:13.5px;box-sizing:border-box}"+
+"#upDrop{border:2px dashed #9ec5e8;border-radius:10px;padding:26px 12px;text-align:center;color:#3c6e9e;cursor:pointer;background:#f4f9fe;margin-bottom:12px}"+
+"#upDrop.drag{background:#e2f0fc;border-color:#2f80c8}"+
+"#upFiles{margin-bottom:10px}"+
+"#upFiles .upf{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f6f6f6;border-radius:7px;margin-bottom:5px}"+
+"#upFiles .upf b{font-size:12.5px}"+
+".up-src{font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:9px;color:#fff;background:#888}"+
+".up-src.reonomy{background:#4285f4}.up-src.costar{background:#188038}.up-src.trepp{background:#7b3ff2}.up-src.salesforce{background:#00A1E0}"+
+"#upResults{background:#f4f9f4;border:1px solid #cde6cd;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:none;white-space:pre-wrap;font-size:12.5px;line-height:1.55}"+
+"#upProgress{display:none;margin-bottom:10px;font-size:12.5px;color:#333}"+
+"#upModal .up-btnrow{display:flex;gap:10px;justify-content:flex-end}"+
+"#upModal button{padding:8px 16px;border-radius:8px;border:1px solid #ccc;background:#fff;cursor:pointer;font-size:13px}"+
+"#upModal button.primary{background:#1a73e8;border-color:#1a73e8;color:#fff;font-weight:600}"+
+"#upModal button:disabled{opacity:.5;cursor:default}"+
+"#upOpenBtn{display:inline-flex;align-items:center;gap:5px;background:#1a73e8;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;border:none;cursor:pointer;margin-left:8px;white-space:nowrap}";
+var st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
+
+var modal=document.createElement("div");
+modal.id="upModalOverlay";
+modal.innerHTML='<div id="upModal">'+
+'<h3>Update Dashboard Data</h3>'+
+'<div class="up-sub">Drop any mix of Reonomy / CoStar / Trepp exports or a Salesforce report. Data merges by ID: new rows added, changed fields updated, blanks never overwrite. Partial exports are fine.</div>'+
+'<input type="password" id="upPw" placeholder="Password">'+
+'<div id="upDrop">Click or drag files here (.xlsx / .csv)</div>'+
+'<input type="file" id="upFileInput" multiple accept=".xlsx,.xls,.csv" style="display:none">'+
+'<div id="upFiles"></div>'+
+'<div id="upResults"></div>'+
+'<div id="upProgress"></div>'+
+'<div class="up-btnrow"><button id="upCancel">Close</button><button id="upAnalyze" class="primary" disabled>Analyze</button><button id="upCommit" class="primary" style="display:none" disabled>Publish to live site</button></div>'+
+'</div>';
+document.body.appendChild(modal);
+
+var btn=document.createElement("button");
+btn.id="upOpenBtn";btn.textContent="Upload Data";
+var anchor=document.getElementById("sfMatchBadge")||document.getElementById("matchInfo");
+if(anchor&&anchor.parentElement)anchor.parentElement.appendChild(btn);
+else{btn.style.position="fixed";btn.style.top="10px";btn.style.right="10px";btn.style.zIndex="2500";document.body.appendChild(btn);}
+
+var pending={files:[],datasets:null,dirty:null,analyzed:false};
+function $(id){return document.getElementById(id);}
+function resetModal(){
+  pending={files:[],datasets:null,dirty:null,analyzed:false};
+  $("upFiles").innerHTML="";$("upResults").style.display="none";$("upResults").textContent="";
+  $("upProgress").style.display="none";$("upProgress").textContent="";
+  $("upAnalyze").disabled=true;$("upAnalyze").style.display="";
+  $("upCommit").style.display="none";$("upCommit").disabled=true;
+}
+btn.addEventListener("click",function(){resetModal();modal.classList.add("show");});
+$("upCancel").addEventListener("click",function(){modal.classList.remove("show");});
+$("upDrop").addEventListener("click",function(){$("upFileInput").click();});
+$("upDrop").addEventListener("dragover",function(e){e.preventDefault();$("upDrop").classList.add("drag");});
+$("upDrop").addEventListener("dragleave",function(){$("upDrop").classList.remove("drag");});
+$("upDrop").addEventListener("drop",function(e){e.preventDefault();$("upDrop").classList.remove("drag");addFiles(e.dataTransfer.files);});
+$("upFileInput").addEventListener("change",function(e){addFiles(e.target.files);e.target.value="";});
+
+function addFiles(fl){
+  for(var i=0;i<fl.length;i++)pending.files.push(fl[i]);
+  renderFiles();
+  $("upAnalyze").disabled=pending.files.length===0;
+  pending.analyzed=false;$("upCommit").style.display="none";$("upAnalyze").style.display="";
+  $("upResults").style.display="none";
+}
+function renderFiles(badges){
+  var h="";
+  pending.files.forEach(function(f,i){
+    var b=badges&&badges[i]?'<span class="up-src '+badges[i]+'">'+badges[i]+"</span>":"";
+    h+='<div class="upf"><b>'+f.name+"</b>"+b+"</div>";
+  });
+  $("upFiles").innerHTML=h;
+}
+function prog(msg){$("upProgress").style.display="block";$("upProgress").textContent=msg;}
+
+$("upAnalyze").addEventListener("click",function(){
+  $("upAnalyze").disabled=true;
+  analyze().catch(function(e){
+    prog("Error: "+e.message);
+    $("upAnalyze").disabled=false;
+  });
+});
+
+function readFile(f){
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onload=function(){res(new Uint8Array(fr.result));};
+    fr.onerror=rej;
+    fr.readAsArrayBuffer(f);
+  });
+}
+function fetchDataset(name){
+  return fetch(name+"?t="+Date.now()).then(function(r){
+    if(!r.ok)throw new Error("Could not load current "+name);
+    return r.json();
+  });
+}
+
+async function analyze(){
+  prog("Reading files...");
+  var parsed=[],badges=[];
+  for(var i=0;i<pending.files.length;i++){
+    var buf=await readFile(pending.files[i]);
+    var p=parseFile(buf,pending.files[i].name);
+    parsed.push(p);badges.push(p.source);
+  }
+  renderFiles(badges);
+  prog("Loading current dashboard data...");
+  var datasets={
+    reonomy:await fetchDataset("data_reonomy.json"),
+    costar:await fetchDataset("data_costar.json"),
+    trepp:await fetchDataset("data_trepp.json")
+  };
+  var dirty=new Set(),lines=[],sfFile=null;
+  parsed.forEach(function(p){
+    if(p.source==="salesforce"){sfFile=p;return;}
+    var stt;
+    if(p.source==="reonomy")stt=mergeInto(datasets.reonomy,p.rows,keyReonomy,[]);
+    else if(p.source==="costar")stt=mergeInto(datasets.costar,p.rows,keyCostar,COSTAR_NUM);
+    else stt=mergeInto(datasets.trepp,p.rows,keyTrepp,TREPP_NUM);
+    if(stt.added||stt.updated)dirty.add(p.source);
+    lines.push(p.fname+" ("+p.source+"): "+stt.added+" new, "+stt.updated+" updated, "+stt.unchanged+" unchanged"+(stt.skipped?", "+stt.skipped+" skipped (no ID)":""));
+  });
+  // geocode new trepp rows missing coords
+  var toGeo=datasets.trepp.filter(function(r){return isBlank(r.latitude)&&!isBlank(r.address);});
+  if(toGeo.length&&dirty.has("trepp")){
+    var got=0;
+    for(var g=0;g<toGeo.length;g++){
+      prog("Geocoding new Trepp addresses ("+(g+1)+"/"+toGeo.length+")...");
+      var res=await geocodeOne(toGeo[g].address,toGeo[g].city,toGeo[g].zip);
+      if(res){toGeo[g].latitude=res.lat;toGeo[g].longitude=res.lng;got++;}
+    }
+    lines.push("Geocoded "+got+"/"+toGeo.length+" new Trepp addresses");
+  }
+  if(sfFile){
+    prog("Matching Salesforce contacts across all properties...");
+    var counts=sfMatchAll(datasets,sfFile.rows);
+    dirty.add("reonomy");dirty.add("costar");dirty.add("trepp");
+    lines.push(sfFile.fname+" (salesforce): matched "+counts.reonomy+" Reonomy, "+counts.costar+" CoStar, "+counts.trepp+" Trepp properties");
+  }
+  pending.datasets=datasets;pending.dirty=dirty;pending.analyzed=true;
+  var fileMap={reonomy:"data_reonomy.json",costar:"data_costar.json",trepp:"data_trepp.json"};
+  var toPush=[];dirty.forEach(function(d){toPush.push(fileMap[d]);});
+  lines.push("");
+  lines.push(toPush.length?("Will publish: "+toPush.join(", ")):"No changes detected. Nothing to publish.");
+  $("upResults").textContent=lines.join("\n");
+  $("upResults").style.display="block";
+  $("upProgress").style.display="none";
+  $("upAnalyze").style.display="none";
+  $("upCommit").style.display=toPush.length?"":"none";
+  $("upCommit").disabled=!toPush.length;
+}
+
+// wire commit
+$("upCommit").addEventListener("click",function(){
+  var pw=$("upPw").value;
+  if(!pw){prog("Enter the password first.");return;}
+  $("upCommit").disabled=true;
+  doCommit(pw).catch(function(e){
+    prog("Error: "+e.message);
+    $("upCommit").disabled=false;
+  });
+});
+async function doCommit(pw){
+  var fileMap={reonomy:"data_reonomy.json",costar:"data_costar.json",trepp:"data_trepp.json"};
+  prog("Getting file versions from GitHub...");
+  var shas=await getShas();
+  var list=[];pending.dirty.forEach(function(d){list.push(d);});
+  for(var i=0;i<list.length;i++){
+    var ds=list[i],fname=fileMap[ds];
+    prog("Publishing "+fname+" ("+(i+1)+"/"+list.length+")... this can take a moment for large files");
+    await commitFile(fname,JSON.stringify(pending.datasets[ds]),shas[fname],pw);
+  }
+  prog("Done! Live site updates in about 60 seconds. Reload the page after that to see the new data.");
+}
+})();
+</script>
