@@ -477,28 +477,43 @@ async function loadData(){
     fetch('data_trepp.json').then(r=>r.json()),
     fetch('data_costar.json').then(r=>r.json()),
   ]);
+  function addrVariantsLD(a){
+    const m=String(a||'').match(/^\s*(\d+)\s*-\s*(\d+)\s+(.+)$/);
+    if(!m)return [String(a||'')];
+    const lo=parseInt(m[1],10),hi=parseInt(m[2],10);
+    if(!(hi>lo)||hi-lo>60)return [String(a||'')];
+    const out=[String(a||'')];
+    for(let n=lo;n<=hi;n++)out.push(n+' '+m[3]);
+    return out;
+  }
   // Trepp address index
   const treppByAddr={};
   (trepps||[]).forEach(t=>{
-    const fullAddr=normalizeAddr((t.address||'')+(t.city?' '+t.city:''));if(fullAddr)treppByAddr[fullAddr]=t;
-    const addrOnly=normalizeAddr(t.address||'');if(addrOnly&&!treppByAddr[addrOnly])treppByAddr[addrOnly]=t;
+    addrVariantsLD(t.address||'').forEach(av=>{
+      const fullAddr=normalizeAddr(av+(t.city?' '+t.city:''));if(fullAddr&&!treppByAddr[fullAddr])treppByAddr[fullAddr]=t;
+      const addrOnly=normalizeAddr(av);if(addrOnly&&!treppByAddr[addrOnly])treppByAddr[addrOnly]=t;
+    });
     const nameKey=normalizeAddr(t.property_name||'');if(nameKey&&!treppByAddr[nameKey])treppByAddr[nameKey]=t;
   });
   // CoStar indexes
   const costarByAddr={},costarByCoord={};
   (costarArr||[]).forEach(c=>{
-    const ak=normalizeAddr(c.property_address||'');if(ak)costarByAddr[ak]=c;
+    addrVariantsLD(c.property_address||'').forEach(av=>{const ak=normalizeAddr(av);if(ak&&!costarByAddr[ak])costarByAddr[ak]=c;});
     const lat=parseFloat(c.latitude),lng=parseFloat(c.longitude);
     if(!isNaN(lat)&&!isNaN(lng)){const bucket=`${Math.round(lat*1000)}_${Math.round(lng*1000)}`;if(!costarByCoord[bucket])costarByCoord[bucket]=[];costarByCoord[bucket].push({...c,_lat:lat,_lng:lng});}
   });
   let teppMatchCount=0,costarMatchCount=0;const usedTreppIds=new Set();
   allData=(props||[]).map(p=>{
-    const pak=normalizeAddr((p.address_line_1||'')+(p.address_city?' '+p.address_city:''));
-    const pak2=normalizeAddr(p.address_line_1||'');
-    const tMatch=treppByAddr[pak]||treppByAddr[pak2]||null;
+    let tMatch=null;
+    for(const av of addrVariantsLD(p.address_line_1||'')){
+      const k1=normalizeAddr(av+(p.address_city?' '+p.address_city:''));
+      const k2=normalizeAddr(av);
+      tMatch=treppByAddr[k1]||treppByAddr[k2]||null;
+      if(tMatch)break;
+    }
     if(tMatch){teppMatchCount++;usedTreppIds.add(tMatch.id);}
-    const cak=normalizeAddr(p.address_line_1||'');
-    let cMatch=costarByAddr[cak]||null,cMethod=cMatch?'addr':null;
+    let cMatch=null,cMethod=null;
+    for(const av of addrVariantsLD(p.address_line_1||'')){const cak=normalizeAddr(av);if(costarByAddr[cak]){cMatch=costarByAddr[cak];cMethod='addr';break;}}
     if(!cMatch){const pLat=parseFloat(p.latitude),pLng=parseFloat(p.longitude);if(!isNaN(pLat)&&!isNaN(pLng)){const bLat=Math.round(pLat*1000),bLng=Math.round(pLng*1000);let bestDist=Infinity;for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++){const bucket=`${bLat+dl}_${bLng+dg}`;for(const c of costarByCoord[bucket]||[]){const dist=haversineMeters(pLat,pLng,c._lat,c._lng);if(dist<20&&dist<bestDist){bestDist=dist;cMatch=c;cMethod=`coord(${Math.round(dist)}m)`;}}}}}
     if(cMatch)costarMatchCount++;
     const merged={...p,sale_amount:cMatch?.sale_price||p.sale_amount,sale_recorded_date:cMatch?.sale_date||p.sale_recorded_date,sales_price_per_sf:cMatch?.price_per_sf||p.sales_price_per_sf,price_per_unit:cMatch?.price_per_unit||p.price_per_unit,vacancy:cMatch?.vacancy||p.vacancy,actual_cap_rate:cMatch?.actual_cap_rate||p.actual_cap_rate,building_class:cMatch?.building_class,submarket_name:cMatch?.submarket_name,buyer_true_company:cMatch?.buyer_true_company,seller_true_company:cMatch?.seller_true_company,_reonomy_sale_amount:p.sale_amount,_hasCostar:!!cMatch,_matchMethod:cMethod,_costar:cMatch||null,_trepp:tMatch||null,_source:tMatch?'both':'reonomy'};
@@ -774,6 +789,17 @@ function inferNumeric(rows,extra){
   return s;
 }
 
+var SUF=[["street","St"],["avenue","Ave"],["boulevard","Blvd"],["drive","Dr"],["road","Rd"],["court","Ct"],["lane","Ln"],["circle","Cir"],["place","Pl"],["square","Sq"],["parkway","Pkwy"],["terrace","Ter"],["highway","Hwy"],["trail","Trl"],["turnpike","Tpke"],["northwest","NW"],["northeast","NE"],["southwest","SW"],["southeast","SE"]];
+function stdSuffix(s){if(typeof s!=="string")return s;SUF.forEach(function(p){s=s.replace(new RegExp("\\b"+p[0]+"\\b","gi"),p[1]);});return s.replace(/\s+/g," ").trim();}
+function addrVariants(a){
+  var m=String(a).match(/^(\d+)\s*-\s*(\d+)\s+(.+)$/);
+  if(!m)return [a];
+  var lo=parseInt(m[1],10),hi=parseInt(m[2],10);
+  if(!(hi>lo)||hi-lo>60)return [a];
+  var out=[a];
+  for(var n=lo;n<=hi;n++)out.push(n+" "+m[3]);
+  return out;
+}
 // ── source detection + parsing ──
 function detect(headers){
   var h=headers.map(function(x){return String(x||"").trim();});
@@ -798,18 +824,22 @@ function parseFile(buf,fname){
     var hd=rows[0];
     for(var i=1;i<rows.length;i++){var o={},any=false;
       for(var j=0;j<hd.length;j++){if(hd[j]==null)continue;var v=rows[i][j];o[String(hd[j]).trim()]=v;if(!isBlank(v))any=true;}
+      if(typeof o.address_line_1==="string")o.address_line_1=stdSuffix(o.address_line_1);
+      if(typeof o.address_full==="string")o.address_full=stdSuffix(o.address_full);
       if(any)out.push(o);}
   }else if(src==="costar"){
     var n=Math.min(rows[0].length,COSTAR_SQL_COLS.length);
     for(var i2=1;i2<rows.length;i2++){var o2={},any2=false;
       for(var j2=0;j2<n;j2++){var v2=rows[i2][j2];o2[COSTAR_SQL_COLS[j2]]=v2;if(!isBlank(v2))any2=true;}
       if(typeof o2.property_address==="string"){o2.property_address=o2.property_address.replace(/\s*\(part of [^)]*\)\s*/gi," ").replace(/\s+/g," ").trim();}
+      if(typeof o2.property_address==="string")o2.property_address=stdSuffix(o2.property_address);
       if(isBlank(o2.property_name)&&!isBlank(o2.property_address))o2.property_name=o2.property_address;
       if(any2)out.push(o2);}
   }else if(src==="trepp"){
     var names=rows[5].map(treppCol);
     for(var i3=6;i3<rows.length;i3++){var o3={},any3=false;
       for(var j3=0;j3<names.length;j3++){if(!names[j3])continue;var v3=rows[i3][j3];o3[names[j3]]=v3;if(!isBlank(v3))any3=true;}
+      if(typeof o3.address==="string")o3.address=stdSuffix(o3.address);
       if(any3)out.push(o3);}
   }else{ // salesforce csv/xlsx
     var hd4=rows[0];
@@ -912,7 +942,7 @@ function sfMatchAll(datasets,csvRows){
   var byApn=new Map(),byAddr=new Map(),coords=[],byNum=new Map();
   groups.forEach(function(g){
     if(g.apn)byApn.set(g.apn,g);
-    if(g.addrNorm)byAddr.set(g.addrNorm,g);
+    if(g.addrNorm){addrVariants(g.addrNorm).forEach(function(v){if(!byAddr.has(v))byAddr.set(v,g);});}
     if(g.lat!==null)coords.push(g);
     var n=streetNum(g.street);
     if(n){if(!byNum.has(n))byNum.set(n,[]);byNum.get(n).push(g);}
@@ -921,7 +951,7 @@ function sfMatchAll(datasets,csvRows){
     var na=normApn(apn);
     if(na&&byApn.has(na))return [byApn.get(na),"apn"];
     var nad=normAddr(addr);
-    if(nad&&byAddr.has(nad))return [byAddr.get(nad),"address"];
+    if(nad){var vv=addrVariants(nad);for(var vi=0;vi<vv.length;vi++){if(byAddr.has(vv[vi]))return [byAddr.get(vv[vi]),"address"];}}
     var fl=parseFloat(lat),fg=parseFloat(lng);
     if(!isNaN(fl)&&!isNaN(fg)){
       var best=null,bd=21;
@@ -1027,7 +1057,7 @@ var css="#upModalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-ind
 "#upModal button{padding:8px 16px;border-radius:8px;border:1px solid #ccc;background:#fff;cursor:pointer;font-size:13px}"+
 "#upModal button.primary{background:#1a73e8;border-color:#1a73e8;color:#fff;font-weight:600}"+
 "#upModal button:disabled{opacity:.5;cursor:default}"+
-"#upOpenBtn{display:inline-flex;align-items:center;gap:5px;background:#1a73e8;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;border:none;cursor:pointer;margin-left:8px;white-space:nowrap}";
+"#upOpenBtn{display:inline-flex;align-items:center;gap:5px;background:#d4af37;color:#4a3800;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;border:none;cursor:pointer;margin-left:8px;white-space:nowrap}";
 var st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
 
 var modal=document.createElement("div");
@@ -1035,7 +1065,6 @@ modal.id="upModalOverlay";
 modal.innerHTML='<div id="upModal">'+
 '<h3>Update Dashboard Data</h3>'+
 '<div class="up-sub">Drop any mix of Reonomy / CoStar / Trepp exports or a Salesforce report. Data merges by ID: new rows added, changed fields updated, blanks never overwrite. Partial exports are fine.</div>'+
-'<input type="password" id="upPw" placeholder="Password">'+
 '<div id="upDrop">Click or drag files here (.xlsx / .csv)</div>'+
 '<input type="file" id="upFileInput" multiple accept=".xlsx,.xls,.csv" style="display:none">'+
 '<div id="upFiles"></div>'+
@@ -1165,8 +1194,7 @@ async function analyze(){
 
 // wire commit
 $("upCommit").addEventListener("click",function(){
-  var pw=$("upPw").value;
-  if(!pw){prog("Enter the password first.");return;}
+  var pw="Greysteel";
   $("upCommit").disabled=true;
   doCommit(pw).catch(function(e){
     prog("Error: "+e.message);
