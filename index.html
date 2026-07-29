@@ -532,7 +532,7 @@ async function loadData(){
   window._sfMatchCount=sfMatchCount;
   {const b=document.getElementById('sfMatchBadge');b.innerHTML=`${IC.cloud} ${sfMatchCount.toLocaleString()} Properties matched to Salesforce`;b.style.display='inline-flex';}
   document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only`;
-  if(window.__renderSrcInfo)window.__renderSrcInfo({'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])});
+  if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);fetch('data_salesforce.json?t='+Date.now()).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);window.__renderSrcInfo(__sd);}}).catch(function(){});}
   setLoading(false);
   document.getElementById('loadingList').style.display='none';
   initMap();
@@ -1180,6 +1180,7 @@ async function analyze(){
     prog("Matching Salesforce contacts across all properties...");
     var counts=sfMatchAll(datasets,sfFile.rows);
     dirty.add("reonomy");dirty.add("costar");dirty.add("trepp");
+    pending.sfMeta={uploaded_at:new Date().toISOString(),counts:counts};
     lines.push(sfFile.fname+" (salesforce): matched "+counts.reonomy+" Reonomy, "+counts.costar+" CoStar, "+counts.trepp+" Trepp properties");
   }
   pending.datasets=datasets;pending.dirty=dirty;pending.analyzed=true;
@@ -1213,6 +1214,10 @@ async function doCommit(pw){
     var ds=list[i],fname=fileMap[ds];
     prog("Publishing "+fname+" ("+(i+1)+"/"+list.length+")... this can take a moment for large files");
     await commitFile(fname,JSON.stringify(pending.datasets[ds]),shas[fname],pw);
+  }
+  if(pending.sfMeta){
+    prog("Publishing Salesforce upload record...");
+    await commitFile("data_salesforce.json",JSON.stringify(pending.sfMeta),shas["data_salesforce.json"],pw);
   }
   prog("Done! Live site updates in about 60 seconds. Reload the page after that to see the new data.");
 }
