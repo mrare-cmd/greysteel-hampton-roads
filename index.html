@@ -191,6 +191,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .sf-match-badge{display:inline-flex;align-items:center;gap:5px;background:#00A1E0;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;flex-shrink:0;}
 .sf-match-badge svg{width:12px;height:12px}
 .pf-note{background:#fff7e0;border:1px solid #f2d47f;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12.5px;color:#6b5312;line-height:1.45}
+.asr-note{background:#eef7ee;border:1px solid #bfe0bf;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12.5px;color:#1e4620;line-height:1.45}
 
 /* fixed filter bar between header and toolbar */
 #filterBar{position:fixed;top:var(--header);left:0;right:0;height:var(--filterbar);z-index:195;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 16px;overflow-x:auto;font-size:11.5px}
@@ -229,6 +230,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
   <div class="fbg"><span class="fbl">Sale $</span><input id="fb_price_min" placeholder="min"><span class="fbdash">-</span><input id="fb_price_max" placeholder="max"></div>
   <div class="fbg"><span class="fbl">$/Unit</span><input id="fb_ppu_min" placeholder="min"><span class="fbdash">-</span><input id="fb_ppu_max" placeholder="max"></div>
   <div class="fbg"><span class="fbl">Built</span><input id="fb_year_min" placeholder="min"><span class="fbdash">-</span><input id="fb_year_max" placeholder="max"></div>
+  <div class="fbg"><span class="fbl">Assessed $</span><input id="fb_asr_min" placeholder="min"><span class="fbdash">-</span><input id="fb_asr_max" placeholder="max"></div>
   <div class="fbg"><span class="fbl">Sold after</span><input id="fb_sold_after" placeholder="year" style="width:52px"></div>
   <button id="fbClear" onclick="fbClear()">Clear</button>
 </div>
@@ -724,7 +726,7 @@ function openDrawer(p){
   const catLabels={holdPeriod:'Hold',loanMaturity:'Maturity',distress:'Distress',marketSignals:'Market'};
   const catBars=Object.entries(p._cats).map(([k,v])=>`<div class="sb-row"><span class="sb-cat">${catLabels[k]||k}</span><div class="sb-bar-wrap"><div class="sb-bar ${k==='holdPeriod'?'hold':k==='loanMaturity'?'maturity':k==='distress'?'distress':'market'}" style="width:${v}%"></div></div><span class="sb-score">${v}</span></div>`).join('');
   const reasonsList=p._details.length?`<ul class="sb-reasons">${p._details.map(d=>`<li class="${d.trepp?'trepp-signal':''}">${d.label}</li>`).join('')}</ul>`:'<p style="font-size:12px;color:var(--text2)">No specific signals detected</p>';
-  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${addr}</div><div class="dd-sub">${city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div></div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}${buildPortfolioNote(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div><div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
+  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${addr}</div><div class="dd-sub">${city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div></div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}${buildPortfolioNote(p)}${buildAssessed(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div><div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
   document.getElementById('detailDrawer').classList.add('open');
   document.getElementById('backdrop').classList.add('show');
 }
@@ -754,6 +756,17 @@ function decorateSF(p){
   p._sfContacts=contacts;
   p._hasSF=contacts.length>0||!!(p.sf_ownership_entity&&p.sf_ownership_entity.trim());
   return p;
+}
+function buildAssessed(p){
+  const t=parseFloat(p.asr_total_value||'');
+  if(isNaN(t))return '';
+  const l=parseFloat(p.asr_land_value||''),im=parseFloat(p.asr_improvement_value||'');
+  const fmt=n=>'$'+Math.round(n).toLocaleString();
+  const yr=p.asr_year?String(p.asr_year).slice(0,4):'';
+  const bits=[];
+  if(!isNaN(l))bits.push('Land '+fmt(l));
+  if(!isNaN(im))bits.push('Improvements '+fmt(im));
+  return `<div class="asr-note"><b>Assessed:</b> ${fmt(t)}${yr?' (FY'+yr+')':''}${bits.length?' · '+bits.join(' · '):''} <span style="color:var(--text3)">· ${p.asr_city||''} assessor</span></div>`;
 }
 function buildPortfolioNote(p){
   const cu=parseFloat((p._trepp&&p._trepp.number_of_units)||(p._costar&&p._costar.number_of_units)||'');
@@ -1345,7 +1358,8 @@ var FIELDS=[
  {key:"units",get:function(p){var v=pfNum(p.total_units);if(v==null&&p._trepp)v=pfNum(p._trepp.number_of_units);return v;}},
  {key:"price",get:function(p){return pfNum(p.sale_amount);}},
  {key:"ppu",get:function(p){var v=pfNum(p.price_per_unit);if(v==null&&!p._portfolio){var sa=pfNum(p.sale_amount),u=pfNum(p.total_units);if(sa&&u)v=sa/u;}return v;}},
- {key:"year",get:function(p){var v=pfNum(p.year_built);if(v==null&&p._trepp)v=pfNum(p._trepp.year_built);return v;}}
+ {key:"year",get:function(p){var v=pfNum(p.year_built);if(v==null&&p._trepp)v=pfNum(p._trepp.year_built);return v;}},
+ {key:"asr",get:function(p){return pfNum(p.asr_total_value);}}
 ];
 window.applyRangeFilters=function(data){
   FIELDS.forEach(function(f){
