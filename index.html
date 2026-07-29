@@ -20,7 +20,7 @@
   --shadow-lg:0 4px 12px rgba(60,64,67,.15),0 2px 6px rgba(60,64,67,.1);
   --header:56px;--toolbar:48px;--filterbar:40px;
 }
-html,body{height:100%;font-family:'Roboto',sans-serif;font-size:14px;color:var(--text);background:var(--bg)}
+html,body{height:100%;overflow:hidden;font-family:'Roboto',sans-serif;font-size:14px;color:var(--text);background:var(--bg)}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
 input,select{font-family:inherit}
 header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;z-index:200;}
@@ -80,7 +80,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .recalc-btn:hover{background:#1557b0}
 .main{margin-top:calc(var(--header) + var(--filterbar) + var(--toolbar));height:calc(100vh - var(--header) - var(--filterbar) - var(--toolbar));display:flex;overflow:hidden;}
 .list-panel{width:420px;flex-shrink:0;overflow-y:auto;background:var(--white);border-right:1px solid var(--border);}
-.map-panel{flex:1;position:relative}
+.map-panel{flex:1;position:relative;z-index:1}
 #map{width:100%;height:100%}
 .prop-card{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
 .prop-card:hover{background:var(--bg)}
