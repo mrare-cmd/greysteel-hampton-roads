@@ -532,6 +532,7 @@ async function loadData(){
   window._sfMatchCount=sfMatchCount;
   {const b=document.getElementById('sfMatchBadge');b.innerHTML=`${IC.cloud} ${sfMatchCount.toLocaleString()} Properties matched to Salesforce`;b.style.display='inline-flex';}
   document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only`;
+  if(window.__renderSrcInfo)window.__renderSrcInfo({'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])});
   setLoading(false);
   document.getElementById('loadingList').style.display='none';
   initMap();
@@ -647,6 +648,7 @@ function renderMap(force){
     const m=L.marker([lat,lng],{icon});
     const srcTag=p._trepp?'⬡ Trepp':'';
     m.bindTooltip(`<b>${addr}</b><br>Score: ${p._score} · ${p._tier}${srcTag?' · '+srcTag:''}`,{direction:'top',offset:[0,-4]});
+    m.on('mouseover',function(){markersLayer.eachLayer(function(l){if(l!==m&&l.isTooltipOpen&&l.isTooltipOpen())l.closeTooltip();});});
     m.on('click',()=>selectProperty(p.id,true));
     markersLayer.addLayer(m);
     _markerById[p.id]=m;
@@ -661,6 +663,7 @@ function updateSelectedMarker(){
     const p=filtered.find(x=>x.id===id);if(!p)return;
     const sel=id===selectedId;const sz=sel?14:9;
     const tierColor={hot:'#d93025',warm:'#fa7b17',watch:'#f29900',cold:'#188038'}[p._tier];
+    if(m.isTooltipOpen&&m.isTooltipOpen())m.closeTooltip();
     m.setIcon(L.divIcon({className:'',html:`<div class="map-dot${sel?' selected':''}" style="width:${sz}px;height:${sz}px;background:${tierColor};border-color:rgba(255,255,255,.8)"></div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]}));
   });
   _prevSelectedId=selectedId;
@@ -1213,5 +1216,56 @@ async function doCommit(pw){
   }
   prog("Done! Live site updates in about 60 seconds. Reload the page after that to see the new data.");
 }
+})();
+</script>
+
+<script>
+(function(){
+window.__maxD=function(rows,fields){
+  var best=null,now=new Date();now.setDate(now.getDate()+1);
+  (rows||[]).forEach(function(r){
+    for(var i=0;i<fields.length;i++){
+      var v=r[fields[i]];
+      if(v===null||v===undefined||v==="")continue;
+      var d=new Date(v);
+      if(isNaN(d)||d>now)continue;
+      if(!best||d>best)best=d;
+    }
+  });
+  return best;
+};
+var css="#srcInfoBtn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#e8eaed;color:#444;font-size:12px;font-weight:700;border:none;cursor:pointer;margin-left:8px;flex-shrink:0}"+
+"#srcInfoBtn:hover{background:#d4d7db}"+
+"#srcInfoPop{position:fixed;background:#fff;border:1px solid #ddd;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:12px 16px;z-index:2600;display:none;font-size:12.5px;min-width:230px}"+
+"#srcInfoPop.show{display:block}"+
+"#srcInfoPop h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#666}"+
+"#srcInfoPop .sil{display:flex;justify-content:space-between;gap:18px;padding:3px 0}"+
+"#srcInfoPop .sil b{font-weight:600}"+
+"#srcInfoPop .sil span{color:#333}"+
+"#srcInfoPop .sinote{margin-top:8px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:7px}";
+var st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
+var pop=document.createElement("div");pop.id="srcInfoPop";document.body.appendChild(pop);
+var btn=document.createElement("button");btn.id="srcInfoBtn";btn.textContent="i";btn.title="Data recency by source";
+var anchor=document.getElementById("upOpenBtn")||document.getElementById("sfMatchBadge")||document.getElementById("matchInfo");
+if(anchor&&anchor.parentElement)anchor.parentElement.appendChild(btn);
+else{btn.style.position="fixed";btn.style.top="10px";btn.style.right="120px";btn.style.zIndex="2500";document.body.appendChild(btn);}
+var data=null;
+window.__renderSrcInfo=function(d){data=d;};
+function fmt(d){return d?d.toLocaleDateString():"n/a";}
+btn.addEventListener("click",function(e){
+  e.stopPropagation();
+  if(pop.classList.contains("show")){pop.classList.remove("show");return;}
+  var h="<h4>Data current through</h4>";
+  var labels={"Reonomy":"latest recorded sale","CoStar":"latest sale comp","Trepp":"latest loan date"};
+  if(data){for(var k in data){h+='<div class="sil"><b>'+k+"</b><span>"+fmt(data[k])+"</span></div>";}}
+  else h+="<div>Still loading...</div>";
+  h+='<div class="sinote">Dates reflect the newest record inside each dataset (e.g. most recent sale), not when the file was uploaded.</div>';
+  pop.innerHTML=h;
+  var r=btn.getBoundingClientRect();
+  pop.style.top=(r.bottom+8)+"px";
+  pop.style.left=Math.max(8,Math.min(window.innerWidth-260,r.left-100))+"px";
+  pop.classList.add("show");
+});
+document.addEventListener("click",function(){pop.classList.remove("show");});
 })();
 </script>
