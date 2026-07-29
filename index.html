@@ -932,14 +932,14 @@ function mergeInto(cur,incoming,keyOf,extraNum){
   var numeric=inferNumeric(cur,extraNum);
   var idx=new Map(),maxId=0;
   cur.forEach(function(r){var k=keyOf(r);if(k)idx.set(k,r);var n=Number(r.id);if(!isNaN(n)&&n>maxId)maxId=n;});
-  var st={added:0,updated:0,unchanged:0,skipped:0};
+  var st={added:0,updated:0,unchanged:0,skipped:0,newRows:[]};
   incoming.forEach(function(raw){
     var row={};
     for(var c in raw){row[c]=cleanVal(raw[c],numeric.has(c));}
     var k=keyOf(row);
     if(!k){st.skipped++;return;}
     var ex=idx.get(k);
-    if(!ex){maxId+=1;row.id=maxId;cur.push(row);idx.set(k,row);st.added++;}
+    if(!ex){maxId+=1;row.id=maxId;cur.push(row);idx.set(k,row);st.added++;st.newRows.push(row);}
     else{
       var ch=0;
       for(var c2 in row){var nv=row[c2];if(nv===null)continue;if(ex[c2]!==nv){ex[c2]=nv;ch++;}}
@@ -1252,6 +1252,44 @@ function fetchDataset(name){
   });
 }
 
+async function enrichAssessments(newRows,lines,prog){
+  var todo=newRows.slice(0,150),done=0;
+  for(var i=0;i<todo.length;i++){
+    var r=todo[i].row;
+    if(r.asr_total_value!=null)continue;
+    prog("Assessed values: checking new property "+(i+1)+"/"+todo.length+"...");
+    var got=null;
+    var pc=String(r.apn||r.parcel_number_1_min||r.assessor_parcel_num||"").replace(/[^0-9a-zA-Z]/g,"");
+    var city=String(r.address_city||r.city||"").toLowerCase();
+    try{
+      if(pc.length>=13&&(!city||city.indexOf("virginia beach")>=0)){
+        var u="https://services2.arcgis.com/CyVvlIiUfRBmMQuu/arcgis/rest/services/Property_Sales_/FeatureServer/0/query?where="+encodeURIComponent("GPIN='"+pc+"'")+"&outFields=Land_Value,Improvement_Value,Total_Value&orderByFields="+encodeURIComponent("Sales_Date DESC")+"&resultRecordCount=1&returnGeometry=false&f=json";
+        var j=await (await fetch(u)).json();
+        var a=j&&j.features&&j.features[0]&&j.features[0].attributes;
+        if(a&&a.Total_Value)got={land:a.Land_Value,impr:a.Improvement_Value,total:a.Total_Value,city:"Virginia Beach",year:null};
+      }
+      if(!got&&(!city||city.indexOf("norfolk")>=0)){
+        var addr=String(r.address_line_1||r.address||r.property_address||"").trim();
+        var m=addr.match(/^(\d+)\s+(.+)$/);
+        if(m){
+          var name=m[2].replace(/\s+(st|ave|blvd|dr|rd|ct|ln|cir|pl|sq|pkwy|ter|terr|hwy|trl|tpke|way)\.?$/i,"").trim();
+          var w="property_street_number='"+m[1]+"' AND upper(property_street_name)='"+name.toUpperCase().replace(/'/g,"''")+"'";
+          var u2="https://data.norfolk.gov/resource/qva7-tzrf.json?$where="+encodeURIComponent(w)+"&$limit=1";
+          var j2=await (await fetch(u2)).json();
+          if(j2&&j2[0]&&j2[0].current_total_value)got={land:j2[0].current_land_value,impr:j2[0].current_improvement_value,total:j2[0].current_total_value,city:"Norfolk",year:j2[0].effective_year};
+        }
+      }
+    }catch(e){}
+    if(got){
+      r.asr_land_value=got.land!=null?parseFloat(got.land):null;
+      r.asr_improvement_value=got.impr!=null?parseFloat(got.impr):null;
+      r.asr_total_value=got.total!=null?parseFloat(got.total):null;
+      r.asr_year=got.year||null;r.asr_city=got.city;r.asr_match="upload";
+      done++;
+    }
+  }
+  if(newRows.length)lines.push("Assessed values: "+done+" of "+newRows.length+" new properties enriched"+(newRows.length>150?" (first 150 checked)":""));
+}
 async function analyze(){
   prog("Reading files...");
   var parsed=[],badges=[];
@@ -1267,7 +1305,7 @@ async function analyze(){
     costar:await fetchDataset("data_costar.json"),
     trepp:await fetchDataset("data_trepp.json")
   };
-  var dirty=new Set(),lines=[],sfFile=null;
+  var dirty=new Set(),lines=[],sfFile=null,allNew=[];
   parsed.forEach(function(p){
     if(p.source==="salesforce"){sfFile=p;return;}
     var stt;
@@ -1275,6 +1313,7 @@ async function analyze(){
     else if(p.source==="costar")stt=mergeInto(datasets.costar,p.rows,keyCostar,COSTAR_NUM);
     else stt=mergeInto(datasets.trepp,p.rows,keyTrepp,TREPP_NUM);
     if(stt.added||stt.updated)dirty.add(p.source);
+    if(stt.newRows&&stt.newRows.length)stt.newRows.forEach(function(r){allNew.push({row:r,src:p.source});});
     lines.push(p.fname+" ("+p.source+"): "+stt.added+" new, "+stt.updated+" updated, "+stt.unchanged+" unchanged"+(stt.skipped?", "+stt.skipped+" skipped (no ID)":""));
   });
   // geocode new trepp rows missing coords
@@ -1308,6 +1347,7 @@ async function analyze(){
     }
     lines.push("Assessed values: "+asrGot+" fetched of "+asrCap+" attempted"+(asrCands.length>asrCap?" ("+(asrCands.length-asrCap)+" deferred to next upload)":""));
   }
+  if(allNew.length){await enrichAssessments(allNew,lines,prog);}
   if(sfFile){
     prog("Matching Salesforce contacts across all properties...");
     var counts=sfMatchAll(datasets,sfFile.rows);
