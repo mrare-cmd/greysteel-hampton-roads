@@ -190,6 +190,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .pc-sf-flag svg{width:9px;height:9px}
 .sf-match-badge{display:inline-flex;align-items:center;gap:5px;background:#00A1E0;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;flex-shrink:0;}
 .sf-match-badge svg{width:12px;height:12px}
+.pf-note{background:#fff7e0;border:1px solid #f2d47f;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12.5px;color:#6b5312;line-height:1.45}
 </style>
 </head>
 <body>
@@ -498,7 +499,7 @@ async function loadData(){
   // CoStar indexes
   const costarByAddr={},costarByCoord={};
   (costarArr||[]).forEach(c=>{
-    addrVariantsLD(c.property_address||'').forEach(av=>{const ak=normalizeAddr(av);if(ak&&!costarByAddr[ak])costarByAddr[ak]=c;});
+    addrVariantsLD(c.property_address||'').forEach(av=>{const ak=normalizeAddr(av);if(!ak)return;const ex=costarByAddr[ak];if(!ex||(Date.parse(c.sale_date||0)||0)>(Date.parse(ex.sale_date||0)||0))costarByAddr[ak]=c;});
     const lat=parseFloat(c.latitude),lng=parseFloat(c.longitude);
     if(!isNaN(lat)&&!isNaN(lng)){const bucket=`${Math.round(lat*1000)}_${Math.round(lng*1000)}`;if(!costarByCoord[bucket])costarByCoord[bucket]=[];costarByCoord[bucket].push({...c,_lat:lat,_lng:lng});}
   });
@@ -514,7 +515,7 @@ async function loadData(){
     if(tMatch){teppMatchCount++;usedTreppIds.add(tMatch.id);}
     let cMatch=null,cMethod=null;
     for(const av of addrVariantsLD(p.address_line_1||'')){const cak=normalizeAddr(av);if(costarByAddr[cak]){cMatch=costarByAddr[cak];cMethod='addr';break;}}
-    if(!cMatch){const pLat=parseFloat(p.latitude),pLng=parseFloat(p.longitude);if(!isNaN(pLat)&&!isNaN(pLng)){const bLat=Math.round(pLat*1000),bLng=Math.round(pLng*1000);let bestDist=Infinity;for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++){const bucket=`${bLat+dl}_${bLng+dg}`;for(const c of costarByCoord[bucket]||[]){const dist=haversineMeters(pLat,pLng,c._lat,c._lng);if(dist<20&&dist<bestDist){bestDist=dist;cMatch=c;cMethod=`coord(${Math.round(dist)}m)`;}}}}}
+    if(!cMatch){const pLat=parseFloat(p.latitude),pLng=parseFloat(p.longitude);if(!isNaN(pLat)&&!isNaN(pLng)){const bLat=Math.round(pLat*1000),bLng=Math.round(pLng*1000);let bestDist=Infinity;for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++){const bucket=`${bLat+dl}_${bLng+dg}`;for(const c of costarByCoord[bucket]||[]){const dist=haversineMeters(pLat,pLng,c._lat,c._lng);if(dist<20&&(dist<bestDist||(dist===bestDist&&(Date.parse(c.sale_date||0)||0)>(Date.parse((cMatch&&cMatch.sale_date)||0)||0)))){bestDist=dist;cMatch=c;cMethod=`coord(${Math.round(dist)}m)`;}}}}}
     if(cMatch)costarMatchCount++;
     const merged={...p,sale_amount:cMatch?.sale_price||p.sale_amount,sale_recorded_date:cMatch?.sale_date||p.sale_recorded_date,sales_price_per_sf:cMatch?.price_per_sf||p.sales_price_per_sf,price_per_unit:cMatch?.price_per_unit||p.price_per_unit,vacancy:cMatch?.vacancy||p.vacancy,actual_cap_rate:cMatch?.actual_cap_rate||p.actual_cap_rate,building_class:cMatch?.building_class,submarket_name:cMatch?.submarket_name,buyer_true_company:cMatch?.buyer_true_company,seller_true_company:cMatch?.seller_true_company,_reonomy_sale_amount:p.sale_amount,_hasCostar:!!cMatch,_matchMethod:cMethod,_costar:cMatch||null,_trepp:tMatch||null,_source:tMatch?'both':'reonomy'};
     const {score,tier,details,cats}=scoreProperty(merged);
@@ -531,6 +532,23 @@ async function loadData(){
   const _sfKeys=new Set();allData.forEach(p=>{if(!p._hasSF)return;const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);const key=normalizeAddr((p.address_line_1||p.address||p._trepp?.address||'')+' '+(p.address_city||p.city||''))||((!isNaN(lat)&&!isNaN(lng))?(Math.round(lat*1e5)+'_'+Math.round(lng*1e5)):('id_'+p.id));_sfKeys.add(key);});const sfMatchCount=_sfKeys.size;
   window._sfMatchCount=sfMatchCount;
   {const b=document.getElementById('sfMatchBadge');b.innerHTML=`${IC.cloud} ${sfMatchCount.toLocaleString()} Properties matched to Salesforce`;b.style.display='inline-flex';}
+  // Portfolio sale detection: identical sale date + amount across multiple parcels
+  const __pf={};
+  allData.forEach(p=>{
+    const amt=parseFloat(p.sale_amount||p._reonomy_sale_amount||'');
+    const dt=p.sale_recorded_date;
+    if(!dt||isNaN(amt)||amt<=0)return;
+    const k=dt+'|'+amt;
+    (__pf[k]=__pf[k]||[]).push(p);
+  });
+  Object.values(__pf).forEach(g=>{
+    if(g.length<2)return;
+    let tu=0;g.forEach(p=>{const u=parseFloat(p.total_units);if(!isNaN(u))tu+=u;});
+    g.forEach(p=>{
+      p._portfolio={count:g.length,totalUnits:tu||null};
+      if(!p._hasCostar||!(p._costar&&p._costar.price_per_unit)){p.price_per_unit=null;}
+    });
+  });
   document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only`;
   if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);fetch('data_salesforce.json?t='+Date.now()).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);window.__renderSrcInfo(__sd);}}).catch(function(){});}
   setLoading(false);
@@ -687,7 +705,7 @@ function openDrawer(p){
   const catLabels={holdPeriod:'Hold',loanMaturity:'Maturity',distress:'Distress',marketSignals:'Market'};
   const catBars=Object.entries(p._cats).map(([k,v])=>`<div class="sb-row"><span class="sb-cat">${catLabels[k]||k}</span><div class="sb-bar-wrap"><div class="sb-bar ${k==='holdPeriod'?'hold':k==='loanMaturity'?'maturity':k==='distress'?'distress':'market'}" style="width:${v}%"></div></div><span class="sb-score">${v}</span></div>`).join('');
   const reasonsList=p._details.length?`<ul class="sb-reasons">${p._details.map(d=>`<li class="${d.trepp?'trepp-signal':''}">${d.label}</li>`).join('')}</ul>`:'<p style="font-size:12px;color:var(--text2)">No specific signals detected</p>';
-  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${addr}</div><div class="dd-sub">${city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div></div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div><div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
+  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${addr}</div><div class="dd-sub">${city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div></div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}${buildPortfolioNote(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div><div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
   document.getElementById('detailDrawer').classList.add('open');
   document.getElementById('backdrop').classList.add('show');
 }
@@ -717,6 +735,19 @@ function decorateSF(p){
   p._sfContacts=contacts;
   p._hasSF=contacts.length>0||!!(p.sf_ownership_entity&&p.sf_ownership_entity.trim());
   return p;
+}
+function buildPortfolioNote(p){
+  const cu=parseFloat((p._trepp&&p._trepp.number_of_units)||(p._costar&&p._costar.number_of_units)||'');
+  const pu=parseFloat(p.total_units||'');
+  const isPf=p._portfolio&&p._portfolio.count>1;
+  const big=!isNaN(cu)&&!isNaN(pu)&&cu>=pu*1.5&&(cu-pu)>=20;
+  if(!isPf&&!big)return '';
+  const nm=(p._trepp&&p._trepp.property_name)||(p._costar&&p._costar.property_name)||'';
+  const bits=[];
+  if(!isNaN(pu))bits.push(`${pu} units on this parcel`);
+  if(big)bits.push(`${cu} units in the full complex${nm?' ('+nm+')':''}`);
+  if(isPf)bits.push(`recorded sale covered ${p._portfolio.count} parcels${p._portfolio.totalUnits?' with ~'+p._portfolio.totalUnits+' combined units':''}`);
+  return `<div class="pf-note"><b>Portfolio:</b> ${bits.join(' · ')}. Parcel-level per-unit sale math is unreliable here.</div>`;
 }
 function buildSalesforceContacts(p){
   if(p._hasSF===undefined)decorateSF(p);
