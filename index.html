@@ -18,7 +18,7 @@
   --border:#dadce0;--bg:#f8f9fa;--white:#fff;
   --shadow:0 1px 3px rgba(60,64,67,.15),0 1px 2px rgba(60,64,67,.3);
   --shadow-lg:0 4px 12px rgba(60,64,67,.15),0 2px 6px rgba(60,64,67,.1);
-  --header:56px;--toolbar:48px;
+  --header:56px;--toolbar:48px;--filterbar:40px;
 }
 html,body{height:100%;font-family:'Roboto',sans-serif;font-size:14px;color:var(--text);background:var(--bg)}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
@@ -40,7 +40,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .hdr-badge{background:var(--text2);color:#fff;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:500;}
 .loading-spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
-.toolbar{position:fixed;top:var(--header);left:0;right:0;height:var(--toolbar);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;z-index:190;overflow-x:auto;}
+.toolbar{position:fixed;top:calc(var(--header) + var(--filterbar));left:0;right:0;height:var(--toolbar);background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;z-index:190;overflow-x:auto;}
 .tier-filter{display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:2px;flex-shrink:0;}
 .tier-btn{padding:3px 12px;border-radius:16px;font-size:12px;font-weight:500;transition:all .15s;color:var(--text2);white-space:nowrap;}
 .tier-btn:hover{background:var(--border)}
@@ -57,7 +57,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .src-btn:hover{background:var(--border)}
 .src-btn.active{color:#fff;background:var(--purple)}
 .tb-count{margin-left:auto;font-size:11px;color:var(--text2);white-space:nowrap;flex-shrink:0;}
-.weights-panel{position:fixed;top:calc(var(--header) + var(--toolbar));right:0;width:360px;background:var(--white);border-left:1px solid var(--border);border-bottom:1px solid var(--border);border-bottom-left-radius:8px;box-shadow:var(--shadow-lg);z-index:500;transform:translateY(-110%);opacity:0;pointer-events:none;transition:transform .25s ease,opacity .2s ease;}
+.weights-panel{position:fixed;top:calc(var(--header) + var(--filterbar) + var(--toolbar));right:0;width:360px;background:var(--white);border-left:1px solid var(--border);border-bottom:1px solid var(--border);border-bottom-left-radius:8px;box-shadow:var(--shadow-lg);z-index:500;transform:translateY(-110%);opacity:0;pointer-events:none;transition:transform .25s ease,opacity .2s ease;}
 .weights-panel.open{transform:translateY(0);opacity:1;pointer-events:all}
 .wp-header{padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .wp-title{font-family:'Google Sans',sans-serif;font-size:14px;font-weight:500}
@@ -78,7 +78,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .hp-add:hover{background:#1557b0}
 .recalc-btn{width:100%;height:36px;background:var(--blue);color:#fff;border-radius:4px;font-size:13px;font-weight:500;margin-top:4px;}
 .recalc-btn:hover{background:#1557b0}
-.main{margin-top:calc(var(--header) + var(--toolbar));height:calc(100vh - var(--header) - var(--toolbar));display:flex;overflow:hidden;}
+.main{margin-top:calc(var(--header) + var(--filterbar) + var(--toolbar));height:calc(100vh - var(--header) - var(--filterbar) - var(--toolbar));display:flex;overflow:hidden;}
 .list-panel{width:420px;flex-shrink:0;overflow-y:auto;background:var(--white);border-right:1px solid var(--border);}
 .map-panel{flex:1;position:relative}
 #map{width:100%;height:100%}
@@ -191,6 +191,16 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .sf-match-badge{display:inline-flex;align-items:center;gap:5px;background:#00A1E0;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;flex-shrink:0;}
 .sf-match-badge svg{width:12px;height:12px}
 .pf-note{background:#fff7e0;border:1px solid #f2d47f;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12.5px;color:#6b5312;line-height:1.45}
+
+/* fixed filter bar between header and toolbar */
+#filterBar{position:fixed;top:var(--header);left:0;right:0;height:var(--filterbar);z-index:195;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 16px;overflow-x:auto;font-size:11.5px}
+#filterBar .fbg{display:flex;align-items:center;gap:5px;flex-shrink:0}
+#filterBar .fbl{color:var(--text2);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.04em;white-space:nowrap}
+#filterBar input{width:64px;height:26px;padding:0 7px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;outline:none;background:var(--white)}
+#filterBar input:focus{border-color:var(--blue)}
+#filterBar .fbdash{color:var(--text3)}
+#fbClear{padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--white);font-size:11px;color:var(--text2);flex-shrink:0}
+#fbClear:hover{background:var(--bg)}
 </style>
 </head>
 <body>
@@ -214,6 +224,14 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
     </button>
   </div>
 </header>
+<div id="filterBar">
+  <div class="fbg"><span class="fbl">Units</span><input id="fb_units_min" placeholder="min"><span class="fbdash">-</span><input id="fb_units_max" placeholder="max"></div>
+  <div class="fbg"><span class="fbl">Sale $</span><input id="fb_price_min" placeholder="min"><span class="fbdash">-</span><input id="fb_price_max" placeholder="max"></div>
+  <div class="fbg"><span class="fbl">$/Unit</span><input id="fb_ppu_min" placeholder="min"><span class="fbdash">-</span><input id="fb_ppu_max" placeholder="max"></div>
+  <div class="fbg"><span class="fbl">Built</span><input id="fb_year_min" placeholder="min"><span class="fbdash">-</span><input id="fb_year_max" placeholder="max"></div>
+  <div class="fbg"><span class="fbl">Sold after</span><input id="fb_sold_after" placeholder="year" style="width:52px"></div>
+  <button id="fbClear" onclick="fbClear()">Clear</button>
+</div>
 <div class="toolbar">
   <div class="tier-filter">
     <button class="tier-btn active" data-tier="all" onclick="setTier('all')">All</button>
@@ -1307,9 +1325,11 @@ document.addEventListener("click",function(){pop.classList.remove("show");});
 })();
 </script>
 
+
+
 <script>
 (function(){
-function pf(v){var n=parseFloat(v);return isNaN(n)?null:n;}
+function pfNum(v){var n=parseFloat(v);return isNaN(n)?null:n;}
 function parseNumInput(id){
   var el=document.getElementById(id);
   if(!el)return null;
@@ -1322,10 +1342,10 @@ function parseNumInput(id){
   return isNaN(n)?null:n*mult;
 }
 var FIELDS=[
- {key:"units",label:"Units",get:function(p){var v=pf(p.total_units);if(v==null&&p._trepp)v=pf(p._trepp.number_of_units);return v;}},
- {key:"price",label:"Sale $",get:function(p){return pf(p.sale_amount);}},
- {key:"ppu",label:"$/Unit",get:function(p){var v=pf(p.price_per_unit);if(v==null&&!p._portfolio){var sa=pf(p.sale_amount),u=pf(p.total_units);if(sa&&u)v=sa/u;}return v;}},
- {key:"year",label:"Built",get:function(p){var v=pf(p.year_built);if(v==null&&p._trepp)v=pf(p._trepp.year_built);return v;}}
+ {key:"units",get:function(p){var v=pfNum(p.total_units);if(v==null&&p._trepp)v=pfNum(p._trepp.number_of_units);return v;}},
+ {key:"price",get:function(p){return pfNum(p.sale_amount);}},
+ {key:"ppu",get:function(p){var v=pfNum(p.price_per_unit);if(v==null&&!p._portfolio){var sa=pfNum(p.sale_amount),u=pfNum(p.total_units);if(sa&&u)v=sa/u;}return v;}},
+ {key:"year",get:function(p){var v=pfNum(p.year_built);if(v==null&&p._trepp)v=pfNum(p._trepp.year_built);return v;}}
 ];
 window.applyRangeFilters=function(data){
   FIELDS.forEach(function(f){
@@ -1349,42 +1369,12 @@ window.applyRangeFilters=function(data){
   }
   return data;
 };
-var css=".toolbar{flex-wrap:wrap!important}"+
-"#filterBar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:4px 0 8px;background:transparent;border-bottom:1px solid #eceef1;margin-bottom:6px;font-size:11.5px;width:100%;box-sizing:border-box;flex-basis:100%;order:-1;flex-shrink:0}"+
-"#filterBar .fbg{display:flex;align-items:center;gap:5px}"+
-"#filterBar .fbl{color:#5f6368;font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.04em}"+
-"#filterBar{min-height:36px}"+
-"#filterBar *{visibility:visible!important;opacity:1!important}"+
-"#filterBar input{width:64px!important;height:auto!important;padding:4px 7px!important;border:1px solid #dadce0!important;border-radius:6px;font-size:11.5px!important;display:inline-block!important;background:#fff!important;color:#222!important}"+
-"#filterBar input:focus{outline:none;border-color:#1a73e8}"+
-"#filterBar .fbdash{color:#9aa0a6}"+
-"#fbClear{padding:4px 12px;border-radius:6px;border:1px solid #dadce0;background:#fff;cursor:pointer;font-size:11px;color:#444}"+
-"#fbClear:hover{background:#f1f3f4}";
-var st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
-var __old=document.getElementById("filterBar");if(__old)__old.remove();
-var bar=document.createElement("div");bar.id="filterBar";
-var h="";
-FIELDS.forEach(function(f){
-  h+='<div class="fbg"><span class="fbl">'+f.label+'</span>'+
-     '<input id="fb_'+f.key+'_min" placeholder="min"><span class="fbdash">-</span>'+
-     '<input id="fb_'+f.key+'_max" placeholder="max"></div>';
-});
-h+='<div class="fbg"><span class="fbl">Sold after</span><input id="fb_sold_after" placeholder="year" style="width:52px"></div>';
-h+='<button id="fbClear">Clear</button>';
-bar.innerHTML=h;
-var tb=document.querySelector(".toolbar");
-if(tb){tb.insertBefore(bar,tb.firstChild);}
-else{
-  var hd=document.querySelector("header");
-  if(hd&&hd.parentElement)hd.parentElement.insertBefore(bar,hd.nextSibling);
-  else document.body.insertBefore(bar,document.body.firstChild);
-}
-bar.querySelectorAll("input").forEach(function(inp){
-  inp.addEventListener("input",function(){if(window.applyFilters)applyFilters();});
-});
-document.getElementById("fbClear").addEventListener("click",function(){
-  bar.querySelectorAll("input").forEach(function(i){i.value="";});
+window.fbClear=function(){
+  document.querySelectorAll("#filterBar input").forEach(function(i){i.value="";});
   if(window.applyFilters)applyFilters();
+};
+document.querySelectorAll("#filterBar input").forEach(function(inp){
+  inp.addEventListener("input",function(){if(window.applyFilters)applyFilters();});
 });
 })();
 </script>
