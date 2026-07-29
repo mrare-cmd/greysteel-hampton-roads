@@ -580,6 +580,7 @@ function applyFilters(){
   if(activeSrc==='trepp')data=data.filter(p=>p._trepp);else if(activeSrc==='trepp-only')data=data.filter(p=>p._source==='trepp');
   const loanSrc=document.getElementById('loanSrcSelect')?.value||'all';
   if(loanSrc!=='all')data=data.filter(p=>p._trepp&&(p._trepp.source||'').includes(loanSrc));
+  if(window.applyRangeFilters)data=window.applyRangeFilters(data);
   const sort=document.getElementById('sortSelect').value;
   if(sort==='score')data.sort((a,b)=>b._score-a._score);
   else if(sort==='maturity'){const getBest=p=>{const STALE=-365*24*3600*1000,now=new Date();const tm=p._trepp?parseD(p._trepp.maturity_date):null;const m1=parseD(p.mortgage_maturity_date),m2=parseD(p.mortgage2_maturity_date);const candidates=[tm,m1,m2].filter(d=>d&&(d-now)>STALE);if(!candidates.length)return null;const fut=candidates.filter(d=>d>now);return fut.length?fut.reduce((a,b)=>a<b?a:b):candidates.reduce((a,b)=>a>b?a:b);};data.sort((a,b)=>{const da=getBest(a),db=getBest(b);if(!da&&!db)return 0;if(!da)return 1;if(!db)return -1;return da-db;});}
@@ -1303,5 +1304,85 @@ btn.addEventListener("click",function(e){
   pop.classList.add("show");
 });
 document.addEventListener("click",function(){pop.classList.remove("show");});
+})();
+</script>
+
+<script>
+(function(){
+function pf(v){var n=parseFloat(v);return isNaN(n)?null:n;}
+function parseNumInput(id){
+  var el=document.getElementById(id);
+  if(!el)return null;
+  var v=String(el.value||"").trim().toLowerCase();
+  if(!v)return null;
+  var mult=1;
+  if(/m$/.test(v)){mult=1e6;v=v.slice(0,-1);}
+  else if(/k$/.test(v)){mult=1e3;v=v.slice(0,-1);}
+  var n=parseFloat(v.replace(/[,$\s]/g,""));
+  return isNaN(n)?null:n*mult;
+}
+var FIELDS=[
+ {key:"units",label:"Units",get:function(p){var v=pf(p.total_units);if(v==null&&p._trepp)v=pf(p._trepp.number_of_units);return v;}},
+ {key:"price",label:"Sale $",get:function(p){return pf(p.sale_amount);}},
+ {key:"ppu",label:"$/Unit",get:function(p){var v=pf(p.price_per_unit);if(v==null&&!p._portfolio){var sa=pf(p.sale_amount),u=pf(p.total_units);if(sa&&u)v=sa/u;}return v;}},
+ {key:"year",label:"Built",get:function(p){var v=pf(p.year_built);if(v==null&&p._trepp)v=pf(p._trepp.year_built);return v;}}
+];
+window.applyRangeFilters=function(data){
+  FIELDS.forEach(function(f){
+    var mn=parseNumInput("fb_"+f.key+"_min"),mx=parseNumInput("fb_"+f.key+"_max");
+    if(mn===null&&mx===null)return;
+    data=data.filter(function(p){
+      var x=f.get(p);
+      if(x===null)return false;
+      if(mn!==null&&x<mn)return false;
+      if(mx!==null&&x>mx)return false;
+      return true;
+    });
+  });
+  var sy=parseNumInput("fb_sold_after");
+  if(sy!==null){
+    data=data.filter(function(p){
+      var d=Date.parse(p.sale_recorded_date||"");
+      if(isNaN(d))return false;
+      return new Date(d).getFullYear()>=sy;
+    });
+  }
+  return data;
+};
+var css="#filterBar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:7px 16px;background:#fafbfc;border-bottom:1px solid #e8eaed;font-size:11.5px}"+
+"#filterBar .fbg{display:flex;align-items:center;gap:5px}"+
+"#filterBar .fbl{color:#5f6368;font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.04em}"+
+"#filterBar input{width:64px;padding:4px 7px;border:1px solid #dadce0;border-radius:6px;font-size:11.5px}"+
+"#filterBar input:focus{outline:none;border-color:#1a73e8}"+
+"#filterBar .fbdash{color:#9aa0a6}"+
+"#fbClear{padding:4px 12px;border-radius:6px;border:1px solid #dadce0;background:#fff;cursor:pointer;font-size:11px;color:#444}"+
+"#fbClear:hover{background:#f1f3f4}";
+var st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
+var bar=document.createElement("div");bar.id="filterBar";
+var h="";
+FIELDS.forEach(function(f){
+  h+='<div class="fbg"><span class="fbl">'+f.label+'</span>'+
+     '<input id="fb_'+f.key+'_min" placeholder="min"><span class="fbdash">-</span>'+
+     '<input id="fb_'+f.key+'_max" placeholder="max"></div>';
+});
+h+='<div class="fbg"><span class="fbl">Sold after</span><input id="fb_sold_after" placeholder="year" style="width:52px"></div>';
+h+='<button id="fbClear">Clear</button>';
+bar.innerHTML=h;
+var tierBtn=document.querySelector(".tier-btn");
+if(tierBtn){
+  var tc=tierBtn.parentElement;
+  tc.parentElement.insertBefore(bar,tc);
+}else{
+  var hd=document.querySelector("header");
+  if(hd&&hd.parentElement)hd.parentElement.insertBefore(bar,hd.nextSibling);
+  else document.body.insertBefore(bar,document.body.firstChild);
+}
+bar.querySelectorAll("input").forEach(function(inp){
+  inp.addEventListener("input",function(){if(window.applyFilters)applyFilters();});
+});
+document.getElementById("fbClear").addEventListener("click",function(){
+  bar.querySelectorAll("input").forEach(function(i){i.value="";});
+  if(window.applyFilters)applyFilters();
+});
 })();
 </script>
