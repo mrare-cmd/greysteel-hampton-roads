@@ -555,7 +555,7 @@ async function loadData(){
   });
   const treppOnly=(trepps||[]).filter(t=>!usedTreppIds.has(t.id));
   treppOnly.forEach(t=>{
-    const pseudo={id:`trepp_${t.id}`,address_line_1:t.address||t.property_name,address_city:t.city,address_state:t.state,address_full:[t.address||t.property_name,t.city,t.state].filter(Boolean).join(', '),property_type:t.normalized_property_type||t.property_type,property_subtype:t.trepp_subtype,year_built:t.year_built,total_units:t.number_of_units,latitude:t.latitude?parseFloat(t.latitude):null,longitude:t.longitude?parseFloat(t.longitude):null,_trepp:t,_hasCostar:false,_costar:null,_source:'trepp',_matchMethod:null};
+    const pseudo={id:`trepp_${t.id}`,asr_land_value:t.asr_land_value,asr_improvement_value:t.asr_improvement_value,asr_total_value:t.asr_total_value,asr_year:t.asr_year,asr_city:t.asr_city,address_line_1:t.address||t.property_name,address_city:t.city,address_state:t.state,address_full:[t.address||t.property_name,t.city,t.state].filter(Boolean).join(', '),property_type:t.normalized_property_type||t.property_type,property_subtype:t.trepp_subtype,year_built:t.year_built,total_units:t.number_of_units,latitude:t.latitude?parseFloat(t.latitude):null,longitude:t.longitude?parseFloat(t.longitude):null,_trepp:t,_hasCostar:false,_costar:null,_source:'trepp',_matchMethod:null};
     const {score,tier,details,cats}=scoreProperty(pseudo);
     allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
   });
@@ -769,13 +769,26 @@ function decorateSF(p){
   p._hasSF=contacts.length>0||!!(p.sf_ownership_entity&&p.sf_ownership_entity.trim());
   return p;
 }
+window.asrOf=asrOf;
+function asrOf(p){
+  const src=[p,p._trepp,p._costar];
+  for(let i=0;i<src.length;i++){
+    const o=src[i];
+    if(!o)continue;
+    const t=parseFloat(o.asr_total_value);
+    if(!isNaN(t)&&t>0){
+      return {total:t,land:parseFloat(o.asr_land_value),improvement:parseFloat(o.asr_improvement_value),
+              year:o.asr_year,city:o.asr_city};
+    }
+  }
+  return null;
+}
 function buildAssessed(p){
-  const t=parseFloat(p.asr_total_value||'');
-  if(isNaN(t))return '';
-  const l=parseFloat(p.asr_land_value||''),im=parseFloat(p.asr_improvement_value||'');
+  const a=asrOf(p);
+  if(!a)return '';
   const fmt=n=>isNaN(n)?'\u2014':'$'+Math.round(n).toLocaleString();
-  const yr=p.asr_year?String(p.asr_year).slice(0,4):'';
-  return `<div class="asr-note"><div class="asr-head">Assessed Value${yr?' (FY '+yr+')':''}<span class="asr-src">${p.asr_city||''} assessor</span></div><table class="asr-table"><tbody><tr><td>Land</td><td>${fmt(l)}</td></tr><tr><td>Improvements</td><td>${fmt(im)}</td></tr><tr class="asr-total"><td>Total</td><td>${fmt(t)}</td></tr></tbody></table></div>`;
+  const yr=a.year?String(a.year).slice(0,4):'';
+  return `<div class="asr-note"><div class="asr-head">Assessed Value${yr?' (FY '+yr+')':''}<span class="asr-src">${a.city||''} assessor</span></div><table class="asr-table"><tbody><tr><td>Land</td><td>${fmt(a.land)}</td></tr><tr><td>Improvements</td><td>${fmt(a.improvement)}</td></tr><tr class="asr-total"><td>Total</td><td>${fmt(a.total)}</td></tr></tbody></table></div>`;
 }
 function buildPortfolioNote(p){
   const cu=parseFloat((p._trepp&&p._trepp.number_of_units)||(p._costar&&p._costar.number_of_units)||'');
@@ -1573,7 +1586,7 @@ var FIELDS=[
  {key:"price",get:function(p){return pfNum(p.sale_amount);}},
  {key:"ppu",get:function(p){var v=pfNum(p.price_per_unit);if(v==null&&!p._portfolio){var sa=pfNum(p.sale_amount),u=pfNum(p.total_units);if(sa&&u)v=sa/u;}return v;}},
  {key:"year",get:function(p){var v=pfNum(p.year_built);if(v==null&&p._trepp)v=pfNum(p._trepp.year_built);return v;}},
- {key:"asr",get:function(p){return pfNum(p.asr_total_value);}}
+ {key:"asr",get:function(p){if(window.asrOf){var a=window.asrOf(p);if(a)return a.total;}return pfNum(p.asr_total_value);}}
 ];
 window.applyRangeFilters=function(data){
   FIELDS.forEach(function(f){
