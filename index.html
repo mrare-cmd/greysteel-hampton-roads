@@ -255,6 +255,18 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 #landing .leaflet-control-zoom a:hover{background:var(--bg,#f8f9fa);color:var(--text,#202124)}
 #landing .leaflet-bottom.leaflet-right{margin:0 18px 18px 0}
 /* seamless market handoff */
+#landing .leaflet-overlay-pane,#landing .leaflet-tooltip-pane,
+#landing .leaflet-marker-pane,#landing .leaflet-control-zoom{
+  transition:opacity .42s ease}
+#landing.lp-full .leaflet-overlay-pane,#landing.lp-full .leaflet-tooltip-pane,
+#landing.lp-full .leaflet-marker-pane,#landing.lp-full .leaflet-control-zoom{
+  opacity:0;pointer-events:none}
+/* dashboard dots arrive after the chrome, not during the swap */
+#map .leaflet-marker-pane{transition:opacity .45s ease .12s}
+body.entering #map .leaflet-marker-pane{opacity:0;transition:none}
+/* dashboard zoom control likewise */
+#map .leaflet-control-zoom{transition:opacity .4s ease .15s}
+body.entering #map .leaflet-control-zoom{opacity:0;transition:none}
 #landing.lp-full .lp-panel{transform:translateX(-102%);opacity:0}
 #landing.lp-full #landingMap{left:0}
 #landing .lp-panel{transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .35s ease}
