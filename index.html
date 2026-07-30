@@ -221,9 +221,9 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 #landing.hiding{opacity:0;pointer-events:none}
 #landingMap{position:absolute;inset:0;background:#eef0f2;z-index:1}
 #landing .lp-scrim{position:absolute;inset:0;pointer-events:none;z-index:2;
-  background:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.92) 30%,rgba(255,255,255,.35) 56%,rgba(255,255,255,0) 76%)}
-#landing .lp-panel{position:absolute;top:0;left:0;bottom:0;z-index:3;width:min(430px,42vw);
-  padding:44px 44px 36px;display:flex;flex-direction:column;pointer-events:none}
+  background:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.9) 22%,rgba(255,255,255,.3) 44%,rgba(255,255,255,0) 62%)}
+#landing .lp-panel{position:absolute;top:0;left:0;bottom:0;z-index:3;width:min(370px,33vw);
+  padding:40px 38px 32px;display:flex;flex-direction:column;pointer-events:none}
 #landing .lp-brand{display:flex;align-items:center;gap:10px;pointer-events:auto}
 #landing .lp-mark{width:26px;height:26px;border-radius:5px;background:var(--blue,#1a73e8);color:#fff;
   font-size:15px;font-weight:700;line-height:26px;text-align:center}
@@ -1753,8 +1753,20 @@ function enter(id){
       el.style.display="none";
       try{ sessionStorage.setItem("gsRegion",id); }catch(e){}
       if(window.map){
-        window.map.invalidateSize();
-        try{ if(g&&g.getBounds&&g.getBounds().isValid())window.map.fitBounds(g.getBounds(),{padding:[24,24]}); }catch(e){}
+        var M=window.map;
+        M.invalidateSize({pan:false});
+        try{ if(g&&g.getBounds&&g.getBounds().isValid())M.fitBounds(g.getBounds(),{padding:[24,24]}); }catch(e){}
+        // Purge stale tiles left over from initializing under the overlay.
+        var refresh=function(){
+          M.invalidateSize({pan:false});
+          M.eachLayer(function(l){
+            if(l&&l._url&&typeof l.redraw==="function"){
+              try{ l.redraw(); }catch(e){}
+            }
+          });
+        };
+        setTimeout(refresh,220);
+        setTimeout(refresh,700);
       }
     },560);
   },820);
@@ -1797,7 +1809,7 @@ function init(){
       });
       try{
         var all=L.featureGroup(Object.keys(groups).map(function(k){return groups[k];}));
-        if(all.getBounds().isValid())lmap.fitBounds(all.getBounds(),{paddingTopLeft:[Math.min(430,window.innerWidth*.42)+40,70],paddingBottomRight:[70,70]});
+        if(all.getBounds().isValid())lmap.fitBounds(all.getBounds(),{paddingTopLeft:[Math.min(370,window.innerWidth*.33)+36,64],paddingBottomRight:[70,70]});
       }catch(e){}
     });
 
