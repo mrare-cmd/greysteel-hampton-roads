@@ -738,8 +738,9 @@ function buildChips(p){
 // ─── MAP (Hampton Roads, no boundary) ───
 function initMap(){
   if(map)return;
-  map=L.map('map',{center:[36.85,-76.28],zoom:10,zoomControl:false});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{attribution:'© CARTO',maxZoom:19,detectRetina:false,keepBuffer:3,updateWhenZooming:false,updateWhenIdle:false,crossOrigin:true}).addTo(map);
+  map=L.map('map',{center:[36.85,-76.28],zoom:10,zoomControl:false,maxZoom:16});
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{attribution:'Esri',maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true}).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{attribution:'',maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true,pane:'shadowPane'}).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
   markersLayer=L.layerGroup().addTo(map);
   L.DomEvent.disableScrollPropagation(document.getElementById('detailDrawer'));
@@ -1797,7 +1798,7 @@ function init(){
     minZoom:5,maxZoom:11,zoomSnap:.5,zoomDelta:.5})
     .setView([37.9,-76.85],7);
   L.control.zoom({position:"bottomright"}).addTo(lmap);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png",{maxZoom:19,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true}).addTo(lmap);
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true}).addTo(lmap);
 
   fetch("regions.geojson?t="+Date.now())
     .then(function(r){if(!r.ok)throw 0;return r.json();})
