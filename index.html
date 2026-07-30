@@ -257,31 +257,45 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 /* seamless market handoff */
 #landing .leaflet-overlay-pane,#landing .leaflet-tooltip-pane,
 #landing .leaflet-marker-pane,#landing .leaflet-control-zoom{transition:opacity .4s ease}
-#landing.lp-dock .leaflet-overlay-pane,#landing.lp-dock .leaflet-tooltip-pane,
-#landing.lp-dock .leaflet-marker-pane,#landing.lp-dock .leaflet-control-zoom{opacity:0;pointer-events:none}
+#landing.lp-full .leaflet-overlay-pane,#landing.lp-full .leaflet-tooltip-pane,
+#landing.lp-full .leaflet-marker-pane,#landing.lp-full .leaflet-control-zoom{opacity:0;pointer-events:none}
 #landing .lp-panel{transition:transform .5s cubic-bezier(.4,0,.2,1),opacity .38s ease}
-#landing #landingMap{transition:left .62s cubic-bezier(.33,.9,.32,1),top .62s cubic-bezier(.33,.9,.32,1)}
-#landing.lp-dock .lp-panel{transform:translateX(-104%);opacity:0}
-#landing.lp-dock #landingMap{left:var(--dockL,0px);top:var(--dockT,0px)}
+#landing #landingMap{transition:left .5s cubic-bezier(.33,.9,.32,1)}
+#landing.lp-full .lp-panel{transform:translateX(-104%);opacity:0}
+#landing.lp-full #landingMap{left:0}
 #landing.fast-out{transition:opacity .16s linear}
 
-/* chrome arrives over space the map never occupied */
-header{transition:transform .52s cubic-bezier(.22,.68,.32,1),opacity .34s ease}
-.toolbar,#filterBar{transition:transform .52s cubic-bezier(.22,.68,.32,1) .06s,opacity .34s ease .06s}
-#listPanel{transition:transform .58s cubic-bezier(.22,.68,.32,1) .18s,opacity .4s ease .18s}
+/* chrome slides in over a fullscreen map; sidebar width animates so the
+   map panel resizes smoothly instead of snapping */
+header{transition:transform .55s cubic-bezier(.22,.68,.32,1),opacity .36s ease}
+.toolbar,#filterBar{transition:transform .55s cubic-bezier(.22,.68,.32,1) .05s,opacity .36s ease .05s}
+.main{transition:margin-top .58s cubic-bezier(.22,.68,.32,1),height .58s cubic-bezier(.22,.68,.32,1)}
+#listPanel{transition:width .58s cubic-bezier(.22,.68,.32,1) .12s,
+                     flex-basis .58s cubic-bezier(.22,.68,.32,1) .12s,
+                     min-width .58s cubic-bezier(.22,.68,.32,1) .12s,
+                     opacity .42s ease .16s}
 body.entering header{transform:translateY(-100%);opacity:0}
-body.entering .toolbar,body.entering #filterBar{transform:translateY(-160%);opacity:0}
-body.entering #listPanel{transform:translateX(-101%);opacity:0}
-#map .leaflet-marker-pane{transition:opacity .5s ease .35s}
+body.entering .toolbar,body.entering #filterBar{transform:translateY(-170%);opacity:0}
+body.entering .main{margin-top:0;height:100vh}
+body.entering #listPanel{width:0;flex-basis:0;min-width:0;opacity:0;overflow:hidden}
+body.no-anim header,body.no-anim .toolbar,body.no-anim #filterBar,
+body.no-anim #listPanel,body.no-anim .main{transition:none!important}
+#map .leaflet-marker-pane{transition:opacity .5s ease .3s}
 body.entering #map .leaflet-marker-pane{opacity:0;transition:none}
-#map .leaflet-control-zoom{transition:opacity .45s ease .4s}
+#map .leaflet-control-zoom{transition:opacity .45s ease .35s}
 body.entering #map .leaflet-control-zoom{opacity:0;transition:none}
+
+/* version badge */
+#verBadge{position:fixed;top:5px;right:7px;z-index:99999;pointer-events:none;
+  font-size:9px;line-height:1;font-weight:500;color:var(--text3,#80868b);opacity:.6;
+  letter-spacing:.03em;font-variant-numeric:tabular-nums}
 #backToMarkets{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);
   color:var(--text2);font-size:11px;font-weight:500;padding:4px 10px;border-radius:12px;cursor:pointer;margin-left:8px}
 #backToMarkets:hover{background:var(--bg);color:var(--text)}
 </style>
 </head>
 <body>
+<div id="verBadge">v1</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1768,30 +1782,29 @@ function enter(id){
   var r=regionById(id);
   var target=r.view||{center:r.center,zoom:r.zoom};
   var land=document.getElementById("landing");
+  var B=document.body;
 
-  // Measure the dashboard map's rect; the landing map will dock into it.
+  // Measure the chrome now, while it is still laid out normally.
   var lp=document.getElementById("listPanel");
   var hd=document.querySelector("header");
   var tb=document.querySelector(".toolbar");
   var fb=document.getElementById("filterBar");
   var W=lp?lp.offsetWidth:0;
   var H=(hd?hd.offsetHeight:0)+(tb?tb.offsetHeight:0)+(fb?fb.offsetHeight:0);
-  land.style.setProperty("--dockL",W+"px");
-  land.style.setProperty("--dockT",H+"px");
 
-  // 1+2. outlines fade, panel slides out, map docks and flies to the target view
-  land.classList.add("lp-dock");
-  var t=0;
+  // 1. outlines fade, text panel leaves, map fills the screen
+  land.classList.add("lp-full");
   var tick=setInterval(function(){ try{ lmap.invalidateSize({pan:false}); }catch(e){} },40);
   setTimeout(function(){
     try{ lmap.flyTo(target.center,target.zoom,{duration:1.25,easeLinearity:.25}); }catch(e){}
-  },240);
-  setTimeout(function(){ clearInterval(tick); },1500);
+  },260);
+  setTimeout(function(){ clearInterval(tick); },1560);
 
-  // 3. settle, then 4. invisible swap
+  // 2. settle, then put the dashboard into a fullscreen-map state instantly
   setTimeout(function(){
     var M=window.map;
-    document.body.classList.add("entering");
+    B.classList.add("no-anim","entering");
+    void B.offsetWidth;
     if(M){
       try{
         M.invalidateSize({pan:false});
@@ -1799,24 +1812,42 @@ function enter(id){
         M.invalidateSize({pan:false});
       }catch(e){}
     }
+    requestAnimationFrame(function(){ B.classList.remove("no-anim"); });
+
+    // 3. invisible swap
     land.classList.add("fast-out");
     land.style.opacity="0";
 
     setTimeout(function(){
       land.style.display="none";
       try{ sessionStorage.setItem("gsRegion",id); }catch(e){}
-      // 5. chrome animates in over white space; map rect is unchanged
+
+      // 4. chrome slides in over the map; the map shrinks, so pan by half of
+      //    each lost dimension, in step, to keep the picture stationary.
       requestAnimationFrame(function(){
-        document.body.classList.remove("entering");
-        setTimeout(function(){
-          if(!window.map)return;
+        B.classList.remove("entering");
+        var totX=W/2,totY=H/2,dx=0,dy=0;
+        var t0=performance.now(),DUR=700;
+        (function step(now){
+          var M2=window.map;
+          if(!M2)return;
+          var p=Math.min(1,((now||performance.now())-t0)/DUR);
+          var e=1-Math.pow(1-p,3);
           try{
-            window.map.invalidateSize({pan:false});
-            window.map.eachLayer(function(l){
-              if(l&&l._url&&typeof l.redraw==="function"){try{l.redraw();}catch(e){}}
-            });
-          }catch(e){}
-        },700);
+            M2.invalidateSize({pan:false});
+            var nx=totX*e-dx, ny=totY*e-dy;
+            if(nx||ny){ M2.panBy([nx,ny],{animate:false}); dx+=nx; dy+=ny; }
+          }catch(err){}
+          if(p<1)requestAnimationFrame(step);
+          else{
+            try{
+              M2.invalidateSize({pan:false});
+              M2.eachLayer(function(l){
+                if(l&&l._url&&typeof l.redraw==="function"){try{l.redraw();}catch(e){}}
+              });
+            }catch(err){}
+          }
+        })();
       });
     },170);
   },2050);
@@ -1826,6 +1857,7 @@ function showLanding(){
   document.body.classList.remove("entering");
   var el=document.getElementById("landing");
   el.style.display="";
+  document.body.classList.remove("entering","no-anim");
   el.classList.remove("hiding","fast-out","lp-full","lp-dock");
   el.style.opacity="";
   if(lmap)setTimeout(function(){lmap.invalidateSize();},60);
