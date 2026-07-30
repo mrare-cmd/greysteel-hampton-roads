@@ -265,25 +265,25 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 #landing.lp-full #landingMap{left:0}
 #landing.fast-out{transition:opacity .16s linear}
 
-/* chrome slides in over a fullscreen map; sidebar width animates so the
-   map panel resizes smoothly instead of snapping */
-header{transition:transform .55s cubic-bezier(.22,.68,.32,1),opacity .36s ease}
-.toolbar,#filterBar{transition:transform .55s cubic-bezier(.22,.68,.32,1) .05s,opacity .36s ease .05s}
-.main{transition:margin-top .58s cubic-bezier(.22,.68,.32,1),height .58s cubic-bezier(.22,.68,.32,1)}
-#listPanel{transition:width .58s cubic-bezier(.22,.68,.32,1) .12s,
-                     flex-basis .58s cubic-bezier(.22,.68,.32,1) .12s,
-                     min-width .58s cubic-bezier(.22,.68,.32,1) .12s,
-                     opacity .42s ease .16s}
-body.entering header{transform:translateY(-100%);opacity:0}
-body.entering .toolbar,body.entering #filterBar{transform:translateY(-170%);opacity:0}
-body.entering .main{margin-top:0;height:100vh}
-body.entering #listPanel{width:0;flex-basis:0;min-width:0;opacity:0;overflow:hidden}
-body.no-anim header,body.no-anim .toolbar,body.no-anim #filterBar,
-body.no-anim #listPanel,body.no-anim .main{transition:none!important}
-#map .leaflet-marker-pane{transition:opacity .5s ease .3s}
-body.entering #map .leaflet-marker-pane{opacity:0;transition:none}
-#map .leaflet-control-zoom{transition:opacity .45s ease .35s}
-body.entering #map .leaflet-control-zoom{opacity:0;transition:none}
+/* chrome rides ABOVE the landing map while it slides in; transform only,
+   so no layout changes and the dashboard map is never resized */
+body.chrome-over header{z-index:6000}
+body.chrome-over .toolbar{z-index:5990}
+body.chrome-over #filterBar{z-index:5980}
+body.chrome-over #listPanel{position:relative;z-index:5970}
+header{transition:transform .58s cubic-bezier(.2,.7,.3,1),opacity .3s ease}
+.toolbar{transition:transform .58s cubic-bezier(.2,.7,.3,1) .07s,opacity .3s ease .07s}
+#filterBar{transition:transform .58s cubic-bezier(.2,.7,.3,1) .12s,opacity .3s ease .12s}
+#listPanel{transition:transform .62s cubic-bezier(.2,.7,.3,1) .2s,opacity .34s ease .2s}
+body.entering header{transform:translateY(-102%);opacity:0}
+body.entering .toolbar{transform:translateY(-260%);opacity:0}
+body.entering #filterBar{transform:translateY(-380%);opacity:0}
+body.entering #listPanel{transform:translateX(-102%);opacity:0}
+body.no-anim header,body.no-anim .toolbar,body.no-anim #filterBar,body.no-anim #listPanel{transition:none!important}
+#map .leaflet-marker-pane{transition:opacity .5s ease}
+body.dots-off #map .leaflet-marker-pane{opacity:0;transition:none}
+#map .leaflet-control-zoom{transition:opacity .45s ease .1s}
+body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 
 /* version badge */
 #verBadge{position:fixed;top:5px;right:7px;z-index:99999;pointer-events:none;
@@ -295,7 +295,7 @@ body.entering #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v1</div>
+<div id="verBadge">v2</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1784,15 +1784,12 @@ function enter(id){
   var land=document.getElementById("landing");
   var B=document.body;
 
-  // Measure the chrome now, while it is still laid out normally.
-  var lp=document.getElementById("listPanel");
-  var hd=document.querySelector("header");
-  var tb=document.querySelector(".toolbar");
-  var fb=document.getElementById("filterBar");
-  var W=lp?lp.offsetWidth:0;
-  var H=(hd?hd.offsetHeight:0)+(tb?tb.offsetHeight:0)+(fb?fb.offsetHeight:0);
+  // chrome parked off-screen instantly, dots hidden, chrome raised above landing
+  B.classList.add("no-anim","entering","dots-off","chrome-over");
+  void B.offsetWidth;
+  requestAnimationFrame(function(){ B.classList.remove("no-anim"); });
 
-  // 1. outlines fade, text panel leaves, map fills the screen
+  // 1. outlines fade, text panel leaves, map fills the screen, fly in
   land.classList.add("lp-full");
   var tick=setInterval(function(){ try{ lmap.invalidateSize({pan:false}); }catch(e){} },40);
   setTimeout(function(){
@@ -1800,64 +1797,50 @@ function enter(id){
   },260);
   setTimeout(function(){ clearInterval(tick); },1560);
 
-  // 2. settle, then put the dashboard into a fullscreen-map state instantly
+  // 2. settle, then slide the chrome in OVER the landing map
+  setTimeout(function(){ B.classList.remove("entering"); },1820);
+
+  // 3. once the chrome has landed, swap. The visible map area now equals the
+  //    dashboard map's rect, so match its view to that exact geography.
   setTimeout(function(){
     var M=window.map;
-    B.classList.add("no-anim","entering");
-    void B.offsetWidth;
-    if(M){
+    var el=document.getElementById("map");
+    if(M&&el){
       try{
+        var rect=el.getBoundingClientRect();
+        var cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+        var centerLatLng=lmap.containerPointToLatLng(L.point(cx,cy));
         M.invalidateSize({pan:false});
-        M.setView(target.center,target.zoom,{animate:false});
+        M.setView(centerLatLng,lmap.getZoom(),{animate:false});
         M.invalidateSize({pan:false});
       }catch(e){}
     }
-    requestAnimationFrame(function(){ B.classList.remove("no-anim"); });
-
-    // 3. invisible swap
     land.classList.add("fast-out");
     land.style.opacity="0";
-
     setTimeout(function(){
       land.style.display="none";
+      B.classList.remove("chrome-over");
       try{ sessionStorage.setItem("gsRegion",id); }catch(e){}
-
-      // 4. chrome slides in over the map; the map shrinks, so pan by half of
-      //    each lost dimension, in step, to keep the picture stationary.
       requestAnimationFrame(function(){
-        B.classList.remove("entering");
-        var totX=W/2,totY=H/2,dx=0,dy=0;
-        var t0=performance.now(),DUR=700;
-        (function step(now){
-          var M2=window.map;
-          if(!M2)return;
-          var p=Math.min(1,((now||performance.now())-t0)/DUR);
-          var e=1-Math.pow(1-p,3);
+        B.classList.remove("dots-off");
+        if(window.map){
           try{
-            M2.invalidateSize({pan:false});
-            var nx=totX*e-dx, ny=totY*e-dy;
-            if(nx||ny){ M2.panBy([nx,ny],{animate:false}); dx+=nx; dy+=ny; }
-          }catch(err){}
-          if(p<1)requestAnimationFrame(step);
-          else{
-            try{
-              M2.invalidateSize({pan:false});
-              M2.eachLayer(function(l){
-                if(l&&l._url&&typeof l.redraw==="function"){try{l.redraw();}catch(e){}}
-              });
-            }catch(err){}
-          }
-        })();
+            window.map.invalidateSize({pan:false});
+            window.map.eachLayer(function(l){
+              if(l&&l._url&&typeof l.redraw==="function"){try{l.redraw();}catch(e){}}
+            });
+          }catch(e){}
+        }
       });
     },170);
-  },2050);
+  },2620);
 }
 function showLanding(){
   entered=false;
   document.body.classList.remove("entering");
   var el=document.getElementById("landing");
   el.style.display="";
-  document.body.classList.remove("entering","no-anim");
+  document.body.classList.remove("entering","no-anim","dots-off","chrome-over");
   el.classList.remove("hiding","fast-out","lp-full","lp-dock");
   el.style.opacity="";
   if(lmap)setTimeout(function(){lmap.invalidateSize();},60);
