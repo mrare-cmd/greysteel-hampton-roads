@@ -215,9 +215,61 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 #filterBar .fbdash{color:var(--text3)}
 #fbClear{padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--white);font-size:11px;color:var(--text2);flex-shrink:0}
 #fbClear:hover{background:var(--bg)}
+
+/* ── market selector ── */
+#landing{position:fixed;inset:0;z-index:5000;background:#0e1113;opacity:1;transition:opacity .55s ease}
+#landing.hiding{opacity:0;pointer-events:none}
+#landingMap{position:absolute;inset:0;background:#0e1113}
+#landingMap .leaflet-container{background:#0e1113}
+#landing .lp-scrim{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(14,17,19,.94) 0%,rgba(14,17,19,.82) 28%,rgba(14,17,19,.15) 55%,rgba(14,17,19,0) 75%)}
+#landing .lp-panel{position:absolute;top:0;left:0;bottom:0;width:min(430px,42vw);
+  padding:44px 44px 36px;display:flex;flex-direction:column;pointer-events:none}
+#landing .lp-brand{display:flex;align-items:center;gap:10px;pointer-events:auto}
+#landing .lp-mark{width:26px;height:26px;border-radius:5px;background:#c9a227;color:#12151a;
+  font:700 15px/26px Inter,system-ui,sans-serif;text-align:center}
+#landing .lp-brandname{color:#f4f4f2;font:600 15px/1 Inter,system-ui,sans-serif;letter-spacing:.01em}
+#landing .lp-rule{height:1px;background:rgba(255,255,255,.13);margin:30px 0 26px}
+#landing .lp-eyebrow{color:#8b9299;font:500 10.5px/1 Inter,system-ui,sans-serif;
+  letter-spacing:.17em;text-transform:uppercase}
+#landing h1{color:#f7f7f5;font:400 40px/1.08 Georgia,'Times New Roman',serif;
+  letter-spacing:-.015em;margin:16px 0 12px}
+#landing .lp-lede{color:#9aa1a8;font:400 13.5px/1.6 Inter,system-ui,sans-serif;max-width:31ch;margin:0}
+#landing .lp-list{margin-top:34px;pointer-events:auto}
+#landing .lp-item{display:flex;align-items:baseline;gap:14px;padding:15px 2px;
+  border-top:1px solid rgba(255,255,255,.1);cursor:pointer;transition:padding-left .22s ease}
+#landing .lp-item:last-child{border-bottom:1px solid rgba(255,255,255,.1)}
+#landing .lp-item:hover{padding-left:9px}
+#landing .lp-item.soon{cursor:default;opacity:.5}
+#landing .lp-item.soon:hover{padding-left:2px}
+#landing .lp-idx{color:#6c757d;font:500 10px/1 Inter,system-ui,sans-serif;letter-spacing:.1em;width:20px;flex:none}
+#landing .lp-name{color:#eceded;font:500 17px/1.25 Inter,system-ui,sans-serif;flex:1}
+#landing .lp-item:hover .lp-name{color:#e8c65a}
+#landing .lp-meta{color:#7d858c;font:400 11.5px/1.25 Inter,system-ui,sans-serif;white-space:nowrap}
+#landing .lp-foot{margin-top:auto;color:#5f676e;font:400 11px/1.5 Inter,system-ui,sans-serif;pointer-events:auto}
+#landing .rg-label{color:#e9eaea;font:500 12px/1 Inter,system-ui,sans-serif;letter-spacing:.02em;
+  text-shadow:0 1px 3px rgba(0,0,0,.9);background:none;border:none;box-shadow:none;padding:0;white-space:nowrap}
+#landing .rg-label.soon{color:#8d949a}
+#landing .leaflet-tooltip-top:before,#landing .leaflet-tooltip:before{display:none}
+#backToMarkets{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);
+  color:var(--text2);font-size:11px;font-weight:500;padding:4px 10px;border-radius:12px;cursor:pointer;margin-left:8px}
+#backToMarkets:hover{background:var(--bg);color:var(--text)}
 </style>
 </head>
 <body>
+<div id="landing">
+  <div id="landingMap"></div>
+  <div class="lp-scrim"></div>
+  <div class="lp-panel">
+    <div class="lp-brand"><div class="lp-mark">G</div><div class="lp-brandname">Greysteel</div></div>
+    <div class="lp-rule"></div>
+    <div class="lp-eyebrow">Multifamily Intelligence</div>
+    <h1>Select a market</h1>
+    <p class="lp-lede">Ownership, debt maturities, and distress signals, assembled per market.</p>
+    <div class="lp-list" id="lpList"></div>
+    <div class="lp-foot">More markets in progress.</div>
+  </div>
+</div>
 <header>
   <a class="logo" href="#">
     <div class="logo-g">G</div>
@@ -1628,5 +1680,130 @@ window.fbClear=function(){
 document.querySelectorAll("#filterBar input").forEach(function(inp){
   inp.addEventListener("input",function(){if(window.applyFilters)applyFilters();});
 });
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+var REGIONS=[
+  {id:"hampton",name:"Hampton Roads",meta:"Norfolk \u00b7 Virginia Beach \u00b7 +5",ready:true,
+   center:[36.89,-76.30],zoom:9},
+  {id:"dc",name:"Washington, DC",meta:"Coming soon",ready:false,
+   center:[38.9047,-77.0163],zoom:11}
+];
+// Fallback shapes if regions.geojson is missing (rough, replaced once built).
+var FALLBACK={type:"FeatureCollection",features:[
+ {type:"Feature",properties:{region:"hampton"},geometry:{type:"Polygon",coordinates:[[
+   [-76.72,37.14],[-76.25,37.08],[-75.98,36.92],[-75.87,36.55],[-76.49,36.55],[-76.72,36.77],[-76.72,37.14]]]}},
+ {type:"Feature",properties:{region:"dc"},geometry:{type:"Polygon",coordinates:[[
+   [-77.0369,38.9955],[-76.9094,38.8935],[-77.0369,38.7916],[-77.1198,38.8935],[-77.0369,38.9955]]]}}
+]};
+
+var lmap=null,groups={},entered=false;
+
+function styleFor(r,hover){
+  var ready=r.ready;
+  return {color:hover?(ready?"#e8c65a":"#aeb4ba"):(ready?"#c9a227":"#7f868c"),
+          weight:hover?2.2:1.2,
+          opacity:hover?1:.75,
+          fillColor:ready?"#c9a227":"#8b9299",
+          fillOpacity:hover?(ready?.17:.09):(ready?.07:.04)};
+}
+function regionById(id){for(var i=0;i<REGIONS.length;i++)if(REGIONS[i].id===id)return REGIONS[i];return null;}
+
+function buildList(){
+  var el=document.getElementById("lpList"),h="";
+  REGIONS.forEach(function(r,i){
+    h+='<div class="lp-item'+(r.ready?"":" soon")+'" data-id="'+r.id+'">'+
+       '<span class="lp-idx">'+String(i+1).padStart(2,"0")+'</span>'+
+       '<span class="lp-name">'+r.name+'</span>'+
+       '<span class="lp-meta">'+r.meta+'</span></div>';
+  });
+  el.innerHTML=h;
+  el.querySelectorAll(".lp-item").forEach(function(it){
+    var id=it.getAttribute("data-id"),r=regionById(id);
+    it.addEventListener("mouseenter",function(){setHover(id,true);});
+    it.addEventListener("mouseleave",function(){setHover(id,false);});
+    it.addEventListener("click",function(){if(r&&r.ready)enter(id);});
+  });
+}
+function setHover(id,on){
+  var g=groups[id],r=regionById(id);
+  if(!g||!r)return;
+  g.setStyle(styleFor(r,on));
+  g.eachLayer(function(l){if(l.getElement&&l.getElement())l.getElement().style.filter=on&&r.ready?"drop-shadow(0 0 9px rgba(233,198,90,.75))":"none";});
+  var it=document.querySelector('.lp-item[data-id="'+id+'"]');
+  if(it)it.style.paddingLeft=on&&r.ready?"9px":"";
+}
+function enter(id){
+  if(entered)return;
+  entered=true;
+  var r=regionById(id),g=groups[id];
+  try{ if(g&&g.getBounds&&g.getBounds().isValid()) lmap.flyToBounds(g.getBounds(),{padding:[60,60],duration:1.0});
+       else lmap.flyTo(r.center,r.zoom,{duration:1.0}); }catch(e){}
+  setTimeout(function(){
+    var el=document.getElementById("landing");
+    el.classList.add("hiding");
+    setTimeout(function(){
+      el.style.display="none";
+      try{ sessionStorage.setItem("gsRegion",id); }catch(e){}
+      if(window.map){
+        window.map.invalidateSize();
+        try{ if(g&&g.getBounds&&g.getBounds().isValid())window.map.fitBounds(g.getBounds(),{padding:[24,24]}); }catch(e){}
+      }
+    },560);
+  },820);
+}
+function showLanding(){
+  entered=false;
+  var el=document.getElementById("landing");
+  el.style.display="";
+  el.classList.remove("hiding");
+  if(lmap)setTimeout(function(){lmap.invalidateSize();},60);
+}
+
+function init(){
+  buildList();
+  lmap=L.map("landingMap",{zoomControl:false,attributionControl:false,
+    scrollWheelZoom:false,doubleClickZoom:false,dragging:true,keyboard:false})
+    .setView([37.9,-76.85],7);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",{maxZoom:19}).addTo(lmap);
+
+  fetch("regions.geojson?t="+Date.now())
+    .then(function(r){if(!r.ok)throw 0;return r.json();})
+    .catch(function(){return FALLBACK;})
+    .then(function(gj){
+      REGIONS.forEach(function(r){
+        var feats=(gj.features||[]).filter(function(f){return (f.properties||{}).region===r.id;});
+        if(!feats.length)return;
+        var g=L.geoJSON({type:"FeatureCollection",features:feats},{style:styleFor(r,false)}).addTo(lmap);
+        groups[r.id]=g;
+        g.eachLayer(function(l){
+          l.on("mouseover",function(){setHover(r.id,true);});
+          l.on("mouseout",function(){setHover(r.id,false);});
+          l.on("click",function(){if(r.ready)enter(r.id);});
+        });
+        var c=g.getBounds().getCenter();
+        L.marker(c,{opacity:0,interactive:false}).addTo(lmap)
+          .bindTooltip(r.name,{permanent:true,direction:"center",
+            className:"rg-label"+(r.ready?"":" soon")}).openTooltip();
+      });
+      try{
+        var all=L.featureGroup(Object.keys(groups).map(function(k){return groups[k];}));
+        if(all.getBounds().isValid())lmap.fitBounds(all.getBounds(),{padding:[70,70]});
+      }catch(e){}
+    });
+
+  var mi=document.getElementById("matchInfo");
+  if(mi&&mi.parentElement){
+    var b=document.createElement("button");
+    b.id="backToMarkets";b.textContent="\u2190 Markets";
+    b.addEventListener("click",showLanding);
+    mi.parentElement.appendChild(b);
+  }
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
+else init();
 })();
 </script>
