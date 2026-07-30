@@ -219,10 +219,10 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 /* ── market selector ── */
 #landing{position:fixed;inset:0;z-index:5000;background:var(--white,#fff);opacity:1;transition:opacity .55s ease}
 #landing.hiding{opacity:0;pointer-events:none}
-#landingMap{position:absolute;inset:0;background:#eef0f2}
-#landing .lp-scrim{position:absolute;inset:0;pointer-events:none;
+#landingMap{position:absolute;inset:0;background:#eef0f2;z-index:1}
+#landing .lp-scrim{position:absolute;inset:0;pointer-events:none;z-index:2;
   background:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.92) 30%,rgba(255,255,255,.35) 56%,rgba(255,255,255,0) 76%)}
-#landing .lp-panel{position:absolute;top:0;left:0;bottom:0;width:min(430px,42vw);
+#landing .lp-panel{position:absolute;top:0;left:0;bottom:0;z-index:3;width:min(430px,42vw);
   padding:44px 44px 36px;display:flex;flex-direction:column;pointer-events:none}
 #landing .lp-brand{display:flex;align-items:center;gap:10px;pointer-events:auto}
 #landing .lp-mark{width:26px;height:26px;border-radius:5px;background:var(--blue,#1a73e8);color:#fff;
@@ -251,6 +251,10 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
   background:none;border:none;box-shadow:none;padding:0;white-space:nowrap}
 #landing .rg-label.soon{color:var(--text3,#80868b)}
 #landing .leaflet-tooltip-top:before,#landing .leaflet-tooltip:before{display:none}
+#landing .leaflet-control-zoom{z-index:4;border:1px solid var(--border,#dadce0);box-shadow:none;border-radius:6px;overflow:hidden}
+#landing .leaflet-control-zoom a{color:var(--text2,#5f6368);background:var(--white,#fff);border:none;width:26px;height:26px;line-height:26px;font-size:15px}
+#landing .leaflet-control-zoom a:hover{background:var(--bg,#f8f9fa);color:var(--text,#202124)}
+#landing .leaflet-bottom.leaflet-right{margin:0 18px 18px 0}
 #backToMarkets{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);
   color:var(--text2);font-size:11px;font-weight:500;padding:4px 10px;border-radius:12px;cursor:pointer;margin-left:8px}
 #backToMarkets:hover{background:var(--bg);color:var(--text)}
@@ -1766,8 +1770,10 @@ function showLanding(){
 function init(){
   buildList();
   lmap=L.map("landingMap",{zoomControl:false,attributionControl:false,
-    scrollWheelZoom:false,doubleClickZoom:false,dragging:true,keyboard:false})
+    scrollWheelZoom:true,doubleClickZoom:true,dragging:true,keyboard:false,
+    minZoom:5,maxZoom:11,zoomSnap:.5,zoomDelta:.5})
     .setView([37.9,-76.85],7);
+  L.control.zoom({position:"bottomright"}).addTo(lmap);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",{maxZoom:19}).addTo(lmap);
 
   fetch("regions.geojson?t="+Date.now())
@@ -1791,7 +1797,7 @@ function init(){
       });
       try{
         var all=L.featureGroup(Object.keys(groups).map(function(k){return groups[k];}));
-        if(all.getBounds().isValid())lmap.fitBounds(all.getBounds(),{padding:[70,70]});
+        if(all.getBounds().isValid())lmap.fitBounds(all.getBounds(),{paddingTopLeft:[Math.min(430,window.innerWidth*.42)+40,70],paddingBottomRight:[70,70]});
       }catch(e){}
     });
 
