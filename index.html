@@ -254,6 +254,19 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 #landing .leaflet-control-zoom a{color:var(--text2,#5f6368);background:var(--white,#fff);border:none;width:26px;height:26px;line-height:26px;font-size:15px}
 #landing .leaflet-control-zoom a:hover{background:var(--bg,#f8f9fa);color:var(--text,#202124)}
 #landing .leaflet-bottom.leaflet-right{margin:0 18px 18px 0}
+/* seamless market handoff */
+#landing.lp-full .lp-panel{transform:translateX(-102%);opacity:0}
+#landing.lp-full #landingMap{left:0}
+#landing .lp-panel{transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .35s ease}
+#landing #landingMap{transition:left .45s cubic-bezier(.4,0,.2,1)}
+#landing.fast-out{transition:opacity .18s linear}
+header,.toolbar,#filterBar{transition:transform .5s cubic-bezier(.22,.61,.36,1),opacity .38s ease}
+#listPanel{transition:transform .55s cubic-bezier(.22,.61,.36,1),opacity .4s ease}
+.main{transition:margin-top .55s cubic-bezier(.22,.61,.36,1),height .55s cubic-bezier(.22,.61,.36,1)}
+body.entering header{transform:translateY(-100%);opacity:0}
+body.entering .toolbar,body.entering #filterBar{transform:translateY(-140%);opacity:0}
+body.entering #listPanel{transform:translateX(-100%);opacity:0}
+body.entering .main{margin-top:0;height:100vh}
 #backToMarkets{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);
   color:var(--text2);font-size:11px;font-weight:500;padding:4px 10px;border-radius:12px;cursor:pointer;margin-left:8px}
 #backToMarkets:hover{background:var(--bg);color:var(--text)}
@@ -1692,7 +1705,7 @@ document.querySelectorAll("#filterBar input").forEach(function(inp){
 "use strict";
 var REGIONS=[
   {id:"hampton",name:"Hampton Roads",meta:"Norfolk \u00b7 Virginia Beach \u00b7 +5",ready:true,
-   center:[36.89,-76.30],zoom:9},
+   center:[36.89,-76.30],zoom:9,view:{center:[36.85,-76.28],zoom:10}},
   {id:"dc",name:"Washington, DC",meta:"Coming soon",ready:false,
    center:[38.9047,-77.0163],zoom:11}
 ];
@@ -1743,51 +1756,64 @@ function setHover(id,on){
 function enter(id){
   if(entered)return;
   entered=true;
-  var r=regionById(id),g=groups[id];
-  try{ if(g&&g.getBounds&&g.getBounds().isValid()) lmap.flyToBounds(g.getBounds(),{padding:[60,60],duration:1.0});
-       else lmap.flyTo(r.center,r.zoom,{duration:1.0}); }catch(e){}
+  var r=regionById(id);
+  var target=r.view||{center:r.center,zoom:r.zoom};
+  var land=document.getElementById("landing");
+
+  // 1. panel slides away, landing map takes the full viewport
+  land.classList.add("lp-full");
+  setTimeout(function(){ try{ lmap.invalidateSize({pan:false}); }catch(e){} },30);
+
+  // 2. fly to the dashboard's exact default view
   setTimeout(function(){
-    var el=document.getElementById("landing");
-    el.classList.add("hiding");
-    setTimeout(function(){
-      el.style.display="none";
-      try{ sessionStorage.setItem("gsRegion",id); }catch(e){}
-      if(window.map){
-        var M=window.map;
+    try{ lmap.flyTo(target.center,target.zoom,{duration:1.15,easeLinearity:.22}); }catch(e){}
+  },260);
+
+  // 3. invisible swap: dashboard map set to the identical view, then quick fade
+  setTimeout(function(){
+    var M=window.map;
+    document.body.classList.add("entering");
+    if(M){
+      try{
         M.invalidateSize({pan:false});
-        try{ if(g&&g.getBounds&&g.getBounds().isValid())M.fitBounds(g.getBounds(),{padding:[24,24]}); }catch(e){}
-        // Purge stale tiles left over from initializing under the overlay.
-        var refresh=function(){
-          M.invalidateSize({pan:false});
-          M.eachLayer(function(l){
-            if(l&&l._url&&typeof l.redraw==="function"){
-              try{ l.redraw(); }catch(e){}
-            }
-          });
-        };
-        setTimeout(refresh,220);
-        setTimeout(refresh,700);
-        if(!M.__tileFix){
-          M.__tileFix=true;
-          var t=null;
-          M.on("zoomend",function(){
-            clearTimeout(t);
-            t=setTimeout(function(){
-              M.eachLayer(function(l){
+        M.setView(target.center,target.zoom,{animate:false});
+        M.invalidateSize({pan:false});
+      }catch(e){}
+    }
+    land.classList.add("fast-out");
+    land.style.opacity="0";
+
+    setTimeout(function(){
+      land.style.display="none";
+      try{ sessionStorage.setItem("gsRegion",id); }catch(e){}
+
+      // 4. chrome animates in; keep the map in step while its rect changes
+      requestAnimationFrame(function(){
+        document.body.classList.remove("entering");
+        var t0=Date.now();
+        (function step(){
+          if(window.map){ try{ window.map.invalidateSize({pan:false}); }catch(e){} }
+          if(Date.now()-t0<700)requestAnimationFrame(step);
+          else if(window.map){
+            try{
+              window.map.invalidateSize({pan:false});
+              window.map.eachLayer(function(l){
                 if(l&&l._url&&typeof l.redraw==="function"){try{l.redraw();}catch(e){}}
               });
-            },160);
-          });
-        }
-      }
-    },560);
-  },820);
+            }catch(e){}
+          }
+        })();
+      });
+    },190);
+  },1500);
 }
 function showLanding(){
   entered=false;
+  document.body.classList.remove("entering");
   var el=document.getElementById("landing");
   el.style.display="";
-  el.classList.remove("hiding");
+  el.classList.remove("hiding","fast-out","lp-full");
+  el.style.opacity="";
   if(lmap)setTimeout(function(){lmap.invalidateSize();},60);
 }
 
