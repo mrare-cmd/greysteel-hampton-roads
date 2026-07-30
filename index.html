@@ -295,7 +295,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v4</div>
+<div id="verBadge">v5</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1802,7 +1802,23 @@ function enter(id){
   land.classList.add("lp-full");
   var tick=setInterval(function(){ try{ lmap.invalidateSize({pan:false}); }catch(e){} },40);
   setTimeout(function(){
-    try{ lmap.flyTo(target.center,target.zoom,{duration:1.25,easeLinearity:.25}); }catch(e){}
+    try{
+      // Offset the flight so the region lands centered inside the future map
+      // panel (chrome covers the left/top, so aim right/down of screen centre).
+      var el=document.getElementById("map");
+      var fly=target.center, z=target.zoom;
+      if(el){
+        var rect=el.getBoundingClientRect();
+        var rcx=rect.left+rect.width/2, rcy=rect.top+rect.height/2;
+        var scx=window.innerWidth/2, scy=window.innerHeight/2;
+        var pt=lmap.project(L.latLng(target.center[0],target.center[1]),z);
+        pt=pt.subtract(L.point(rcx-scx,rcy-scy));
+        fly=lmap.unproject(pt,z);
+      }
+      lmap.flyTo(fly,z,{duration:1.25,easeLinearity:.25});
+    }catch(e){
+      try{ lmap.flyTo(target.center,target.zoom,{duration:1.25,easeLinearity:.25}); }catch(e2){}
+    }
   },260);
   setTimeout(function(){ clearInterval(tick); },1560);
 
