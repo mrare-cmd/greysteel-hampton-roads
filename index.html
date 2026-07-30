@@ -219,10 +219,9 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 /* ── market selector ── */
 #landing{position:fixed;inset:0;z-index:5000;background:var(--white,#fff);opacity:1;transition:opacity .55s ease}
 #landing.hiding{opacity:0;pointer-events:none}
-#landingMap{position:absolute;inset:0;background:#eef0f2;z-index:1}
-#landing .lp-scrim{position:absolute;inset:0;pointer-events:none;z-index:2;
-  background:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.9) 22%,rgba(255,255,255,.3) 44%,rgba(255,255,255,0) 62%)}
-#landing .lp-panel{position:absolute;top:0;left:0;bottom:0;z-index:3;width:min(370px,33vw);
+#landingMap{position:absolute;top:0;right:0;bottom:0;left:min(370px,33vw);background:#eef0f2;z-index:1}
+#landing .lp-scrim{display:none}
+#landing .lp-panel{position:absolute;top:0;left:0;bottom:0;z-index:3;width:min(370px,33vw);background:var(--white,#fff);border-right:1px solid var(--border,#dadce0);
   padding:40px 38px 32px;display:flex;flex-direction:column;pointer-events:none}
 #landing .lp-brand{display:flex;align-items:center;gap:10px;pointer-events:auto}
 #landing .lp-mark{width:26px;height:26px;border-radius:5px;background:var(--blue,#1a73e8);color:#fff;
@@ -740,7 +739,7 @@ function buildChips(p){
 function initMap(){
   if(map)return;
   map=L.map('map',{center:[36.85,-76.28],zoom:10,zoomControl:false});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CARTO',maxZoom:19}).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{attribution:'© CARTO',maxZoom:19,detectRetina:false,keepBuffer:3,updateWhenZooming:false,updateWhenIdle:false,crossOrigin:true}).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
   markersLayer=L.layerGroup().addTo(map);
   L.DomEvent.disableScrollPropagation(document.getElementById('detailDrawer'));
@@ -1767,6 +1766,18 @@ function enter(id){
         };
         setTimeout(refresh,220);
         setTimeout(refresh,700);
+        if(!M.__tileFix){
+          M.__tileFix=true;
+          var t=null;
+          M.on("zoomend",function(){
+            clearTimeout(t);
+            t=setTimeout(function(){
+              M.eachLayer(function(l){
+                if(l&&l._url&&typeof l.redraw==="function"){try{l.redraw();}catch(e){}}
+              });
+            },160);
+          });
+        }
       }
     },560);
   },820);
@@ -1786,7 +1797,7 @@ function init(){
     minZoom:5,maxZoom:11,zoomSnap:.5,zoomDelta:.5})
     .setView([37.9,-76.85],7);
   L.control.zoom({position:"bottomright"}).addTo(lmap);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",{maxZoom:19}).addTo(lmap);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png",{maxZoom:19,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true}).addTo(lmap);
 
   fetch("regions.geojson?t="+Date.now())
     .then(function(r){if(!r.ok)throw 0;return r.json();})
@@ -1809,7 +1820,7 @@ function init(){
       });
       try{
         var all=L.featureGroup(Object.keys(groups).map(function(k){return groups[k];}));
-        if(all.getBounds().isValid())lmap.fitBounds(all.getBounds(),{paddingTopLeft:[Math.min(370,window.innerWidth*.33)+36,64],paddingBottomRight:[70,70]});
+        if(all.getBounds().isValid())lmap.fitBounds(all.getBounds(),{paddingTopLeft:[64,64],paddingBottomRight:[70,70]});
       }catch(e){}
     });
 
