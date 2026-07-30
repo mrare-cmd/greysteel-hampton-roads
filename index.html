@@ -191,7 +191,13 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .sf-match-badge{display:inline-flex;align-items:center;gap:5px;background:#00A1E0;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;white-space:nowrap;flex-shrink:0;}
 .sf-match-badge svg{width:12px;height:12px}
 .pf-note{background:#fff7e0;border:1px solid #f2d47f;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12.5px;color:#6b5312;line-height:1.45}
-.asr-note{background:#eef7ee;border:1px solid #bfe0bf;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12.5px;color:#1e4620;line-height:1.45}
+.asr-note{background:#eef7ee;border:1px solid #bfe0bf;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#1e4620;line-height:1.45}
+.asr-head{font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
+.asr-src{color:var(--text3);font-weight:400;font-size:11px}
+.asr-table{width:100%;border-collapse:collapse}
+.asr-table td{padding:3px 0;font-size:12.5px}
+.asr-table td:last-child{text-align:right;font-weight:500}
+.asr-total td{border-top:1px solid #bfe0bf;font-weight:600;padding-top:5px}
 .asr-block{background:#eef7ee;border:1px solid #bfe0bf;border-radius:8px;padding:10px 14px;margin-bottom:14px}
 .asr-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#1e4620;margin-bottom:6px}
 .asr-table{border-collapse:collapse;font-size:12.5px}
@@ -767,13 +773,9 @@ function buildAssessed(p){
   const t=parseFloat(p.asr_total_value||'');
   if(isNaN(t))return '';
   const l=parseFloat(p.asr_land_value||''),im=parseFloat(p.asr_improvement_value||'');
-  const fmt=n=>'$'+Math.round(n).toLocaleString();
+  const fmt=n=>isNaN(n)?'\u2014':'$'+Math.round(n).toLocaleString();
   const yr=p.asr_year?String(p.asr_year).slice(0,4):'';
-  const rows=[];
-  if(!isNaN(l))rows.push(`<tr><td>Land</td><td>${fmt(l)}</td></tr>`);
-  if(!isNaN(im))rows.push(`<tr><td>Improvements</td><td>${fmt(im)}</td></tr>`);
-  rows.push(`<tr class="asr-total"><td>Total</td><td>${fmt(t)}</td></tr>`);
-  return `<div class="asr-block"><div class="asr-title">Assessed Value${yr?' (FY '+yr+')':''} · ${p.asr_city||''}</div><table class="asr-table">${rows.join('')}</table></div>`;
+  return `<div class="asr-note"><div class="asr-head">Assessed Value${yr?' (FY '+yr+')':''}<span class="asr-src">${p.asr_city||''} assessor</span></div><table class="asr-table"><tbody><tr><td>Land</td><td>${fmt(l)}</td></tr><tr><td>Improvements</td><td>${fmt(im)}</td></tr><tr class="asr-total"><td>Total</td><td>${fmt(t)}</td></tr></tbody></table></div>`;
 }
 function buildPortfolioNote(p){
   const cu=parseFloat((p._trepp&&p._trepp.number_of_units)||(p._costar&&p._costar.number_of_units)||'');
@@ -1119,6 +1121,72 @@ async function asrLookupRow(row,cfg){
   }catch(e){}
   return false;
 }
+// ── assessor enrichment for new/unmatched rows ──
+function asrNorfolk(addr){
+  var m=String(addr||"").match(/^\s*(\d+)\s+(.+)$/);
+  if(!m)return Promise.resolve(null);
+  var num=m[1];
+  var u="https://data.norfolk.gov/resource/qva7-tzrf.json?$limit=60&property_street_number="+encodeURIComponent(num);
+  return fetch(u).then(function(r){return r.ok?r.json():[];}).then(function(rows){
+    var want=normAddr(addr);
+    var wantNoSuf=want.replace(/\s+(st|ave|blvd|dr|rd|ct|ln|cir|pl|sq|pkwy|ter|terr|hwy|trl|tpke|way)$/,"");
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i];
+      var cand=normAddr([r.property_street_number,r.property_street_name,r.property_street_type].filter(Boolean).join(" "));
+      var candNoSuf=cand.replace(/\s+(st|ave|blvd|dr|rd|ct|ln|cir|pl|sq|pkwy|ter|terr|hwy|trl|tpke|way)$/,"");
+      if(cand===want||candNoSuf===wantNoSuf){
+        return {land:parseFloat(r.current_land_value),improvement:parseFloat(r.current_improvement_value),
+                total:parseFloat(r.current_total_value),year:r.effective_year,city:"Norfolk"};
+      }
+    }
+    return null;
+  }).catch(function(){return null;});
+}
+function asrVB(parcel){
+  var g=String(parcel||"").replace(/[^0-9]/g,"");
+  if(g.length<10)return Promise.resolve(null);
+  var u="https://services2.arcgis.com/CyVvlIiUfRBmMQuu/arcgis/rest/services/Property_Sales_/FeatureServer/0/query?where=GPIN%3D%27"+g+"%27&outFields=Land_Value,Improvement_Value,Total_Value&orderByFields=Sales_Date%20DESC&resultRecordCount=1&f=json";
+  return fetch(u).then(function(r){return r.ok?r.json():null;}).then(function(j){
+    var f=j&&j.features&&j.features[0]&&j.features[0].attributes;
+    if(!f||f.Total_Value==null)return null;
+    return {land:f.Land_Value,improvement:f.Improvement_Value,total:f.Total_Value,year:null,city:"Virginia Beach"};
+  }).catch(function(){return null;});
+}
+async function enrichAssessorNew(datasets,dirty,progFn){
+  var cfg={reonomy:{city:"address_city",addr:"address_line_1",apn:"apn"},
+           costar:{city:null,addr:"property_address",apn:"parcel_number_1_min"},
+           trepp:{city:"city",addr:"address",apn:"assessor_parcel_num"}};
+  var targets=[];
+  ["reonomy","costar","trepp"].forEach(function(ds){
+    var c=cfg[ds];
+    datasets[ds].forEach(function(row){
+      if(row.asr_total_value)return;
+      var city=String(c.city?row[c.city]||"":"").toLowerCase();
+      var apnDigits=String(row[c.apn]||"").replace(/[^0-9]/g,"");
+      if(city.indexOf("norfolk")>=0&&row[c.addr])targets.push({ds:ds,row:row,kind:"norfolk",addr:row[c.addr]});
+      else if((city.indexOf("virginia beach")>=0||apnDigits.length>=12)&&apnDigits.length>=10)targets.push({ds:ds,row:row,kind:"vb",parcel:apnDigits});
+    });
+  });
+  if(!targets.length)return "";
+  var cap=Math.min(targets.length,120),got=0;
+  for(var i=0;i<cap;i++){
+    if(progFn)progFn("Fetching assessed values ("+(i+1)+"/"+cap+")...");
+    var t=targets[i];
+    var v=t.kind==="norfolk"?await asrNorfolk(t.addr):await asrVB(t.parcel);
+    if(v&&v.total){
+      t.row.asr_land_value=isNaN(v.land)?null:v.land;
+      t.row.asr_improvement_value=isNaN(v.improvement)?null:v.improvement;
+      t.row.asr_total_value=v.total;
+      t.row.asr_year=v.year;
+      t.row.asr_city=v.city;
+      t.row.asr_match="upload";
+      dirty.add(t.ds);
+      got++;
+    }
+  }
+  var extra=targets.length>cap?(" ("+(targets.length-cap)+" more next upload or via assessments.py)"):"";
+  return "Assessed values: "+got+"/"+cap+" fetched from city assessors"+extra;
+}
 // ── GitHub commit via worker ──
 function getShas(){
   return fetch("https://api.github.com/repos/"+REPO+"/git/trees/main").then(function(r){
@@ -1355,6 +1423,7 @@ async function analyze(){
     pending.sfMeta={uploaded_at:new Date().toISOString(),counts:counts};
     lines.push(sfFile.fname+" (salesforce): matched "+counts.reonomy+" Reonomy, "+counts.costar+" CoStar, "+counts.trepp+" Trepp properties");
   }
+  try{var asrLine=await enrichAssessorNew(datasets,dirty,prog);if(asrLine)lines.push(asrLine);}catch(e){lines.push("Assessor enrich skipped: "+e.message);}
   pending.datasets=datasets;pending.dirty=dirty;pending.analyzed=true;
   var fileMap={reonomy:"data_reonomy.json",costar:"data_costar.json",trepp:"data_trepp.json"};
   var toPush=[];dirty.forEach(function(d){toPush.push(fileMap[d]);});
