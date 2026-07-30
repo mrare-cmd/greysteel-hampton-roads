@@ -295,7 +295,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v2</div>
+<div id="verBadge">v3</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1789,6 +1789,15 @@ function enter(id){
   void B.offsetWidth;
   requestAnimationFrame(function(){ B.classList.remove("no-anim"); });
 
+  // labels fade up so the landing map matches the dashboard at swap time
+  if(window.__lmapLabels){
+    var lo=0,li=setInterval(function(){
+      lo+=0.08;
+      try{ window.__lmapLabels.setOpacity(Math.min(1,lo)); }catch(e){}
+      if(lo>=1)clearInterval(li);
+    },40);
+  }
+
   // 1. outlines fade, text panel leaves, map fills the screen, fly in
   land.classList.add("lp-full");
   var tick=setInterval(function(){ try{ lmap.invalidateSize({pan:false}); }catch(e){} },40);
@@ -1842,6 +1851,7 @@ function showLanding(){
   el.style.display="";
   document.body.classList.remove("entering","no-anim","dots-off","chrome-over");
   el.classList.remove("hiding","fast-out","lp-full","lp-dock");
+  try{ if(window.__lmapLabels)window.__lmapLabels.setOpacity(0); }catch(e){}
   el.style.opacity="";
   if(lmap)setTimeout(function(){lmap.invalidateSize();},60);
 }
@@ -1850,10 +1860,11 @@ function init(){
   buildList();
   lmap=L.map("landingMap",{zoomControl:false,attributionControl:false,
     scrollWheelZoom:true,doubleClickZoom:true,dragging:true,keyboard:false,
-    minZoom:5,maxZoom:11,zoomSnap:.5,zoomDelta:.5})
+    minZoom:5,maxZoom:16,zoomSnap:1,zoomDelta:1})
     .setView([37.9,-76.85],7);
   L.control.zoom({position:"bottomright"}).addTo(lmap);
   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true}).addTo(lmap);
+  window.__lmapLabels=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true,opacity:0}).addTo(lmap);
 
   fetch("regions.geojson?t="+Date.now())
     .then(function(r){if(!r.ok)throw 0;return r.json();})
