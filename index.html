@@ -289,9 +289,12 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 #verBadge{position:fixed;top:5px;right:7px;z-index:99999;pointer-events:none;
   font-size:9px;line-height:1;font-weight:500;color:var(--text3,#80868b);opacity:.6;
   letter-spacing:.03em;font-variant-numeric:tabular-nums}
-#backToMarkets{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);
-  color:var(--text2);font-size:11px;font-weight:500;padding:4px 10px;border-radius:12px;cursor:pointer;margin-left:8px}
-#backToMarkets:hover{background:var(--bg);color:var(--text)}
+#backToMarkets{display:inline-flex;align-items:center;gap:7px;background:var(--white);
+  border:1px solid var(--border);color:var(--text2);font-size:13px;font-weight:500;
+  height:36px;padding:0 15px;border-radius:6px;cursor:pointer;white-space:nowrap;
+  transition:background .15s,border-color .15s,color .15s}
+#backToMarkets:hover{background:var(--blue-light,#e8f0fe);border-color:var(--blue,#1a73e8);color:var(--blue,#1a73e8)}
+#backToMarkets svg{flex-shrink:0}
 </style>
 </head>
 <body>
@@ -314,8 +317,12 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="logo-g">G</div>
     <span class="logo-name">Greysteel</span>
     <span class="logo-sep">/</span>
-    <span class="logo-page">Hampton Roads Dashboard</span>
+    <span class="logo-page" id="logoPage">Hampton Roads Dashboard</span>
   </a>
+  <button id="backToMarkets" type="button" title="Switch market">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12l6-6M5 12l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Markets
+  </button>
   <div class="search-bar">
     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     <input type="text" id="searchInput" placeholder="Search address, owner, submarket, loan name...">
@@ -957,6 +964,33 @@ function toggleHP(btn){btn.classList.toggle('active');}
 function addCustomHP(){const inp=document.getElementById('customHP');const yr=parseFloat(inp.value);if(isNaN(yr)||yr<1||yr>50)return;const container=document.getElementById('holdChips');if(container.querySelector(`[data-yr="${yr}"]`))return;const chip=document.createElement('button');chip.className='hp-chip active';chip.dataset.yr=yr;chip.textContent=`${yr}yr`;chip.onclick=()=>toggleHP(chip);container.appendChild(chip);inp.value='';}
 function recalculate(){holdPeriods=Array.from(document.querySelectorAll('.hp-chip.active')).map(c=>parseFloat(c.dataset.yr));allData=allData.map(p=>{const {score,tier,details,cats}=scoreProperty(p);return decorateSF({...p,_score:score,_tier:tier,_details:details,_cats:cats});});applyFilters();toggleWeights();}
 function setLoading(v){document.getElementById('loadingSpinner').style.display=v?'block':'none';}
+
+// Wipe every trace of the current market. Without this, hitting "Markets" and
+// picking a different one left the old rows in the sidebar and the old pins on
+// the map (parked off-screen over the previous region) until the new data
+// finished loading.
+function clearMarketData(){
+  try{
+    allData=[];filtered=[];selectedId=null;_prevSelectedId=null;
+    if(typeof markersLayer!=='undefined'&&markersLayer)markersLayer.clearLayers();
+    _markerById={};_lastFilterSig='';
+    var d=document.getElementById('detailDrawer');if(d)d.classList.remove('open');
+    var bd=document.getElementById('backdrop');if(bd)bd.classList.remove('show');
+    var panel=document.getElementById('listPanel');
+    if(panel)panel.innerHTML='<div id="loadingList">'+
+      '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>'+
+      '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>'+
+      '<div class="skeleton"></div><div class="skeleton"></div></div>';
+    var tb=document.getElementById('totalBadge');if(tb)tb.textContent='–';
+    ['tbCount','matchInfo','geocodeStatus'].forEach(function(id){
+      var e=document.getElementById(id);if(e)e.textContent='';
+    });
+    var sf=document.getElementById('sfMatchBadge');
+    if(sf){sf.textContent='';sf.style.display='none';}
+    var si=document.getElementById('searchInput');if(si)si.value='';
+  }catch(e){console.error('clearMarketData',e);}
+}
+window.clearMarketData=clearMarketData;
 // ─── INIT ───
 /* loadData() deferred until a market is chosen */
 </script>
@@ -1802,6 +1836,12 @@ function enter(id){
   // now rather than letting loadData() create it later at its default centre.
   window.GS_VIEW=target;
   try{ if(typeof initMap==="function")initMap(); }catch(e){}
+  // The header used to say "Hampton Roads Dashboard" no matter which market
+  // you were in.
+  try{
+    var lp=document.getElementById("logoPage");
+    if(lp)lp.textContent=(id==="dc"?"Washington DC":r.name)+" Dashboard";
+  }catch(e){}
   var land=document.getElementById("landing");
   var B=document.body;
 
@@ -1900,6 +1940,11 @@ function enter(id){
 }
 function showLanding(){
   entered=false;
+  // Drop the old market's rows/pins now, and forget which region we were in so
+  // re-picking the SAME market still triggers a fresh load instead of coming
+  // back to an emptied dashboard.
+  try{ if(window.clearMarketData)window.clearMarketData(); }catch(e){}
+  window.GS_REGION=null;
   document.body.classList.remove("entering");
   var el=document.getElementById("landing");
   el.style.display="";
@@ -1945,13 +1990,8 @@ function init(){
       }catch(e){}
     });
 
-  var mi=document.getElementById("matchInfo");
-  if(mi&&mi.parentElement){
-    var b=document.createElement("button");
-    b.id="backToMarkets";b.textContent="\u2190 Markets";
-    b.addEventListener("click",showLanding);
-    mi.parentElement.appendChild(b);
-  }
+  var b=document.getElementById("backToMarkets");
+  if(b)b.addEventListener("click",showLanding);
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
 else init();
