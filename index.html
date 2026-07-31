@@ -295,7 +295,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v7</div>
+<div id="verBadge">v8</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1803,7 +1803,16 @@ function enter(id){
 
   // 1. outlines fade, text panel leaves, map fills the screen, fly in
   land.classList.add("lp-full");
-  if(window.GS_REGION!==id){ window.GS_REGION=id; try{ loadData(); }catch(e){ console.error(e); } }
+  if(window.GS_REGION!==id){
+    window.GS_REGION=id;
+    window.__needLoad=true;
+    // Warm the HTTP cache only. No .json() here: parsing 14MB would block
+    // the main thread and stutter the flight animation.
+    try{
+      ["data_reonomy.json","data_trepp.json","data_costar.json","data_salesforce.json"]
+        .forEach(function(f){ fetch(RD()+f,{cache:"force-cache"}).catch(function(){}); });
+    }catch(e){}
+  }
   var tick=setInterval(function(){ try{ lmap.invalidateSize({pan:false}); }catch(e){} },40);
   setTimeout(function(){
     try{
@@ -1859,6 +1868,13 @@ function enter(id){
               if(l&&l._url&&typeof l.redraw==="function"){try{l.redraw();}catch(e){}}
             });
           }catch(e){}
+        }
+        // Heavy work runs now that the animation is over (files are cached).
+        if(window.__needLoad){
+          window.__needLoad=false;
+          setTimeout(function(){
+            try{ loadData(); }catch(e){ console.error(e); }
+          },60);
         }
       });
     },170);
