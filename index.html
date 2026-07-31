@@ -295,7 +295,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v6</div>
+<div id="verBadge">v7</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -594,10 +594,10 @@ function scoreProperty(p){
 </html>
 <script>
 // ─── DATA LOADING (local JSON files) ───
-async window.GS_REGION=null;
+window.GS_REGION=null;
 function RD(){return (window.GS_REGION||'hampton')+'/';}
 window.RD=RD;
-function loadData(){
+async function loadData(){
   setLoading(true);
   document.getElementById('loadingList').style.display='block';
   const [props,trepps,costarArr]=await Promise.all([
