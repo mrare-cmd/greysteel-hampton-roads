@@ -295,7 +295,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v5</div>
+<div id="verBadge">v6</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -594,13 +594,16 @@ function scoreProperty(p){
 </html>
 <script>
 // ─── DATA LOADING (local JSON files) ───
-async function loadData(){
+async window.GS_REGION=null;
+function RD(){return (window.GS_REGION||'hampton')+'/';}
+window.RD=RD;
+function loadData(){
   setLoading(true);
   document.getElementById('loadingList').style.display='block';
   const [props,trepps,costarArr]=await Promise.all([
-    fetch('data_reonomy.json').then(r=>r.json()),
-    fetch('data_trepp.json').then(r=>r.json()),
-    fetch('data_costar.json').then(r=>r.json()),
+    fetch(RD()+'data_reonomy.json').then(r=>r.json()),
+    fetch(RD()+'data_trepp.json').then(r=>r.json()),
+    fetch(RD()+'data_costar.json').then(r=>r.json()),
   ]);
   // Normalize unit counts so "276.0" renders as "276"
   const _fixUnits=(arr,flds)=>{(arr||[]).forEach(r=>{flds.forEach(f=>{
@@ -684,7 +687,7 @@ async function loadData(){
     });
   });
   document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only`;
-  if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);fetch('data_salesforce.json?t='+Date.now()).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);window.__renderSrcInfo(__sd);}}).catch(function(){});}
+  if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);fetch(RD()+'data_salesforce.json?t='+Date.now()).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);window.__renderSrcInfo(__sd);}}).catch(function(){});}
   setLoading(false);
   document.getElementById('loadingList').style.display='none';
   initMap();
@@ -941,7 +944,7 @@ function addCustomHP(){const inp=document.getElementById('customHP');const yr=pa
 function recalculate(){holdPeriods=Array.from(document.querySelectorAll('.hp-chip.active')).map(c=>parseFloat(c.dataset.yr));allData=allData.map(p=>{const {score,tier,details,cats}=scoreProperty(p);return decorateSF({...p,_score:score,_tier:tier,_details:details,_cats:cats});});applyFilters();toggleWeights();}
 function setLoading(v){document.getElementById('loadingSpinner').style.display=v?'block':'none';}
 // ─── INIT ───
-loadData();
+/* loadData() deferred until a market is chosen */
 </script>
 </body>
 </html>
@@ -1341,11 +1344,11 @@ async function enrichAssessorNew(datasets,dirty,progFn){
 }
 // ── GitHub commit via worker ──
 function getShas(){
-  return fetch("https://api.github.com/repos/"+REPO+"/git/trees/main").then(function(r){
+  return fetch("https://api.github.com/repos/"+REPO+"/git/trees/main?recursive=1").then(function(r){
     if(!r.ok)throw new Error("Could not read repo file list (HTTP "+r.status+")");
     return r.json();
   }).then(function(j){
-    var m={};(j.tree||[]).forEach(function(t){m[t.path]=t.sha;});return m;
+    var m={};(j.tree||[]).forEach(function(t){m[t.path]=t.sha;});var pre=(window.RD?window.RD():"hampton/");var out={};for(var k in m){out[k]=m[k];if(k.indexOf(pre)===0)out[k.slice(pre.length)]=m[k];}return out;
   });
 }
 function b64(str){
@@ -1360,7 +1363,7 @@ function commitFile(path,contentStr,sha,pw){
   return b64(contentStr).then(function(content){
     var body={message:"Dashboard upload: "+path,branch:"main",content:content};
     if(sha)body.sha=sha;
-    return fetch(WORKER+"?path="+encodeURIComponent(path),{
+    return fetch(WORKER+"?path="+encodeURIComponent((window.RD?window.RD():"hampton/")+path),{
       method:"POST",
       headers:{"Content-Type":"application/json","X-Password":pw},
       body:JSON.stringify(body)
@@ -1466,7 +1469,7 @@ function readFile(f){
   });
 }
 function fetchDataset(name){
-  return fetch(name+"?t="+Date.now()).then(function(r){
+  return fetch(RD()+name+"?t="+Date.now()).then(function(r){
     if(!r.ok)throw new Error("Could not load current "+name);
     return r.json();
   });
@@ -1730,7 +1733,7 @@ var REGIONS=[
   {id:"hampton",name:"Hampton Roads",meta:"Norfolk \u00b7 Virginia Beach \u00b7 +5",ready:true,
    center:[36.89,-76.30],zoom:9,view:{center:[36.85,-76.28],zoom:10}},
   {id:"dc",name:"Washington, DC",meta:"Coming soon",ready:false,
-   center:[38.9047,-77.0163],zoom:11}
+   center:[38.9047,-77.0163],zoom:11,view:{center:[38.9047,-77.0163],zoom:12}}
 ];
 // Fallback shapes if regions.geojson is missing (rough, replaced once built).
 var FALLBACK={type:"FeatureCollection",features:[
@@ -1800,6 +1803,7 @@ function enter(id){
 
   // 1. outlines fade, text panel leaves, map fills the screen, fly in
   land.classList.add("lp-full");
+  if(window.GS_REGION!==id){ window.GS_REGION=id; try{ loadData(); }catch(e){ console.error(e); } }
   var tick=setInterval(function(){ try{ lmap.invalidateSize({pan:false}); }catch(e){} },40);
   setTimeout(function(){
     try{
