@@ -597,13 +597,21 @@ function scoreProperty(p){
 window.GS_REGION=null;
 function RD(){return (window.GS_REGION||'hampton')+'/';}
 window.RD=RD;
+// One cache token per page load. enter() pre-warms the HTTP cache and
+// loadData() fetches for real, so both must request the SAME url or the warm
+// is wasted. Using a per-load token keeps that optimisation while guaranteeing
+// a refresh never serves yesterday's json (which is how DC could come back
+// empty, or a market could show the other market's data).
+window.GS_CB=Date.now();
+function DU(name){return RD()+name+'?v='+window.GS_CB;}
+window.DU=DU;
 async function loadData(){
   setLoading(true);
   document.getElementById('loadingList').style.display='block';
   const [props,trepps,costarArr]=await Promise.all([
-    fetch(RD()+'data_reonomy.json').then(r=>r.json()),
-    fetch(RD()+'data_trepp.json').then(r=>r.json()),
-    fetch(RD()+'data_costar.json').then(r=>r.json()),
+    fetch(DU('data_reonomy.json')).then(r=>r.json()),
+    fetch(DU('data_trepp.json')).then(r=>r.json()),
+    fetch(DU('data_costar.json')).then(r=>r.json()),
   ]);
   // Normalize unit counts so "276.0" renders as "276"
   const _fixUnits=(arr,flds)=>{(arr||[]).forEach(r=>{flds.forEach(f=>{
@@ -777,7 +785,13 @@ function buildChips(p){
 // ─── MAP (Hampton Roads, no boundary) ───
 function initMap(){
   if(map)return;
-  map=L.map('map',{center:[36.85,-76.28],zoom:10,zoomControl:false,maxZoom:16});
+  // Centre on whichever market was chosen. This used to be hardcoded to
+  // Hampton Roads, so entering DC always dropped the map over Norfolk.
+  var _v=window.GS_VIEW||{center:[36.85,-76.28],zoom:10};
+  map=L.map('map',{center:_v.center,zoom:_v.zoom,zoomControl:false,maxZoom:16});
+  // `let map` at the top of this script is NOT window.map, so the landing
+  // handoff could never see it. Publish it explicitly.
+  window.map=map;
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{attribution:'Esri',maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true}).addTo(map);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{attribution:'',maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true,pane:'shadowPane'}).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
@@ -1784,6 +1798,10 @@ function enter(id){
   entered=true;
   var r=regionById(id);
   var target=r.view||{center:r.center,zoom:r.zoom};
+  // Publish the chosen view before anything else, and build the dashboard map
+  // now rather than letting loadData() create it later at its default centre.
+  window.GS_VIEW=target;
+  try{ if(typeof initMap==="function")initMap(); }catch(e){}
   var land=document.getElementById("landing");
   var B=document.body;
 
@@ -1810,7 +1828,7 @@ function enter(id){
     // the main thread and stutter the flight animation.
     try{
       ["data_reonomy.json","data_trepp.json","data_costar.json","data_salesforce.json"]
-        .forEach(function(f){ fetch(RD()+f,{cache:"force-cache"}).catch(function(){}); });
+        .forEach(function(f){ fetch(window.DU?window.DU(f):RD()+f).catch(function(){}); });
     }catch(e){}
   }
   var tick=setInterval(function(){ try{ lmap.invalidateSize({pan:false}); }catch(e){} },40);
