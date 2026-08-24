@@ -298,7 +298,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v9</div>
+<div id="verBadge">v10</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1243,8 +1243,17 @@ function sfMatchAll(datasets,csvRows){
 }
 
 // ── Census geocoding for new Trepp rows ──
+function regionState(){
+  var r=(window.GS_REGION||"hampton");
+  return ({hampton:"VA",dc:"DC"})[r]||"VA";
+}
+function regionCity(city){
+  var c=String(city||"").trim();
+  if(c)return c;
+  return (window.GS_REGION==="dc")?"Washington":"";
+}
 function geocodeOne(addr,city,zip){
-  var q=encodeURIComponent(String(addr)+", "+String(city||"")+", VA "+String(zip||""));
+  var q=encodeURIComponent(String(addr)+", "+regionCity(city)+", "+regionState()+" "+String(zip||""));
   var u="https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address="+q+"&benchmark=Public_AR_Current&format=json";
   return fetch(u).then(function(r){return r.json();}).then(function(j){
     var m=j&&j.result&&j.result.addressMatches&&j.result.addressMatches[0];
