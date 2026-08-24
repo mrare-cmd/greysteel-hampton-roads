@@ -298,7 +298,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v10</div>
+<div id="verBadge">v11</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1366,6 +1366,9 @@ function asrPorts(addr){
     "SITE_ADDRE",addr,{land:"LAND_VAL",improvement:"BLDG_VAL",total:"TOTAL_VAL"},"Portsmouth");
 }
 async function enrichAssessorNew(datasets,dirty,progFn){
+  var _reg=(window.GS_REGION||"hampton");
+  if(_reg!=="hampton")return "Assessed values: skipped (no assessor source wired for this market yet)";
+
   var cfg={reonomy:{city:"address_city",addr:"address_line_1",apn:"apn"},
            costar:{city:null,addr:"property_address",apn:"parcel_number_1_min"},
            trepp:{city:"city",addr:"address",apn:"assessor_parcel_num"}};
@@ -1538,7 +1541,7 @@ function fetchDataset(name){
   });
 }
 
-async function enrichAssessments(newRows,lines,prog){
+async function enrichAssessments(newRows,lines,prog){/* disabled duplicate assessor pass */return '';
   var todo=newRows.slice(0,150),done=0;
   for(var i=0;i<todo.length;i++){
     var r=todo[i].row;
