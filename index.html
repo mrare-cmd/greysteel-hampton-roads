@@ -298,7 +298,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v12</div>
+<div id="verBadge">v13</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1255,7 +1255,7 @@ function sfMatchAll(datasets,csvRows){
 // ── Census geocoding for new Trepp rows ──
 function regionState(){
   var r=(window.GS_REGION||"hampton");
-  return ({hampton:"VA",dc:"DC"})[r]||"VA";
+  return ({hampton:"VA",dc:"DC",princegeorges:"MD",montgomery:"MD"})[r]||"VA";
 }
 function regionCity(city){
   var c=String(city||"").trim();
@@ -1815,14 +1815,23 @@ var REGIONS=[
   {id:"hampton",name:"Hampton Roads",meta:"Norfolk \u00b7 Virginia Beach \u00b7 +5",ready:true,
    center:[36.89,-76.30],zoom:9,view:{center:[36.85,-76.28],zoom:10}},
   {id:"dc",name:"Washington, DC",meta:"All 8 wards",ready:true,
-   center:[38.9047,-77.0163],zoom:11,view:{center:[38.9047,-77.0163],zoom:12}}
+   center:[38.9047,-77.0163],zoom:11,view:{center:[38.9047,-77.0163],zoom:12}},
+  {id:"princegeorges",name:"Prince George's County",meta:"Hyattsville \u00b7 College Park \u00b7 +4",ready:true,
+   center:[38.8334,-76.8779],zoom:9,view:{center:[38.8334,-76.8779],zoom:10},
+   labelAt:[38.7450,-76.8300]},
+  {id:"montgomery",name:"Montgomery County",meta:"Silver Spring \u00b7 Bethesda \u00b7 +4",ready:true,
+   center:[39.1439,-77.2080],zoom:9,view:{center:[39.1439,-77.2080],zoom:10}}
 ];
 // Fallback shapes if regions.geojson is missing (rough, replaced once built).
 var FALLBACK={type:"FeatureCollection",features:[
  {type:"Feature",properties:{region:"hampton"},geometry:{type:"Polygon",coordinates:[[
    [-76.72,37.14],[-76.25,37.08],[-75.98,36.92],[-75.87,36.55],[-76.49,36.55],[-76.72,36.77],[-76.72,37.14]]]}},
  {type:"Feature",properties:{region:"dc"},geometry:{type:"Polygon",coordinates:[[
-   [-77.0369,38.9955],[-76.9094,38.8935],[-77.0369,38.7916],[-77.1198,38.8935],[-77.0369,38.9955]]]}}
+   [-77.0369,38.9955],[-76.9094,38.8935],[-77.0369,38.7916],[-77.1198,38.8935],[-77.0369,38.9955]]]}},
+ {type:"Feature",properties:{region:"princegeorges"},geometry:{type:"Polygon",coordinates:[[
+   [-77.0864,39.1313],[-76.6695,39.1313],[-76.6695,38.5354],[-77.0864,38.5354],[-77.0864,39.1313]]]}},
+ {type:"Feature",properties:{region:"montgomery"},geometry:{type:"Polygon",coordinates:[[
+   [-77.5275,39.3535],[-76.8885,39.3535],[-76.8885,38.9343],[-77.5275,38.9343],[-77.5275,39.3535]]]}}
 ]};
 
 var lmap=null,groups={},entered=false;
@@ -2013,7 +2022,9 @@ function init(){
           l.on("mouseout",function(){setHover(r.id,false);});
           l.on("click",function(){if(r.ready)enter(r.id);});
         });
-        var c=g.getBounds().getCenter();
+        // Bounds centre is fine for most regions. Prince George's wraps around
+        // DC, so its centre lands on top of the DC label; labelAt overrides it.
+        var c=r.labelAt?L.latLng(r.labelAt[0],r.labelAt[1]):g.getBounds().getCenter();
         L.marker(c,{opacity:0,interactive:false}).addTo(lmap)
           .bindTooltip(r.name,{permanent:true,direction:"center",
             className:"rg-label"+(r.ready?"":" soon")}).openTooltip();
