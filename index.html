@@ -298,7 +298,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v8</div>
+<div id="verBadge">v9</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1093,9 +1093,15 @@ function parseFile(buf,fname){
 }
 
 // ── keyed merge (blank never overwrites) ──
-function keyReonomy(r){if(!isBlank(r.reonomy_id))return "r:"+String(r.reonomy_id).trim();if(!isBlank(r.apn))return "a:"+String(r.apn).trim();return null;}
-function keyCostar(r){return isBlank(r.comp_id)?null:"c:"+String(r.comp_id).trim();}
-function keyTrepp(r){var a=isBlank(r.trepp_real_id)?"":String(r.trepp_real_id).trim();var b=isBlank(r.trustee_loan_id)?"":String(r.trustee_loan_id).trim();if(!a&&!b)return null;return "t:"+a+"|"+b;}
+function keyPart(v){
+  if(v===null||v===undefined)return "";
+  var t=String(v).trim();
+  if(/^-?\d+\.0+$/.test(t))t=t.replace(/\.0+$/,"");
+  return t;
+}
+function keyReonomy(r){if(!isBlank(r.reonomy_id))return "r:"+keyPart(r.reonomy_id);if(!isBlank(r.apn))return "a:"+keyPart(r.apn);return null;}
+function keyCostar(r){return isBlank(r.comp_id)?null:"c:"+keyPart(r.comp_id);}
+function keyTrepp(r){var a=isBlank(r.trepp_real_id)?"":keyPart(r.trepp_real_id);var b=isBlank(r.trustee_loan_id)?"":keyPart(r.trustee_loan_id);if(!a&&!b)return null;return "t:"+a+"|"+b;}
 
 function mergeInto(cur,incoming,keyOf,extraNum){
   var numeric=inferNumeric(cur,extraNum);
@@ -1590,13 +1596,19 @@ async function analyze(){
   // geocode new trepp rows missing coords
   var toGeo=datasets.trepp.filter(function(r){return isBlank(r.latitude)&&!isBlank(r.address);});
   if(toGeo.length&&dirty.has("trepp")){
-    var got=0;
-    for(var g=0;g<toGeo.length;g++){
-      prog("Geocoding new Trepp addresses ("+(g+1)+"/"+toGeo.length+")...");
-      var res=await geocodeOne(toGeo[g].address,toGeo[g].city,toGeo[g].zip);
-      if(res){toGeo[g].latitude=res.lat;toGeo[g].longitude=res.lng;got++;}
+    var got=0,firstErr=null;
+    var cap=Math.min(toGeo.length,150);
+    for(var g=0;g<cap;g++){
+      prog("Geocoding new Trepp addresses ("+(g+1)+"/"+cap+")...");
+      var gr=null;
+      try{ gr=await geocodeOne(toGeo[g].address,toGeo[g].city,toGeo[g].zip); }
+      catch(err){ if(!firstErr)firstErr=String(err&&err.message||err); }
+      if(gr){toGeo[g].latitude=gr.lat;toGeo[g].longitude=gr.lng;got++;}
     }
-    lines.push("Geocoded "+got+"/"+toGeo.length+" new Trepp addresses");
+    var note="Geocoded "+got+"/"+cap+" new Trepp addresses";
+    if(toGeo.length>cap)note+=" ("+(toGeo.length-cap)+" left for next upload)";
+    if(got===0)note+=firstErr?(" \u2014 error: "+firstErr):" \u2014 all lookups returned no match (run geocode locally instead)";
+    lines.push(note);
   }
   var ASRF={reonomy:{addr:"address_line_1",apn:"apn"},costar:{addr:"property_address",apn:"parcel_number_1_min"},trepp:{addr:"address",apn:"assessor_parcel_num"}};
   var asrCands=[];
