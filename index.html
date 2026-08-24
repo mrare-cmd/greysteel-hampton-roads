@@ -298,7 +298,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v14</div>
+<div id="verBadge">v16</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -615,7 +615,7 @@ window.DU=DU;
 async function loadData(){
   setLoading(true);
   document.getElementById('loadingList').style.display='block';
-  const [props,trepps,costarArr]=await Promise.all([
+  let [props,trepps,costarArr]=await Promise.all([
     fetch(DU('data_reonomy.json')).then(r=>r.json()),
     fetch(DU('data_trepp.json')).then(r=>r.json()),
     fetch(DU('data_costar.json')).then(r=>r.json()),
@@ -629,6 +629,42 @@ async function loadData(){
   });});};
   _fixUnits(props,['total_units','existing_units','units','number_of_units','residential_units']);
   _fixUnits(trepps,['number_of_units','units']);
+  // Trepp is one row per LOAN. Collapse to one row per PROPERTY on
+  // trepp_real_id, keeping the loan that matters and parking the rest.
+  (function(){
+    const bal=v=>{const n=parseFloat(String(v==null?'':v).replace(/,/g,''));return isNaN(n)?null:n;};
+    const dt=v=>String(v||'').slice(0,10);
+    const groups={};
+    (trepps||[]).forEach(t=>{const k=String(t.trepp_real_id||('_row'+t.id));(groups[k]=groups[k]||[]).push(t);});
+    const out=[];
+    Object.keys(groups).forEach(k=>{
+      const g=groups[k];
+      if(g.length>1){
+        g.sort((a,b)=>{
+          const la=(bal(a.current_balance)||0)>0?1:0,lb=(bal(b.current_balance)||0)>0?1:0;
+          if(la!==lb)return lb-la;
+          const oa=dt(a.origination_date),ob=dt(b.origination_date);
+          if(oa!==ob)return ob>oa?1:-1;
+          const ma=dt(a.maturity_date),mb=dt(b.maturity_date);
+          return mb>ma?1:-1;
+        });
+        g[0]._loanHistory=g.slice(1);
+      }
+      g[0]._loanCount=g.length;
+      out.push(g[0]);
+    });
+    // Drop only what we can prove is finished: an explicit zero balance AND a
+    // maturity date already past. A blank balance means unknown, not paid off,
+    // so it stays. Same for a zero balance whose maturity is still ahead.
+    const today=new Date().toISOString().slice(0,10);
+    const kept=out.filter(t=>{
+      const b=bal(t.current_balance),m=dt(t.maturity_date);
+      return !(b===0&&m&&m<today);
+    });
+    window.__treppRollup={loans:(trepps||[]).length,properties:out.length,
+                          resolved:out.length-kept.length,shown:kept.length};
+    trepps=kept;
+  })();
   _fixUnits(costarArr,['number_of_units','number_of_1_bedroom_units','number_of_2_bedroom_units','number_of_3_bedroom_units','number_of_studio_units','number_of_other_bedroom_units']);
   function addrVariantsLD(a){
     const m=String(a||'').match(/^\s*(\d+)\s*-\s*(\d+)\s+(.+)$/);
