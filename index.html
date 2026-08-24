@@ -298,7 +298,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v13</div>
+<div id="verBadge">v14</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -676,6 +676,27 @@ async function loadData(){
   const treppOnly=(trepps||[]).filter(t=>!usedTreppIds.has(t.id));
   treppOnly.forEach(t=>{
     const pseudo={id:`trepp_${t.id}`,asr_land_value:t.asr_land_value,asr_improvement_value:t.asr_improvement_value,asr_total_value:t.asr_total_value,asr_year:t.asr_year,asr_city:t.asr_city,address_line_1:t.address||t.property_name,address_city:t.city,address_state:t.state,address_full:[t.address||t.property_name,t.city,t.state].filter(Boolean).join(', '),property_type:t.normalized_property_type||t.property_type,property_subtype:t.trepp_subtype,year_built:t.year_built,total_units:t.number_of_units,latitude:t.latitude?parseFloat(t.latitude):null,longitude:t.longitude?parseFloat(t.longitude):null,_trepp:t,_hasCostar:false,_costar:null,_source:'trepp',_matchMethod:null};
+    // Same CoStar lookup the Reonomy path uses: exact address first, then a
+    // 20 m coordinate match, newest sale winning ties.
+    let cM=null,cMeth=null;
+    for(const av of addrVariantsLD(pseudo.address_line_1||'')){const cak=normalizeAddr(av);if(costarByAddr[cak]){cM=costarByAddr[cak];cMeth='addr';break;}}
+    if(!cM){const tLat=parseFloat(pseudo.latitude),tLng=parseFloat(pseudo.longitude);if(!isNaN(tLat)&&!isNaN(tLng)){const bLat=Math.round(tLat*1000),bLng=Math.round(tLng*1000);let bestDist=Infinity;for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++){const bucket=`${bLat+dl}_${bLng+dg}`;for(const c of costarByCoord[bucket]||[]){const dist=haversineMeters(tLat,tLng,c._lat,c._lng);if(dist<20&&(dist<bestDist||(dist===bestDist&&(Date.parse(c.sale_date||0)||0)>(Date.parse((cM&&cM.sale_date)||0)||0)))){bestDist=dist;cM=c;cMeth=`coord(${Math.round(dist)}m)`;}}}}}
+    if(cM){
+      costarMatchCount++;
+      pseudo.sale_amount=cM.sale_price||null;
+      pseudo.sale_recorded_date=cM.sale_date||null;
+      pseudo.sales_price_per_sf=cM.price_per_sf||null;
+      pseudo.price_per_unit=cM.price_per_unit||null;
+      pseudo.vacancy=cM.vacancy||pseudo.vacancy;
+      pseudo.actual_cap_rate=cM.actual_cap_rate||null;
+      pseudo.building_class=cM.building_class;
+      pseudo.submarket_name=cM.submarket_name;
+      pseudo.buyer_true_company=cM.buyer_true_company;
+      pseudo.seller_true_company=cM.seller_true_company;
+      if(!pseudo.total_units&&cM.number_of_units)pseudo.total_units=cM.number_of_units;
+      if(!pseudo.year_built&&cM.year_built)pseudo.year_built=cM.year_built;
+      pseudo._hasCostar=true;pseudo._costar=cM;pseudo._matchMethod=cMeth;
+    }
     const {score,tier,details,cats}=scoreProperty(pseudo);
     allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
   });
