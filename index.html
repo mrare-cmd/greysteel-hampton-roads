@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.3/dist/leaflet-geoman.css">
+<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.3/dist/leaflet-geoman.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -166,6 +168,18 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .map-dot.selected{transform:scale(1.5);box-shadow:0 0 0 4px rgba(26,115,232,.35);}
 .leaflet-tooltip{background:var(--text);color:#fff;border:none;border-radius:4px;font-size:11px;padding:4px 8px;font-family:'Roboto',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);}
 .leaflet-tooltip::before{border-top-color:var(--text)}
+/* draw-an-area / radius filter (PBS8 pattern, CoStar-style radius box) */
+.geo-hint{position:absolute;top:12px;left:56px;z-index:450;background:rgba(255,255,255,.95);border:1px solid var(--border);border-radius:8px;padding:6px 11px;font-size:12px;color:var(--text2);box-shadow:var(--shadow);pointer-events:none}
+.geo-box{position:absolute;top:12px;left:56px;z-index:450;display:none;align-items:center;gap:8px;background:var(--white);border:1px solid var(--blue);border-radius:10px;padding:6px 8px 6px 12px;font-size:12.5px;color:var(--text);box-shadow:var(--shadow)}
+.geo-box.on{display:flex}
+.geo-box b{font-weight:600;color:var(--blue)}
+.geo-box input{width:62px;height:28px;padding:0 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;text-align:right}
+.geo-box input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,115,232,.12)}
+.geo-box .geo-n{color:var(--text2)}
+.geo-box button{height:28px;padding:0 10px;border-radius:14px;border:1px solid var(--red);background:rgba(217,48,37,.08);color:var(--red);font-size:12px;font-weight:600;cursor:pointer;transition:background .2s,color .2s}
+.geo-box button:hover{background:var(--red);color:#fff}
+.leaflet-pm-toolbar .leaflet-buttons-control-button{width:34px;height:34px}
+.leaflet-pm-toolbar.leaflet-bar{border:1px solid var(--border)!important;border-radius:8px!important;box-shadow:var(--shadow)!important;overflow:hidden}
 .map-legend{position:absolute;bottom:24px;left:16px;z-index:400;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 14px;box-shadow:var(--shadow);}
 .ml-title{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
 .ml-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
@@ -379,7 +393,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v23</div>
+<div id="verBadge">v24</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -557,6 +571,8 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
   </div>
   <div class="map-panel">
     <div id="map"></div>
+    <div class="geo-hint" id="geoHint">Draw an area or a radius with the tools at left to filter the list</div>
+    <div class="geo-box" id="geoBox"><span id="geoKind"></span><span id="geoRadWrap"><input id="geoRadIn" inputmode="decimal" autocomplete="off" title="Type a radius in miles"> mi</span><span class="geo-n" id="geoN"></span><button type="button" id="geoClearBtn">Clear area</button></div>
     <div class="map-legend">
       <div class="ml-title">Priority Score</div>
       <div class="ml-row"><div class="ml-dot" style="background:#d93025"></div><span class="ml-label">Hot (70–100)</span></div>
@@ -924,7 +940,7 @@ function applyFilters(){
   else if(sort==='hold')data.sort((a,b)=>{const ya=yearsSince(parseD(a.sale_recorded_date||a.sale_date))||0;const yb=yearsSince(parseD(b.sale_recorded_date||b.sale_date))||0;return yb-ya;});
   else if(sort==='sale_amount')data.sort((a,b)=>(parseFloat(b.sale_amount)||0)-(parseFloat(a.sale_amount)||0));
   else if(sort==='balance')data.sort((a,b)=>{const ba=parseFloat(a._trepp?.current_balance)||0;const bb=parseFloat(b._trepp?.current_balance)||0;return bb-ba;});
-  filtered=data;renderList();renderMap();
+  filtered=data;renderList();renderMap();if(window.syncGeoBox)syncGeoBox();
   document.getElementById('tbCount').textContent=`${filtered.length.toLocaleString()} of ${allData.length.toLocaleString()} properties`;
 }
 let _searchT=null;
@@ -1034,6 +1050,86 @@ function initMap(){
   L.control.zoom({position:'bottomright'}).addTo(map);
   markersLayer=L.layerGroup().addTo(map);
   L.DomEvent.disableScrollPropagation(document.getElementById('detailDrawer'));
+  initGeoTools();
+}
+// ─── DRAW / RADIUS FILTER ───
+// One shape at a time (polygon, rectangle or circle). window.GEO holds it in
+// plain numbers; the filter chain keeps only properties inside it.
+window.GEO=null;let GEO_LAYERS=null,GEO_LAYER=null,_geoClearing=false;
+function geoRingIn(lat,lng,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const yi=ring[i][0],xi=ring[i][1],yj=ring[j][0],xj=ring[j][1];
+    if(((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi))inside=!inside;
+  }
+  return inside;
+}
+function geoMiles(a1,o1,a2,o2){const dy=(a2-a1)*69,dx=(o2-o1)*69*Math.cos((a1+a2)/2*Math.PI/180);return Math.sqrt(dx*dx+dy*dy);}
+window.geoContains=function(p){
+  const G=window.GEO;if(!G)return true;
+  const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);
+  if(isNaN(lat)||isNaN(lng))return false;               // unmapped can't be inside
+  const b=G.bbox;if(lat<b.s||lat>b.n||lng<b.w||lng>b.e)return false;
+  return G.kind==='circle'?geoMiles(G.lat,G.lng,lat,lng)<=G.radMi:geoRingIn(lat,lng,G.ring);
+};
+window.geoLabel=function(){const G=window.GEO;if(!G)return '';return G.kind==='circle'?(+G.radMi.toFixed(G.radMi<10?2:1))+' mi radius':'drawn area';};
+function captureGeo(layer){
+  if(layer instanceof L.Circle){
+    const c=layer.getLatLng(),radMi=layer.getRadius()/1609.344;
+    const dLat=radMi/69,dLon=radMi/(69*Math.max(.2,Math.cos(c.lat*Math.PI/180)));
+    window.GEO={kind:'circle',lat:c.lat,lng:c.lng,radMi,bbox:{n:c.lat+dLat,s:c.lat-dLat,e:c.lng+dLon,w:c.lng-dLon}};
+  }else{
+    const ring=(layer.getLatLngs()[0]||[]).map(q=>[q.lat,q.lng]);
+    if(ring.length<3){clearGeo();return;}
+    let n=-90,s=90,e=-180,w=180;ring.forEach(([a,o])=>{if(a>n)n=a;if(a<s)s=a;if(o>e)e=o;if(o<w)w=o;});
+    window.GEO={kind:'poly',ring,bbox:{n,s,e,w}};
+  }
+  GEO_LAYER=layer;
+  applyFilters();
+}
+function clearGeo(refresh){
+  if(_geoClearing)return;_geoClearing=true;
+  const had=!!window.GEO;window.GEO=null;GEO_LAYER=null;
+  try{
+    if(GEO_LAYERS)GEO_LAYERS.clearLayers();
+    if(map&&map.pm){try{map.pm.disableDraw();}catch(e){}try{map.pm.disableGlobalRemovalMode();}catch(e){}try{map.pm.disableGlobalEditMode();}catch(e){}}
+  }finally{_geoClearing=false;}
+  syncGeoBox();
+  if(had&&refresh!==false&&allData.length)applyFilters();
+}
+window.clearGeo=clearGeo;
+function syncGeoBox(){
+  const G=window.GEO,box=document.getElementById('geoBox');if(!box)return;
+  document.getElementById('geoHint').style.display=G||!map||!map.pm?'none':'block';
+  box.classList.toggle('on',!!G);if(!G)return;
+  document.getElementById('geoKind').innerHTML=G.kind==='circle'?'<b>Radius</b>':'<b>Drawn area</b>';
+  document.getElementById('geoRadWrap').style.display=G.kind==='circle'?'':'none';
+  const inp=document.getElementById('geoRadIn');
+  if(G.kind==='circle'&&document.activeElement!==inp)inp.value=+G.radMi.toFixed(2);
+  document.getElementById('geoN').textContent='\u00b7 '+filtered.length.toLocaleString()+' propert'+(filtered.length===1?'y':'ies');
+}
+window.syncGeoBox=syncGeoBox;
+function initGeoTools(){
+  if(!map.pm){console.warn('Leaflet-Geoman did not load; drawing disabled.');syncGeoBox();return;}
+  map.pm.addControls({position:'topleft',drawMarker:false,drawPolyline:false,drawText:false,drawCircleMarker:false,
+    cutPolygon:false,rotateMode:false,drawPolygon:true,drawRectangle:true,drawCircle:true,editMode:true,dragMode:true,removalMode:true});
+  map.pm.setGlobalOptions({snappable:false,templineStyle:{color:'#1a73e8'},hintlineStyle:{color:'#1a73e8',dashArray:'5,5'},
+    pathOptions:{color:'#1a73e8',weight:2,fillColor:'#1a73e8',fillOpacity:.08}});
+  GEO_LAYERS=L.featureGroup().addTo(map);
+  map.on('pm:create',e=>{
+    GEO_LAYERS.clearLayers();GEO_LAYERS.addLayer(e.layer);   // one shape at a time
+    e.layer.on('pm:edit pm:update pm:dragend',()=>captureGeo(e.layer));
+    e.layer.on('pm:remove',()=>clearGeo());
+    captureGeo(e.layer);
+  });
+  map.on('pm:remove',()=>clearGeo());
+  document.getElementById('geoClearBtn').addEventListener('click',()=>clearGeo());
+  let t=null;
+  document.getElementById('geoRadIn').addEventListener('input',function(){
+    clearTimeout(t);const v=this.value;
+    t=setTimeout(()=>{const mi=parseFloat(v);if(!(mi>0)||!GEO_LAYER||!(GEO_LAYER instanceof L.Circle))return;GEO_LAYER.setRadius(mi*1609.344);captureGeo(GEO_LAYER);},300);
+  });
+  syncGeoBox();
 }
 let _markerById={},_lastFilterSig='';
 function filterSignature(){
@@ -1069,7 +1165,7 @@ function renderMap(force){
     m.bindTooltip(`<b>${nm||addr}</b>${nm?'<br>'+addr:''}<br>Score: ${p._score} · ${p._tier}${srcTag?' · '+srcTag:''}`,{direction:'top',offset:[0,-6]});
     m.on('mouseover',function(){if(_openTip&&_openTip!==m)_openTip.closeTooltip();_openTip=m;if(p.id!==selectedId)m.setRadius(7);});
     m.on('mouseout',function(){if(p.id!==selectedId)m.setRadius(5);});
-    m.on('click',()=>selectProperty(p.id,true));
+    m.on('click',()=>{if(map.pm&&map.pm.globalDrawModeEnabled())return;selectProperty(p.id,true);});
     m._p=p;
     markersLayer.addLayer(m);
     _markerById[p.id]=m;
@@ -1224,6 +1320,7 @@ function setLoading(v){document.getElementById('loadingSpinner').style.display=v
 function clearMarketData(){
   try{
     allData=[];filtered=[];selectedId=null;_prevSelectedId=null;
+    if(window.clearGeo)clearGeo(false);
     if(typeof markersLayer!=='undefined'&&markersLayer)markersLayer.clearLayers();
     _markerById={};_lastFilterSig='';
     var d=document.getElementById('detailDrawer');if(d)d.classList.remove('open');
@@ -2102,6 +2199,7 @@ function dateText(k){
 // One entry per filter: which control it lives in, its chip label, a short
 // value summary ("" = not set) and how to clear it.
 var FILTERS=[
+ {el:"",label:"Map",val:function(){return window.geoLabel?geoLabel():"";},clear:function(){if(window.clearGeo)clearGeo(false);}},
  {el:"fb_quad_group",label:"Quadrant",val:function(){var q=quadSel();return window.GS_REGION==="dc"&&q.length?q.join(", "):"";},clear:function(){resetQuad();}},
  {el:"fp_units",label:"Units",val:function(){return rngText("units",fmtN);},clear:function(){clr("units");}},
  {el:"fp_year",label:"Built",val:function(){return rngText("year",fmtYr);},clear:function(){clr("year");}},
@@ -2182,6 +2280,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
     });
   }
   if(distressOn)data=data.filter(isDistressed);
+  if(window.GEO)data=data.filter(window.geoContains);
   // Quadrant last, so its counts reflect every other active filter.
   var qc={NW:0,NE:0,SE:0,SW:0};
   if(window.GS_REGION==="dc"){
@@ -2196,7 +2295,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
 function refilter(){if(window.applyFilters)applyFilters();else syncFilterUI();}
 window.fbClear=function(){
   document.querySelectorAll("#filterBar input").forEach(function(i){if(i.type==="checkbox")i.checked=false;else i.value="";});
-  distressOn=false;closePops();refilter();
+  distressOn=false;closePops();if(window.clearGeo)clearGeo(false);refilter();
 };
 document.getElementById("fb_distress").addEventListener("click",function(){distressOn=!distressOn;refilter();});
 document.getElementById("fb_quad_all").addEventListener("click",function(){var b=quadBoxes(),all=b.every(function(c){return c.checked;});b.forEach(function(c){c.checked=!all;});refilter();});
