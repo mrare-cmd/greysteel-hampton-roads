@@ -293,6 +293,9 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .fp-cal:hover{background:var(--bg);color:var(--blue)}
 .fp-dnat{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 .fp-hint{font-size:11px;color:var(--text3);margin-top:6px}
+.fp-chk{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12.5px;color:var(--text);cursor:pointer}
+.fp-chk input{accent-color:var(--blue);width:15px;height:15px;margin:0;cursor:pointer}
+.list-more{padding:14px 16px;text-align:center;font-size:12px;color:var(--text3)}
 
 /* ── market selector ── */
 #landing{position:fixed;inset:0;z-index:5000;background:var(--white,#fff);opacity:1;transition:opacity .55s ease}
@@ -376,7 +379,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v19</div>
+<div id="verBadge">v20</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -433,18 +436,19 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
       <div class="fp-foot"><button type="button" class="fp-link" id="fb_quad_all">Select all</button><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <div class="fp" id="fp_units"><button type="button" class="fp-btn" aria-expanded="false">Units<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
-    <div class="fp-pop"><div class="fp-h">Units</div><p class="fp-d">Number of apartment units: the Reonomy parcel count, or the Trepp loan&#39;s count when there is no parcel.</p>
+    <div class="fp-pop"><div class="fp-h">Units</div>
       <div class="fp-row"><input id="fb_units_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_units_max" placeholder="Max" autocomplete="off"></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <div class="fp" id="fp_year"><button type="button" class="fp-btn" aria-expanded="false">Year Built<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
-    <div class="fp-pop"><div class="fp-h">Year Built</div><p class="fp-d">Year the building was completed.</p>
+    <div class="fp-pop"><div class="fp-h">Year Built</div>
       <div class="fp-row"><input id="fb_year_min" placeholder="From" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_year_max" placeholder="To" autocomplete="off"></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <div class="fp" id="fp_sold"><button type="button" class="fp-btn" aria-expanded="false">Last Sold<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
-    <div class="fp-pop"><div class="fp-h">Last Sold</div><p class="fp-d">Most recent recorded sale was in this year or later. Properties with no recorded sale are hidden.</p>
+    <div class="fp-pop"><div class="fp-h">Last Sold</div><p class="fp-d">Most recent recorded sale was in this year or later.</p>
       <div class="fp-row"><span class="fbunit">Sold in or after</span><input id="fb_sold_after" placeholder="Year" autocomplete="off"></div>
+      <label class="fp-chk"><input type="checkbox" id="fb_sold_nodate">Include properties with no sale date</label>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <div class="fp" id="fp_mat"><button type="button" class="fp-btn" aria-expanded="false">Loan Maturity<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
@@ -456,6 +460,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
   <div class="fp" id="fp_orig"><button type="button" class="fp-btn" aria-expanded="false">Originated<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
     <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Originated</div><p class="fp-d">When the property&#39;s current Trepp loan closed. Only properties with a matched loan are kept.</p>
       <div class="fp-drow"><label class="fp-dl"><span>From</span><span class="fp-date"><input id="fb_orig_min" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label><label class="fp-dl"><span>To</span><span class="fp-date"><input id="fb_orig_max" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label></div><div class="fp-hint">Inclusive. Type 9/1/2026, 09/01/2026 or just 2026, or use the calendar.</div>
+      <div class="fp-or">or</div><div class="fp-sub">Originated within the past</div><div class="fp-row"><input id="fb_orig_yrs" placeholder="#" autocomplete="off"><span class="fbunit">years</span></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <button type="button" class="fp-btn" id="fb_distress" aria-pressed="false" title="Trepp loan 30+ days late, in foreclosure, REO, a non-performing matured balloon, or with the special servicer; or a Reonomy preforeclosure filing."><span class="fb-box"></span>Distressed only</button>
@@ -731,7 +736,7 @@ function DU(name){return RD()+name+'?v='+window.GS_CB;}
 window.DU=DU;
 async function loadData(){
   setLoading(true);
-  document.getElementById('loadingList').style.display='block';
+  {const ll=document.getElementById('loadingList');if(ll)ll.style.display='block';}  // gone if a filter was touched mid-load
   let [props,trepps,costarArr]=await Promise.all([
     fetch(DU('data_reonomy.json')).then(r=>r.json()),
     fetch(DU('data_trepp.json')).then(r=>r.json()),
@@ -878,7 +883,7 @@ async function loadData(){
   document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only`;
   if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);fetch(RD()+'data_salesforce.json?t='+Date.now()).then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);window.__renderSrcInfo(__sd);}}).catch(function(){});}
   setLoading(false);
-  document.getElementById('loadingList').style.display='none';
+  {const ll=document.getElementById('loadingList');if(ll)ll.style.display='none';}  // gone if a filter was touched mid-load
   initMap();
   {const qg=document.getElementById('fb_quad_group'),isDC=window.GS_REGION==='dc';if(qg){qg.style.display=isDC?'':'none';if(!isDC&&window.resetQuad)resetQuad();}if(window.syncFilterBar)syncFilterBar();}
   applyFilters();
@@ -917,7 +922,8 @@ function applyFilters(){
   filtered=data;renderList();renderMap();
   document.getElementById('tbCount').textContent=`${filtered.length.toLocaleString()} of ${allData.length.toLocaleString()} properties`;
 }
-document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value;applyFilters();});
+let _searchT=null;
+document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value;clearTimeout(_searchT);_searchT=setTimeout(applyFilters,180);});
 // Tiers toggle independently (Hot + Warm, etc). All clears them; toggling the
 // last one off, or all four on, falls back to All.
 function setTier(t){
@@ -937,11 +943,29 @@ function updateSelectedCard(){
     if(c)c.classList.add('selected');
   }
 }
+// Only the first 60 cards are built; more are appended as you scroll near the
+// bottom. Building all 2,000+ on every filter change was the main source of lag.
+const LIST_CHUNK=60;let _listShown=0;
+function listMore(){return _listShown<filtered.length?`<div class="list-more">Showing ${_listShown.toLocaleString()} of ${filtered.length.toLocaleString()} \u00b7 scroll for more</div>`:'';}
 function renderList(){
   const panel=document.getElementById('listPanel');
-  if(!filtered.length){panel.innerHTML=`<div class="empty-state">${IC.building}<div>No properties match your filters</div></div>`;return;}
-  panel.innerHTML=filtered.map(p=>propCard(p)).join('');
+  if(!filtered.length){_listShown=0;panel.innerHTML=`<div class="empty-state">${IC.building}<div>No properties match your filters</div></div>`;return;}
+  _listShown=Math.min(LIST_CHUNK,filtered.length);
+  panel.innerHTML=filtered.slice(0,_listShown).map(p=>propCard(p)).join('')+listMore();
+  panel.scrollTop=0;
 }
+function appendListChunk(){
+  if(_listShown>=filtered.length)return;
+  const panel=document.getElementById('listPanel');
+  const m=panel.querySelector('.list-more');if(m)m.remove();
+  const next=Math.min(_listShown+LIST_CHUNK,filtered.length);
+  panel.insertAdjacentHTML('beforeend',filtered.slice(_listShown,next).map(p=>propCard(p)).join(''));
+  _listShown=next;
+  panel.insertAdjacentHTML('beforeend',listMore());
+}
+document.getElementById('listPanel').addEventListener('scroll',function(){
+  if(this.scrollTop+this.clientHeight>this.scrollHeight-800)appendListChunk();
+},{passive:true});
 // Building name for the title: Trepp first, then CoStar. Skips names that only
 // restate the street address ("4830 Chevy Chase Drive") and CoStar placeholders.
 const STREET_END=/\b(st|street|ave|avenue|dr|drive|rd|road|pl|place|ter|terrace|blvd|boulevard|ln|lane|way|ct|court|cir|circle|pkwy|parkway|hwy|highway|pike|sq|square)\.?(\s+(nw|ne|sw|se|n|s|e|w|north|south|east|west|northwest|northeast|southwest|southeast))?$/i;
@@ -996,7 +1020,7 @@ function initMap(){
   // Centre on whichever market was chosen. This used to be hardcoded to
   // Hampton Roads, so entering DC always dropped the map over Norfolk.
   var _v=window.GS_VIEW||{center:[36.85,-76.28],zoom:10};
-  map=L.map('map',{center:_v.center,zoom:_v.zoom,zoomControl:false,maxZoom:16});
+  map=L.map('map',{center:_v.center,zoom:_v.zoom,zoomControl:false,maxZoom:16,preferCanvas:true});
   // `let map` at the top of this script is NOT window.map, so the landing
   // handoff could never see it. Publish it explicitly.
   window.map=map;
@@ -1008,43 +1032,53 @@ function initMap(){
 }
 let _markerById={},_lastFilterSig='';
 function filterSignature(){
-  // Cheap signature of the filtered set (ids + count). Changes only when the set changes.
-  return filtered.length+'|'+(filtered.length?filtered[0].id+'_'+filtered[filtered.length-1].id:'');
+  // Changes whenever the filtered set or its order changes.
+  let h=filtered.length;for(let i=0;i<filtered.length;i++){const id=String(filtered[i].id);h=(h*31+id.length+id.charCodeAt(id.length-1)+i)|0;}
+  return h+'|'+filtered.length;
 }
+// Dots are canvas circleMarkers (preferCanvas): one drawing surface instead of
+// a DOM element per property, which is what made panning and refiltering heavy.
+const TIER_COLOR={hot:'#d93025',warm:'#fa7b17',watch:'#f29900',cold:'#188038'};
+const TIER_RANK={cold:0,watch:1,warm:2,hot:3};
+function dotStyle(p,sel){
+  return sel?{radius:8,color:'#1a73e8',weight:3,fillColor:TIER_COLOR[p._tier],fillOpacity:1,opacity:1}
+            :{radius:5,color:'#ffffff',weight:1.5,fillColor:TIER_COLOR[p._tier],fillOpacity:.95,opacity:.9};
+}
+let _openTip=null;
 function renderMap(force){
   if(!map)return;
   const sig=filterSignature();
   if(!force&&sig===_lastFilterSig){updateSelectedMarker();return;}
   _lastFilterSig=sig;
-  markersLayer.clearLayers();_markerById={};
-  filtered.forEach(p=>{
+  markersLayer.clearLayers();_markerById={};_openTip=null;
+  // hotter tiers drawn last so they sit on top where dots overlap
+  const order=filtered.slice().sort((a,b)=>TIER_RANK[a._tier]-TIER_RANK[b._tier]);
+  order.forEach(p=>{
     const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);
     if(isNaN(lat)||isNaN(lng))return;
-    const sel=p.id===selectedId;const sz=sel?14:9;
-    const tierColor={hot:'#d93025',warm:'#fa7b17',watch:'#f29900',cold:'#188038'}[p._tier];
-    const icon=L.divIcon({className:'',html:`<div class="map-dot${sel?' selected':''}" style="width:${sz}px;height:${sz}px;background:${tierColor};border-color:rgba(255,255,255,.8)"></div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+    const sel=p.id===selectedId;
+    const m=L.circleMarker([lat,lng],dotStyle(p,sel));
     const addr=p.address_line_1||p.address||p._trepp?.address||p._trepp?.property_name||'';
-    const m=L.marker([lat,lng],{icon});
     const srcTag=p._trepp?'⬡ Trepp':'';
     const nm=bldgName(p);
-    m.bindTooltip(`<b>${nm||addr}</b>${nm?'<br>'+addr:''}<br>Score: ${p._score} · ${p._tier}${srcTag?' · '+srcTag:''}`,{direction:'top',offset:[0,-4]});
-    m.on('mouseover',function(){markersLayer.eachLayer(function(l){if(l!==m&&l.isTooltipOpen&&l.isTooltipOpen())l.closeTooltip();});});
+    m.bindTooltip(`<b>${nm||addr}</b>${nm?'<br>'+addr:''}<br>Score: ${p._score} · ${p._tier}${srcTag?' · '+srcTag:''}`,{direction:'top',offset:[0,-6]});
+    m.on('mouseover',function(){if(_openTip&&_openTip!==m)_openTip.closeTooltip();_openTip=m;if(p.id!==selectedId)m.setRadius(7);});
+    m.on('mouseout',function(){if(p.id!==selectedId)m.setRadius(5);});
     m.on('click',()=>selectProperty(p.id,true));
+    m._p=p;
     markersLayer.addLayer(m);
     _markerById[p.id]=m;
+    if(sel)m.bringToFront();
   });
 }
 let _prevSelectedId=null;
 function updateSelectedMarker(){
-  // Update only the dots whose selection state changed — no full rebuild.
-  const ids=[_prevSelectedId,selectedId];
-  ids.forEach(id=>{
-    if(id==null)return;const m=_markerById[id];if(!m)return;
-    const p=filtered.find(x=>x.id===id);if(!p)return;
-    const sel=id===selectedId;const sz=sel?14:9;
-    const tierColor={hot:'#d93025',warm:'#fa7b17',watch:'#f29900',cold:'#188038'}[p._tier];
+  // Restyle only the dots whose selection state changed.
+  [_prevSelectedId,selectedId].forEach(id=>{
+    if(id==null)return;const m=_markerById[id];if(!m||!m._p)return;
     if(m.isTooltipOpen&&m.isTooltipOpen())m.closeTooltip();
-    m.setIcon(L.divIcon({className:'',html:`<div class="map-dot${sel?' selected':''}" style="width:${sz}px;height:${sz}px;background:${tierColor};border-color:rgba(255,255,255,.8)"></div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]}));
+    m.setStyle(dotStyle(m._p,id===selectedId));
+    if(id===selectedId)m.bringToFront();
   });
   _prevSelectedId=selectedId;
 }
@@ -2063,9 +2097,9 @@ var FILTERS=[
  {el:"fb_quad_group",label:"Quadrant",val:function(){var q=quadSel();return window.GS_REGION==="dc"&&q.length?q.join(", "):"";},clear:function(){resetQuad();}},
  {el:"fp_units",label:"Units",val:function(){return rngText("units",fmtN);},clear:function(){clr("units");}},
  {el:"fp_year",label:"Built",val:function(){return rngText("year",fmtYr);},clear:function(){clr("year");}},
- {el:"fp_sold",label:"Last sold",val:function(){var y=parseNumInput("fb_sold_after");return y===null?"":"since "+fmtYr(y);},clear:function(){setv("fb_sold_after");}},
+ {el:"fp_sold",label:"Last sold",val:function(){var y=parseNumInput("fb_sold_after");return y===null?"":"since "+fmtYr(y)+(document.getElementById("fb_sold_nodate").checked?" + no sale date":"");},clear:function(){setv("fb_sold_after");document.getElementById("fb_sold_nodate").checked=false;}},
  {el:"fp_mat",label:"Matures",val:function(){var d=parseNumInput("fb_due_yrs");return [dateText("mat"),d===null?"":"within "+d+" yr"+(d===1?"":"s")].filter(Boolean).join(" \u00b7 ");},clear:function(){clr("mat");setv("fb_due_yrs");}},
- {el:"fp_orig",label:"Originated",val:function(){return dateText("orig");},clear:function(){clr("orig");}},
+ {el:"fp_orig",label:"Originated",val:function(){var d=parseNumInput("fb_orig_yrs");return [dateText("orig"),d===null?"":"past "+d+" yr"+(d===1?"":"s")].filter(Boolean).join(" \u00b7 ");},clear:function(){clr("orig");setv("fb_orig_yrs");}},
  {el:"fb_distress",label:"Distressed",val:function(){return distressOn?"only":"";},clear:function(){distressOn=false;},red:true},
  {more:true,label:"Sale price",val:function(){return rngText("price",fmtMoney);},clear:function(){clr("price");}},
  {more:true,label:"Price/unit",val:function(){return rngText("ppu",fmtMoney);},clear:function(){clr("ppu");}},
@@ -2115,11 +2149,19 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
       return (!okDay(lo)||d>=lo)&&(!okDay(hi)||d<=hi);
     });
   });
-  var sy=parseNumInput("fb_sold_after");
+  var sy=parseNumInput("fb_sold_after"),noDate=document.getElementById("fb_sold_nodate").checked;
+  var oy=parseNumInput("fb_orig_yrs");
+  if(oy!==null){
+    var onow=Date.now(),ofrom=onow-oy*365.25*864e5;
+    data=data.filter(function(p){
+      var d=p._trepp?parseDay(p._trepp.origination_date,false):null;
+      return okDay(d)&&d>=ofrom&&d<=onow;
+    });
+  }
   if(sy!==null){
     data=data.filter(function(p){
       var y=pfYear(p.sale_recorded_date);
-      return y!==null&&y>=sy;
+      return y===null?noDate:y>=sy;
     });
   }
   var due=parseNumInput("fb_due_yrs");
@@ -2186,8 +2228,16 @@ document.querySelectorAll("#filterBar .fp-date").forEach(function(w){
   });
   t.addEventListener("blur",refilter);
 });
-document.addEventListener("keydown",function(e){if(e.key==="Escape")closePops();});document.querySelectorAll("#filterBar input,#filterBar select").forEach(function(inp){
-  inp.addEventListener(inp.tagName==="SELECT"?"change":"input",function(){if(window.applyFilters)applyFilters();});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closePops();});// Typing waits 180 ms after the last keystroke before refiltering, so a
+// five-character entry filters once instead of five times. Clicks are instant.
+var _fbT=null;
+document.querySelectorAll("#filterBar input,#filterBar select").forEach(function(inp){
+  var instant=inp.type==="checkbox"||inp.tagName==="SELECT";
+  inp.addEventListener(inp.tagName==="SELECT"?"change":"input",function(){
+    clearTimeout(_fbT);
+    if(instant){if(window.applyFilters)applyFilters();return;}
+    _fbT=setTimeout(function(){if(window.applyFilters)applyFilters();},180);
+  });
 });
 // The bar wraps to a second row on narrower screens; keep --filterbar equal to
 // its real height so the toolbar and map sit below it either way.
