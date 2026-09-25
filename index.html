@@ -77,6 +77,8 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .hp-add{height:30px;padding:0 12px;background:var(--blue);color:#fff;border-radius:4px;font-size:12px;font-weight:500;}
 .hp-add:hover{background:#1557b0}
 .recalc-btn{width:100%;height:36px;background:var(--blue);color:#fff;border-radius:4px;font-size:13px;font-weight:500;margin-top:4px;}
+.reset-btn{width:100%;height:32px;background:var(--white);color:var(--text2);border:1px solid var(--border);border-radius:4px;font-size:12.5px;font-weight:500;margin-top:8px;}
+.reset-btn:hover{background:var(--bg)}
 .recalc-btn:hover{background:#1557b0}
 .main{margin-top:calc(var(--header) + var(--filterbar) + var(--toolbar));height:calc(100vh - var(--header) - var(--filterbar) - var(--toolbar));display:flex;overflow:hidden;}
 .list-panel{width:420px;flex-shrink:0;overflow-y:auto;background:var(--white);border-right:1px solid var(--border);}
@@ -207,7 +209,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .asr-table tr.asr-total td{border-top:1px solid #bfe0bf;font-weight:700;padding-top:4px}
 
 /* fixed filter bar between header and toolbar */
-#filterBar{position:fixed;top:var(--header);left:0;right:0;height:var(--filterbar);z-index:195;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 16px;overflow-x:auto;font-size:11.5px}
+#filterBar{position:fixed;top:var(--header);left:0;right:0;min-height:40px;z-index:195;background:var(--white);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:6px 16px;font-size:11.5px;box-sizing:border-box}
 #filterBar .fbg{display:flex;align-items:center;gap:5px;flex-shrink:0}
 #filterBar .fbl{color:var(--text2);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.04em;white-space:nowrap}
 #filterBar input{width:64px;height:26px;padding:0 7px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;outline:none;background:var(--white)}
@@ -215,6 +217,8 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 #filterBar .fbdash{color:var(--text3)}
 #fbClear{padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--white);font-size:11px;color:var(--text2);flex-shrink:0}
 #fbClear:hover{background:var(--bg)}
+#filterBar select{height:26px;padding:0 4px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;outline:none;background:var(--white);color:var(--text)}
+#filterBar select:focus{border-color:var(--blue)}
 
 /* ── market selector ── */
 #landing{position:fixed;inset:0;z-index:5000;background:var(--white,#fff);opacity:1;transition:opacity .55s ease}
@@ -298,7 +302,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v16</div>
+<div id="verBadge">v17</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -343,6 +347,10 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
   <div class="fbg"><span class="fbl">Built</span><input id="fb_year_min" placeholder="min"><span class="fbdash">-</span><input id="fb_year_max" placeholder="max"></div>
   <div class="fbg"><span class="fbl">Assessed $</span><input id="fb_asr_min" placeholder="min"><span class="fbdash">-</span><input id="fb_asr_max" placeholder="max"></div>
   <div class="fbg"><span class="fbl">Sold after</span><input id="fb_sold_after" placeholder="year" style="width:52px"></div>
+  <div class="fbg"><span class="fbl">Originated</span><input id="fb_orig_min" placeholder="min" style="width:52px"><span class="fbdash">-</span><input id="fb_orig_max" placeholder="max" style="width:52px"></div>
+  <div class="fbg"><span class="fbl">Matures</span><input id="fb_mat_min" placeholder="min" style="width:52px"><span class="fbdash">-</span><input id="fb_mat_max" placeholder="max" style="width:52px"></div>
+  <div class="fbg" title="Loan maturity between today and this many years out"><span class="fbl">Due within</span><input id="fb_due_yrs" placeholder="yrs" style="width:44px"></div>
+  <div class="fbg" id="fb_quad_group" style="display:none"><span class="fbl">Quadrant</span><select id="fb_quad"><option value="">All</option><option>NW</option><option>NE</option><option>SE</option><option>SW</option></select></div>
   <button id="fbClear" onclick="fbClear()">Clear</button>
 </div>
 <div class="toolbar">
@@ -418,6 +426,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
       </div>
     </div>
     <button class="recalc-btn" onclick="recalculate()">Recalculate Scores</button>
+    <button class="reset-btn" onclick="resetWeights()">Reset to Defaults</button>
   </div>
 </div>
 <div class="main">
@@ -444,7 +453,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 <script>
 const SUPABASE_PLACEHOLDER=null; // data now loaded from local JSON files
 let allData=[],filtered=[],selectedId=null;
-let activeTier='all',activeSrc='all',searchQ='';
+let activeTiers=new Set(),activeSrc='all',searchQ='';  // empty set = All tiers
 let map,markersLayer;
 let holdPeriods=[3,5,7,10];
 const IC={
@@ -763,6 +772,7 @@ async function loadData(){
   setLoading(false);
   document.getElementById('loadingList').style.display='none';
   initMap();
+  {const qg=document.getElementById('fb_quad_group'),isDC=window.GS_REGION==='dc';if(qg){qg.style.display=isDC?'':'none';if(!isDC)document.getElementById('fb_quad').value='';}if(window.syncFilterBar)syncFilterBar();}
   applyFilters();
   // geocodeTreppOnly();  // disabled — coordinates now baked into data_trepp.json
 }
@@ -784,8 +794,8 @@ async function geocodeTreppOnly(){
 // ─── FILTERING & SORTING ───
 function applyFilters(){
   let data=[...allData];
-  if(searchQ){const q=searchQ.toLowerCase();data=data.filter(p=>(p.address_line_1||p.address||'').toLowerCase().includes(q)||(p.address_city||p.city||'').toLowerCase().includes(q)||(p.reported_owner_name||'').toLowerCase().includes(q)||(p._trepp?.property_name||'').toLowerCase().includes(q)||(p._trepp?.loan_name||'').toLowerCase().includes(q)||(p._trepp?.originator||'').toLowerCase().includes(q)||(p._trepp?.trepp_submarket||'').toLowerCase().includes(q)||(p.submarket_name||'').toLowerCase().includes(q));}
-  if(activeTier!=='all')data=data.filter(p=>p._tier===activeTier);
+  if(searchQ){const q=searchQ.toLowerCase();data=data.filter(p=>(p.address_line_1||p.address||'').toLowerCase().includes(q)||(p.address_city||p.city||'').toLowerCase().includes(q)||(p.reported_owner_name||'').toLowerCase().includes(q)||(p._trepp?.property_name||'').toLowerCase().includes(q)||(p._costar?.property_name||'').toLowerCase().includes(q)||(p._trepp?.loan_name||'').toLowerCase().includes(q)||(p._trepp?.originator||'').toLowerCase().includes(q)||(p._trepp?.trepp_submarket||'').toLowerCase().includes(q)||(p.submarket_name||'').toLowerCase().includes(q));}
+  if(activeTiers.size)data=data.filter(p=>activeTiers.has(p._tier));
   if(activeSrc==='trepp')data=data.filter(p=>p._trepp);else if(activeSrc==='trepp-only')data=data.filter(p=>p._source==='trepp');
   const loanSrc=document.getElementById('loanSrcSelect')?.value||'all';
   if(loanSrc!=='all')data=data.filter(p=>p._trepp&&(p._trepp.source||'').includes(loanSrc));
@@ -800,7 +810,14 @@ function applyFilters(){
   document.getElementById('tbCount').textContent=`Showing ${filtered.length.toLocaleString()} of ${allData.length.toLocaleString()}`;
 }
 document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value;applyFilters();});
-function setTier(t){activeTier=t;document.querySelectorAll('.tier-btn').forEach(b=>b.classList.toggle('active',b.dataset.tier===t));applyFilters();}
+// Tiers toggle independently (Hot + Warm, etc). All clears them; toggling the
+// last one off, or all four on, falls back to All.
+function setTier(t){
+  if(t==='all')activeTiers.clear();else if(activeTiers.has(t))activeTiers.delete(t);else activeTiers.add(t);
+  if(activeTiers.size===4)activeTiers.clear();
+  document.querySelectorAll('.tier-btn').forEach(b=>b.classList.toggle('active',b.dataset.tier==='all'?!activeTiers.size:activeTiers.has(b.dataset.tier)));
+  applyFilters();
+}
 function setSrc(s){activeSrc=s;document.querySelectorAll('.src-btn').forEach(b=>b.classList.toggle('active',b.dataset.src===s));applyFilters();}
 // ─── LIST RENDER ───
 function updateSelectedCard(){
@@ -817,15 +834,34 @@ function renderList(){
   if(!filtered.length){panel.innerHTML=`<div class="empty-state">${IC.building}<div>No properties match your filters</div></div>`;return;}
   panel.innerHTML=filtered.map(p=>propCard(p)).join('');
 }
+// Building name for the title: Trepp first, then CoStar. Skips names that only
+// restate the street address ("4830 Chevy Chase Drive") and CoStar placeholders.
+const STREET_END=/\b(st|street|ave|avenue|dr|drive|rd|road|pl|place|ter|terrace|blvd|boulevard|ln|lane|way|ct|court|cir|circle|pkwy|parkway|hwy|highway|pike|sq|square)\.?(\s+(nw|ne|sw|se|n|s|e|w|north|south|east|west|northwest|northeast|southwest|southeast))?$/i;
+function bldgName(p){
+  if(p._bname!==undefined)return p._bname;
+  const addr=normalizeAddr(p.address_line_1||p.address||'');
+  let out=null;
+  for(const raw of [p._trepp?.property_name,p._costar?.property_name]){
+    const n=String(raw||'').replace(/\s*\(part of .*portfolio\)\s*$/i,'').trim();
+    if(!n||/^multi-property sale$|^\d+\s+unit apartment building$/i.test(n))continue;
+    const k=normalizeAddr(n);
+    if(addr&&(k===addr||(/^\d/.test(n)&&addr.startsWith(k))))continue;
+    if(/^\d/.test(n)&&STREET_END.test(n))continue;
+    out=n;break;
+  }
+  return p._bname=out;
+}
+window.bldgName=bldgName;
 function propCard(p){
   const addr=p.address_line_1||p.address||p._trepp?.address||p._trepp?.property_name||'Unknown Address';
+  const name=bldgName(p);
   const city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(', ');
   const subtype=p.property_subtype||p._trepp?.trepp_subtype||'';
   const units=p.total_units||p._trepp?.number_of_units||null;
   const srcLabel=p._source==='trepp'?'Trepp only':p._trepp?'Reonomy + Trepp':'Reonomy';
   const srcCls=p._source==='trepp'?'trepp':p._trepp?'both':'reonomy';
   const chips=buildChips(p);
-  return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
+  return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${name||addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${name?`<span>${addr}${city?', '+city:''}</span>`:city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
 }
 function buildChips(p){
   const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
@@ -882,7 +918,8 @@ function renderMap(force){
     const addr=p.address_line_1||p.address||p._trepp?.address||p._trepp?.property_name||'';
     const m=L.marker([lat,lng],{icon});
     const srcTag=p._trepp?'⬡ Trepp':'';
-    m.bindTooltip(`<b>${addr}</b><br>Score: ${p._score} · ${p._tier}${srcTag?' · '+srcTag:''}`,{direction:'top',offset:[0,-4]});
+    const nm=bldgName(p);
+    m.bindTooltip(`<b>${nm||addr}</b>${nm?'<br>'+addr:''}<br>Score: ${p._score} · ${p._tier}${srcTag?' · '+srcTag:''}`,{direction:'top',offset:[0,-4]});
     m.on('mouseover',function(){markersLayer.eachLayer(function(l){if(l!==m&&l.isTooltipOpen&&l.isTooltipOpen())l.closeTooltip();});});
     m.on('click',()=>selectProperty(p.id,true));
     markersLayer.addLayer(m);
@@ -922,7 +959,7 @@ function openDrawer(p){
   const catLabels={holdPeriod:'Hold',loanMaturity:'Maturity',distress:'Distress',marketSignals:'Market'};
   const catBars=Object.entries(p._cats).map(([k,v])=>`<div class="sb-row"><span class="sb-cat">${catLabels[k]||k}</span><div class="sb-bar-wrap"><div class="sb-bar ${k==='holdPeriod'?'hold':k==='loanMaturity'?'maturity':k==='distress'?'distress':'market'}" style="width:${v}%"></div></div><span class="sb-score">${v}</span></div>`).join('');
   const reasonsList=p._details.length?`<ul class="sb-reasons">${p._details.map(d=>`<li class="${d.trepp?'trepp-signal':''}">${d.label}</li>`).join('')}</ul>`:'<p style="font-size:12px;color:var(--text2)">No specific signals detected</p>';
-  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${addr}</div><div class="dd-sub">${city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div>${(()=>{const u=parseFloat(p.total_units||p._trepp?.number_of_units||p._costar?.number_of_units||'');return isNaN(u)||u<=0?'':`<div class="dd-units">${Math.round(u).toLocaleString()} units</div>`;})()}</div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}${buildPortfolioNote(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div>${buildAssessed(p)}<div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
+  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${bldgName(p)||addr}</div><div class="dd-sub">${bldgName(p)?addr+(city?', '+city:''):city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div>${(()=>{const u=parseFloat(p.total_units||p._trepp?.number_of_units||p._costar?.number_of_units||'');return isNaN(u)||u<=0?'':`<div class="dd-units">${Math.round(u).toLocaleString()} units</div>`;})()}</div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}${buildPortfolioNote(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div>${buildAssessed(p)}<div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
   document.getElementById('detailDrawer').classList.add('open');
   document.getElementById('backdrop').classList.add('show');
 }
@@ -1020,6 +1057,17 @@ function toggleWeights(){const p=document.getElementById('weightsPanel'),b=docum
 function toggleHP(btn){btn.classList.toggle('active');}
 function addCustomHP(){const inp=document.getElementById('customHP');const yr=parseFloat(inp.value);if(isNaN(yr)||yr<1||yr>50)return;const container=document.getElementById('holdChips');if(container.querySelector(`[data-yr="${yr}"]`))return;const chip=document.createElement('button');chip.className='hp-chip active';chip.dataset.yr=yr;chip.textContent=`${yr}yr`;chip.onclick=()=>toggleHP(chip);container.appendChild(chip);inp.value='';}
 function recalculate(){holdPeriods=Array.from(document.querySelectorAll('.hp-chip.active')).map(c=>parseFloat(c.dataset.yr));allData=allData.map(p=>{const {score,tier,details,cats}=scoreProperty(p);return decorateSF({...p,_score:score,_tier:tier,_details:details,_cats:cats});});applyFilters();toggleWeights();}
+// Sliders go back to their HTML value attributes, hold chips to 3/5/7/10, and
+// scores are recomputed right away. The panel stays open.
+function resetWeights(){
+  ['wHold','wMat','wDist','wMkt'].forEach(id=>{const e=document.getElementById(id);e.value=e.defaultValue;document.getElementById(id+'Val').textContent=e.defaultValue;});
+  const DEF=['3','5','7','10'];
+  document.querySelectorAll('#holdChips .hp-chip').forEach(c=>{if(DEF.includes(c.dataset.yr))c.classList.add('active');else c.remove();});
+  document.getElementById('customHP').value='';
+  holdPeriods=DEF.map(Number);
+  allData=allData.map(p=>{const {score,tier,details,cats}=scoreProperty(p);return decorateSF({...p,_score:score,_tier:tier,_details:details,_cats:cats});});
+  applyFilters();
+}
 function setLoading(v){document.getElementById('loadingSpinner').style.display=v?'block':'none';}
 
 // Wipe every trace of the current market. Without this, hitting "Markets" and
@@ -1831,8 +1879,23 @@ var FIELDS=[
  {key:"price",get:function(p){return pfNum(p.sale_amount);}},
  {key:"ppu",get:function(p){var v=pfNum(p.price_per_unit);if(v==null&&!p._portfolio){var sa=pfNum(p.sale_amount),u=pfNum(p.total_units);if(sa&&u)v=sa/u;}return v;}},
  {key:"year",get:function(p){var v=pfNum(p.year_built);if(v==null&&p._trepp)v=pfNum(p._trepp.year_built);return v;}},
- {key:"asr",get:function(p){if(window.asrOf){var a=window.asrOf(p);if(a)return a.total;}return pfNum(p.asr_total_value);}}
+ {key:"asr",get:function(p){if(window.asrOf){var a=window.asrOf(p);if(a)return a.total;}return pfNum(p.asr_total_value);}},
+ {key:"orig",get:function(p){return p._trepp?pfYear(p._trepp.origination_date):null;}},
+ {key:"mat",get:function(p){return p._trepp?pfYear(p._trepp.maturity_date):null;}}
 ];
+// Year straight from the string. new Date("2025-01-01") is UTC midnight, which
+// getFullYear() in US time zones reads as 2024.
+function pfYear(v){var m=String(v||"").match(/\b(19|20)\d\d\b/);return m?+m[0]:null;}
+var QUAD_FULL={NORTHWEST:"NW",NORTHEAST:"NE",SOUTHWEST:"SW",SOUTHEAST:"SE"};
+function quadOf(p){
+  var srcs=[p.address_line_1,p.address,p.address_full,p._trepp&&p._trepp.address,p._costar&&p._costar.property_address];
+  for(var i=0;i<srcs.length;i++){
+    var m=String(srcs[i]||"").toUpperCase().match(/\b(NW|NE|SW|SE|NORTHWEST|NORTHEAST|SOUTHWEST|SOUTHEAST)\b/g);
+    if(m){var q=m[m.length-1];return QUAD_FULL[q]||q;}
+  }
+  return null;
+}
+window.quadOf=quadOf;
 window.applyRangeFilters=function(data){
   FIELDS.forEach(function(f){
     var mn=parseNumInput("fb_"+f.key+"_min"),mx=parseNumInput("fb_"+f.key+"_max");
@@ -1848,20 +1911,35 @@ window.applyRangeFilters=function(data){
   var sy=parseNumInput("fb_sold_after");
   if(sy!==null){
     data=data.filter(function(p){
-      var d=Date.parse(p.sale_recorded_date||"");
-      if(isNaN(d))return false;
-      return new Date(d).getFullYear()>=sy;
+      var y=pfYear(p.sale_recorded_date);
+      return y!==null&&y>=sy;
     });
   }
+  var due=parseNumInput("fb_due_yrs");
+  if(due!==null){
+    var now=Date.now(),lim=now+due*365.25*864e5;
+    data=data.filter(function(p){
+      var d=p._trepp?Date.parse(p._trepp.maturity_date||""):NaN;
+      return !isNaN(d)&&d>=now&&d<=lim;
+    });
+  }
+  var qd=document.getElementById("fb_quad");
+  if(qd&&qd.value&&window.GS_REGION==="dc")data=data.filter(function(p){return quadOf(p)===qd.value;});
   return data;
 };
 window.fbClear=function(){
-  document.querySelectorAll("#filterBar input").forEach(function(i){i.value="";});
+  document.querySelectorAll("#filterBar input,#filterBar select").forEach(function(i){i.value="";});
   if(window.applyFilters)applyFilters();
 };
-document.querySelectorAll("#filterBar input").forEach(function(inp){
-  inp.addEventListener("input",function(){if(window.applyFilters)applyFilters();});
+document.querySelectorAll("#filterBar input,#filterBar select").forEach(function(inp){
+  inp.addEventListener(inp.tagName==="SELECT"?"change":"input",function(){if(window.applyFilters)applyFilters();});
 });
+// The bar wraps to a second row on narrower screens; keep --filterbar equal to
+// its real height so the toolbar and map sit below it either way.
+window.syncFilterBar=function(){var fb=document.getElementById("filterBar");if(fb&&fb.offsetHeight)document.documentElement.style.setProperty("--filterbar",fb.offsetHeight+"px");};
+window.addEventListener("resize",syncFilterBar);
+if(window.ResizeObserver)new ResizeObserver(syncFilterBar).observe(document.getElementById("filterBar"));
+syncFilterBar();
 })();
 </script>
 
