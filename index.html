@@ -218,10 +218,10 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
    in the results bar below. */
 #filterBar{position:fixed;top:var(--header);left:0;right:0;min-height:52px;z-index:195;background:var(--white);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 16px;box-sizing:border-box}
 #filterBar .tier-filter{height:34px;box-sizing:border-box}
-#filterBar .tier-btn{padding:5px 10px}
+#filterBar .tier-btn{padding:5px 9px}
 .fl-sep{width:1px;height:24px;background:var(--border);margin:0 3px;flex-shrink:0}
 .fp{position:relative;flex-shrink:0}
-.fp-btn{height:34px;padding:0 10px 0 12px;border:1px solid var(--border);border-radius:17px;background:var(--white);color:var(--text);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s,color .2s,box-shadow .2s}
+.fp-btn{height:34px;padding:0 9px 0 11px;border:1px solid var(--border);border-radius:17px;background:var(--white);color:var(--text);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s,color .2s,box-shadow .2s}
 .fp-btn:hover{background:var(--bg);border-color:#c4c7cc}
 .fp-car{display:inline-flex;align-items:center;margin-left:2px;color:var(--text2);transition:transform .2s}
 .fp.open>.fp-btn{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,115,232,.12)}
@@ -379,7 +379,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v21</div>
+<div id="verBadge">v22</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -418,7 +418,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
   </div>
 </header>
 <div id="filterBar">
-  <span class="tier-lbl">Priority<em>select one or more</em></span>
+  <span class="tier-lbl">Priority<em>pick one or more</em></span>
   <div class="tier-filter" title="Click several to combine, e.g. Hot + Warm. All clears the selection.">
     <button class="tier-btn active" data-tier="all" onclick="setTier('all')">All</button>
     <button class="tier-btn" data-tier="hot" onclick="setTier('hot')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d93025;margin-right:5px;vertical-align:middle"></span>Hot</button>
@@ -463,13 +463,17 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
       <div class="fp-or">or</div><div class="fp-sub">Originated within the past</div><div class="fp-row"><input id="fb_orig_yrs" placeholder="#" autocomplete="off"><span class="fbunit">years</span></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
-  <button type="button" class="fp-btn" id="fb_distress" aria-pressed="false" title="Trepp loan 30+ days late, in foreclosure, REO, a non-performing matured balloon, or with the special servicer; or a Reonomy preforeclosure filing."><span class="fb-box"></span>Distressed only</button>
+  <div class="fp" id="fp_bpu"><button type="button" class="fp-btn" aria-expanded="false">Balance / Unit<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+    <div class="fp-pop"><div class="fp-h">Loan Balance / Unit</div><p class="fp-d">Current Trepp loan balance divided by the loan&#39;s units. Loans with no reported balance are left out. Type 150k.</p>
+      <div class="fp-row"><input id="fb_bpu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_bpu_max" placeholder="Max" autocomplete="off"></div>
+      <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
+  </div>
+  <button type="button" class="fp-btn" id="fb_distress" aria-pressed="false" title="Trepp loan 30+ days late, in foreclosure, REO, a non-performing matured balloon, or with the special servicer; or a Reonomy preforeclosure filing."><span class="fb-box"></span>Distressed</button>
   <div class="fp" id="fp_more"><button type="button" class="fp-btn" aria-expanded="false">More Filters<span class="fb-cnt" id="fbMoreCnt"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop" style="width:300px">
       <div class="fp-sec"><div class="fp-h">Sale Price</div><p class="fp-d">Most recent sale: the CoStar comp when one matched, otherwise the Reonomy recorded sale. Type 5m or 750k.</p><div class="fp-row"><input id="fb_price_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_price_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Price / Unit</div><p class="fp-d">Sale price divided by units. Portfolio sales are left out because the per-parcel math is unreliable.</p><div class="fp-row"><input id="fb_ppu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_ppu_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Assessed Value</div><p class="fp-d">Total assessed value (land + improvements) from the city or county assessor.</p><div class="fp-row"><input id="fb_asr_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_asr_max" placeholder="Max" autocomplete="off"></div></div>
-      <div class="fp-sec"><div class="fp-h">Loan Balance / Unit</div><p class="fp-d">Current Trepp loan balance divided by the loan&#39;s units. Loans with no reported balance are left out. Type 150k.</p><div class="fp-row"><input id="fb_bpu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_bpu_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
 </div>
@@ -2108,7 +2112,7 @@ var FILTERS=[
  {more:true,label:"Sale price",val:function(){return rngText("price",fmtMoney);},clear:function(){clr("price");}},
  {more:true,label:"Price/unit",val:function(){return rngText("ppu",fmtMoney);},clear:function(){clr("ppu");}},
  {more:true,label:"Assessed",val:function(){return rngText("asr",fmtMoney);},clear:function(){clr("asr");}},
- {more:true,label:"Balance/unit",val:function(){return rngText("bpu",fmtMoney);},clear:function(){clr("bpu");}}
+ {el:"fp_bpu",label:"Balance/unit",val:function(){return rngText("bpu",fmtMoney);},clear:function(){clr("bpu");}}
 ];
 // Button values, applied-filter chips, More count, red Clear all.
 function syncFilterUI(){
