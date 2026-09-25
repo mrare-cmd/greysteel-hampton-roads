@@ -212,45 +212,87 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .asr-table tr.asr-total td{border-top:1px solid #bfe0bf;font-weight:700;padding-top:4px}
 
 /* fixed filter bar between header and toolbar */
-/* Filter bar: a caption above every control (PBS8 pattern), grouped
-   Property | Loan | More. Set fields turn blue; Clear turns red while
-   anything is set. */
-#filterBar{position:fixed;top:var(--header);left:0;right:0;min-height:40px;z-index:195;background:var(--white);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 12px;padding:7px 16px 8px;font-size:11.5px;box-sizing:border-box}
-#filterBar .fbg{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
-#filterBar .fbl{display:flex;align-items:center;gap:4px;color:var(--text2);font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.07em;white-space:nowrap;transition:color .2s}
-#filterBar .fbg.on>.fbl{color:var(--blue)}
-#filterBar .fbr{display:flex;align-items:center;gap:4px}
-#filterBar input{width:58px;height:28px;padding:0 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--white);color:var(--text);transition:border-color .2s,background .2s,box-shadow .2s}
-#filterBar input::placeholder{color:var(--text3)}
-#filterBar input:not(:placeholder-shown){border-color:var(--blue);background:var(--blue-light)}
-#filterBar select{height:28px;padding:0 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;background:var(--white);color:var(--text);transition:border-color .2s,background .2s}
-#filterBar select.on{border-color:var(--blue);background:var(--blue-light)}
-#filterBar input:focus,#filterBar select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,115,232,.12)}
-#filterBar .fbdash{color:var(--text3)}
-#filterBar .fbunit{color:var(--text3);font-size:11px}
-#filterBar .fbsep{align-self:stretch;width:1px;background:var(--border);margin:1px 2px}
-.fbi{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;border:1px solid currentColor;font-size:8px;font-weight:700;font-style:normal;text-transform:none;letter-spacing:0;color:var(--text3);cursor:help;position:relative}
-.fbi:hover{color:var(--blue)}
-.fbi::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);left:-10px;width:250px;padding:8px 10px;border-radius:6px;background:#202124;color:#fff;font-size:11.5px;font-weight:400;line-height:1.45;white-space:normal;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;visibility:hidden;transform:translateY(-3px);transition:opacity .15s,transform .15s,visibility .15s;pointer-events:none;z-index:6100}
-.fbi:hover::after{opacity:1;visibility:visible;transform:none}
-.fb-btn{height:28px;padding:0 11px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--text2);font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s,color .2s}
-.fb-btn:hover{background:var(--bg)}
-.fb-btn.on{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
-#fb_distress .fb-box{width:12px;height:12px;border:1.5px solid currentColor;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;line-height:1}
+/* Filter bar. One row of same-height pill buttons (Zillow/Redfin pattern):
+   each opens a small panel that says what the filter does, and shows its
+   value on the button once set. Applied filters repeat as removable chips
+   in the results bar below. */
+#filterBar{position:fixed;top:var(--header);left:0;right:0;min-height:52px;z-index:195;background:var(--white);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 16px;box-sizing:border-box}
+#filterBar .tier-filter{height:34px;box-sizing:border-box}
+#filterBar .tier-btn{padding:5px 10px}
+.fl-sep{width:1px;height:24px;background:var(--border);margin:0 3px;flex-shrink:0}
+.fp{position:relative;flex-shrink:0}
+.fp-btn{height:34px;padding:0 10px 0 12px;border:1px solid var(--border);border-radius:17px;background:var(--white);color:var(--text);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s,color .2s,box-shadow .2s}
+.fp-btn:hover{background:var(--bg);border-color:#c4c7cc}
+.fp-car{font-size:9px;color:var(--text3);transition:transform .2s}
+.fp.open>.fp-btn{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,115,232,.12)}
+.fp.open>.fp-btn .fp-car{transform:rotate(180deg)}
+.fp.on>.fp-btn{background:var(--blue-light);border-color:var(--blue);color:var(--blue)}
+.fp.on>.fp-btn .fp-car{color:var(--blue)}
+.fp-val{font-weight:600;margin-left:-5px}
+.fp-pop{position:absolute;top:calc(100% + 8px);left:0;z-index:6000;width:280px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(32,33,36,.18);padding:14px 16px;display:none;cursor:default}
+.fp.open>.fp-pop{display:block;animation:fpIn .14s ease-out}
+@keyframes fpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.fp-h{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.fp-d{font-size:12px;line-height:1.45;color:var(--text2);margin:0 0 12px}
+.fp-sub{font-size:11.5px;font-weight:600;color:var(--text2);margin:0 0 6px}
+.fp-row{display:flex;align-items:center;gap:8px}
+.fp-row input{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;color:var(--text);background:var(--white);transition:border-color .2s,box-shadow .2s}
+.fp-row input::placeholder{color:var(--text3)}
+.fp-row input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,115,232,.12)}
+.fp-row input:not(:placeholder-shown){border-color:var(--blue)}
+.fp-row .fbdash{color:var(--text3)}
+.fp-row .fbunit{font-size:12px;color:var(--text2);white-space:nowrap}
+.fp-or{display:flex;align-items:center;gap:8px;margin:12px 0;font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.fp-or::before,.fp-or::after{content:"";flex:1;height:1px;background:var(--border)}
+.fp-sec+.fp-sec{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.fp-foot{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:14px}
+.fp-link{font-size:12px;color:var(--text2);padding:6px 8px;border-radius:6px;cursor:pointer}
+.fp-link:hover{background:var(--bg);color:var(--text)}
+.fp-foot .fp-link:first-child{margin-right:auto}
+.fp-done{height:30px;padding:0 16px;border-radius:15px;background:var(--blue);color:#fff;font-size:12.5px;font-weight:500;cursor:pointer}
+.fp-done:hover{background:#1765cc}
+.q-opt{display:flex;align-items:center;gap:10px;padding:7px 8px;margin:0 -8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text);transition:opacity .2s}
+.q-opt:hover{background:var(--bg)}
+.q-opt input{accent-color:var(--blue);width:15px;height:15px;margin:0;cursor:pointer}
+.q-t{flex:1}
+.q-n{font-size:12px;color:var(--text3);font-variant-numeric:tabular-nums}
+.q-opt.q-zero{opacity:.45}
+#fb_distress .fb-box{width:13px;height:13px;border:1.5px solid currentColor;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;line-height:1}
 #fb_distress.on{border-color:var(--red);background:rgba(217,48,37,.08);color:var(--red)}
 #fb_distress.on .fb-box::after{content:"\2713";font-weight:700}
-.fb-cnt{min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center}
-.fb-btn.on .fb-cnt{display:inline-flex}
-.fb-car{font-size:9px;transition:transform .2s}
-#fbMore.open .fb-car{transform:rotate(180deg)}
-#fbMoreWrap{position:relative}
-#fbMorePanel{position:absolute;top:calc(100% + 6px);left:0;z-index:6000;width:250px;background:var(--white);border:1px solid var(--border);border-top:3px solid var(--blue);border-radius:6px;box-shadow:0 10px 30px rgba(32,33,36,.2);padding:12px 14px 14px;display:none;flex-direction:column;gap:12px}
-#fbMorePanel.open{display:flex}
-#fbMorePanel input{width:86px}
-#fbClear{height:28px;margin-left:auto;padding:0 14px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:var(--text3);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .35s,border-color .35s,color .35s}
+.fb-cnt{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center;box-sizing:border-box}
+.fp.on .fb-cnt{display:inline-flex}
+#fbClear{height:28px;margin-right:auto;padding:0 14px;border-radius:14px;border:1px solid var(--border);background:var(--white);color:var(--text3);font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background .35s,border-color .35s,color .35s}
 #fbClear:hover{background:var(--bg);color:var(--text2)}
 #fbClear.active{border-color:var(--red);background:rgba(217,48,37,.08);color:var(--red)}
 #fbClear.active:hover{background:var(--red);color:#fff}
+/* results bar: count + applied-filter chips on the left, view controls right */
+.toolbar{scrollbar-width:none}
+.toolbar::-webkit-scrollbar{display:none}
+.toolbar #tbCount{margin-left:0;font-size:13px;font-weight:600;color:var(--text)}
+#fChips:empty{display:none}
+#fChips{display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;padding:0 4px}
+#fChips::-webkit-scrollbar{display:none}
+.f-chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 4px 0 10px;border-radius:13px;background:var(--blue-light);color:var(--blue);font-size:12px;white-space:nowrap;flex-shrink:0}
+.f-chip b{font-weight:600}
+.f-chip button{width:18px;height:18px;border-radius:50%;font-size:9px;color:var(--blue);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s}
+.f-chip button:hover{background:var(--blue);color:#fff}
+.f-chip.red{background:rgba(217,48,37,.08);color:var(--red)}
+.f-chip.red button{color:var(--red)}
+.f-chip.red button:hover{background:var(--red);color:#fff}
+#matchInfo,#sfMatchBadge{display:none!important}
+.fp-drow{display:flex;gap:8px}
+.fp-dl{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--text2)}
+.fp-date{position:relative;display:flex}
+.fp-date input:not(.fp-dnat){width:100%;height:34px;padding:0 30px 0 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:400;outline:none;color:var(--text);background:var(--white);box-sizing:border-box;transition:border-color .2s,box-shadow .2s}
+.fp-date input:not(.fp-dnat)::placeholder{color:var(--text3)}
+.fp-date input:not(.fp-dnat):focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,115,232,.12)}
+.fp-date input:not(.fp-dnat):not(:placeholder-shown){border-color:var(--blue)}
+.fp-date input.bad{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(217,48,37,.1)!important}
+.fp-cal{position:absolute;right:4px;top:5px;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text3);cursor:pointer}
+.fp-cal:hover{background:var(--bg);color:var(--blue)}
+.fp-dnat{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.fp-hint{font-size:11px;color:var(--text3);margin-top:6px}
 
 /* ── market selector ── */
 #landing{position:fixed;inset:0;z-index:5000;background:var(--white,#fff);opacity:1;transition:opacity .55s ease}
@@ -334,7 +376,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v18</div>
+<div id="verBadge">v19</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -373,26 +415,6 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
   </div>
 </header>
 <div id="filterBar">
-  <div class="fbg" id="fb_quad_group" style="display:none"><span class="fbl">Quadrant<i class="fbi" data-tip="DC quadrant, read from the street address (NW, NE, SE, SW). Only shown for Washington, DC.">i</i></span><select id="fb_quad"><option value="">All</option><option>NW</option><option>NE</option><option>SE</option><option>SW</option></select></div>
-  <div class="fbg"><span class="fbl">Units<i class="fbi" data-tip="Number of apartment units. Reonomy parcel count, or the Trepp loan&#39;s unit count when there is no parcel.">i</i></span><div class="fbr"><input id="fb_units_min" placeholder="Min"><span class="fbdash">&ndash;</span><input id="fb_units_max" placeholder="Max"></div></div>
-  <div class="fbg"><span class="fbl">Year Built<i class="fbi" data-tip="Year the building was completed.">i</i></span><div class="fbr"><input id="fb_year_min" placeholder="From"><span class="fbdash">&ndash;</span><input id="fb_year_max" placeholder="To"></div></div>
-  <div class="fbg"><span class="fbl">Last Sold Since<i class="fbi" data-tip="Most recent recorded sale happened in this year or later. Example: 2020 shows properties that last traded in 2020 or after. Properties with no recorded sale are hidden.">i</i></span><div class="fbr"><input id="fb_sold_after" placeholder="Year" style="width:54px"></div></div>
-  <div class="fbsep"></div>
-  <div class="fbg"><span class="fbl">Loan Originated<i class="fbi" data-tip="Year the property&#39;s current Trepp loan closed. Only properties with a matched Trepp loan are kept.">i</i></span><div class="fbr"><input id="fb_orig_min" placeholder="From"><span class="fbdash">&ndash;</span><input id="fb_orig_max" placeholder="To"></div></div>
-  <div class="fbg"><span class="fbl">Loan Matures<i class="fbi" data-tip="Year the property&#39;s current Trepp loan comes due. Only properties with a matched Trepp loan are kept.">i</i></span><div class="fbr"><input id="fb_mat_min" placeholder="From"><span class="fbdash">&ndash;</span><input id="fb_mat_max" placeholder="To"></div></div>
-  <div class="fbg"><span class="fbl">Matures Within<i class="fbi" data-tip="Loan comes due between today and this many years out. Example: 2 = maturing in the next 24 months. Loans already past maturity are left out.">i</i></span><div class="fbr"><input id="fb_due_yrs" placeholder="#" style="width:44px"><span class="fbunit">yrs</span></div></div>
-  <div class="fbg"><span class="fbl">Loan Status<i class="fbi" data-tip="Distressed = the Trepp loan is 30+ days delinquent, in foreclosure, REO, a non-performing matured balloon, or with the special servicer; or the Reonomy parcel has an active preforeclosure filing.">i</i></span><button type="button" class="fb-btn" id="fb_distress" aria-pressed="false"><span class="fb-box"></span>Distressed only</button></div>
-  <div class="fbsep"></div>
-  <div id="fbMoreWrap"><button type="button" class="fb-btn" id="fbMore" aria-expanded="false">More Filters<span class="fb-cnt" id="fbMoreCnt"></span><span class="fb-car">&#9662;</span></button>
-    <div id="fbMorePanel">
-    <div class="fbg"><span class="fbl">Sale Price<i class="fbi" data-tip="Most recent sale price: the CoStar comp when one matched, otherwise the Reonomy recorded sale. Type 5m or 750k.">i</i></span><div class="fbr"><input id="fb_price_min" placeholder="Min"><span class="fbdash">&ndash;</span><input id="fb_price_max" placeholder="Max"></div></div>
-    <div class="fbg"><span class="fbl">Price / Unit<i class="fbi" data-tip="Sale price divided by units. Portfolio sales are left out because the per-parcel math is unreliable. Type 150k.">i</i></span><div class="fbr"><input id="fb_ppu_min" placeholder="Min"><span class="fbdash">&ndash;</span><input id="fb_ppu_max" placeholder="Max"></div></div>
-    <div class="fbg"><span class="fbl">Assessed Value<i class="fbi" data-tip="Total assessed value (land + improvements) from the city or county assessor. Type 10m.">i</i></span><div class="fbr"><input id="fb_asr_min" placeholder="Min"><span class="fbdash">&ndash;</span><input id="fb_asr_max" placeholder="Max"></div></div>
-    </div>
-  </div>
-  <button id="fbClear" type="button" onclick="fbClear()" title="Clear every filter in this bar">Clear</button>
-</div>
-<div class="toolbar">
   <span class="tier-lbl">Priority<em>select one or more</em></span>
   <div class="tier-filter" title="Click several to combine, e.g. Hot + Warm. All clears the selection.">
     <button class="tier-btn active" data-tier="all" onclick="setTier('all')">All</button>
@@ -401,7 +423,54 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <button class="tier-btn" data-tier="watch" onclick="setTier('watch')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f29900;margin-right:5px;vertical-align:middle"></span>Watch</button>
     <button class="tier-btn" data-tier="cold" onclick="setTier('cold')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#188038;margin-right:5px;vertical-align:middle"></span>Cold</button>
   </div>
-  <div class="toolbar-sep"></div>
+  <div class="fl-sep"></div>
+  <div class="fp" id="fb_quad_group" style="display:none"><button type="button" class="fp-btn" aria-expanded="false">Quadrant<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+    <div class="fp-pop" style="width:250px"><div class="fp-h">DC Quadrant</div><p class="fp-d">Read from the street address. Tick one or more. Counts reflect your other filters.</p>
+        <label class="q-opt" data-q="NW"><input type="checkbox" value="NW"><span class="q-t">Northwest (NW)</span><span class="q-n">0</span></label>
+        <label class="q-opt" data-q="NE"><input type="checkbox" value="NE"><span class="q-t">Northeast (NE)</span><span class="q-n">0</span></label>
+        <label class="q-opt" data-q="SE"><input type="checkbox" value="SE"><span class="q-t">Southeast (SE)</span><span class="q-n">0</span></label>
+        <label class="q-opt" data-q="SW"><input type="checkbox" value="SW"><span class="q-t">Southwest (SW)</span><span class="q-n">0</span></label>
+      <div class="fp-foot"><button type="button" class="fp-link" id="fb_quad_all">Select all</button><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
+  </div>
+  <div class="fp" id="fp_units"><button type="button" class="fp-btn" aria-expanded="false">Units<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+    <div class="fp-pop"><div class="fp-h">Units</div><p class="fp-d">Number of apartment units: the Reonomy parcel count, or the Trepp loan&#39;s count when there is no parcel.</p>
+      <div class="fp-row"><input id="fb_units_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_units_max" placeholder="Max" autocomplete="off"></div>
+      <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
+  </div>
+  <div class="fp" id="fp_year"><button type="button" class="fp-btn" aria-expanded="false">Year Built<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+    <div class="fp-pop"><div class="fp-h">Year Built</div><p class="fp-d">Year the building was completed.</p>
+      <div class="fp-row"><input id="fb_year_min" placeholder="From" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_year_max" placeholder="To" autocomplete="off"></div>
+      <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
+  </div>
+  <div class="fp" id="fp_sold"><button type="button" class="fp-btn" aria-expanded="false">Last Sold<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+    <div class="fp-pop"><div class="fp-h">Last Sold</div><p class="fp-d">Most recent recorded sale was in this year or later. Properties with no recorded sale are hidden.</p>
+      <div class="fp-row"><span class="fbunit">Sold in or after</span><input id="fb_sold_after" placeholder="Year" autocomplete="off"></div>
+      <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
+  </div>
+  <div class="fp" id="fp_mat"><button type="button" class="fp-btn" aria-expanded="false">Loan Maturity<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+    <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Maturity</div><p class="fp-d">When the property&#39;s current Trepp loan comes due. Only properties with a matched loan are kept.</p>
+      <div class="fp-drow"><label class="fp-dl"><span>From</span><span class="fp-date"><input id="fb_mat_min" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label><label class="fp-dl"><span>To</span><span class="fp-date"><input id="fb_mat_max" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label></div><div class="fp-hint">Inclusive. Type 9/1/2026, 09/01/2026 or just 2026, or use the calendar.</div>
+      <div class="fp-or">or</div><div class="fp-sub">Matures within the next</div><div class="fp-row"><input id="fb_due_yrs" placeholder="#" autocomplete="off"><span class="fbunit">years from today</span></div>
+      <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
+  </div>
+  <div class="fp" id="fp_orig"><button type="button" class="fp-btn" aria-expanded="false">Originated<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+    <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Originated</div><p class="fp-d">When the property&#39;s current Trepp loan closed. Only properties with a matched loan are kept.</p>
+      <div class="fp-drow"><label class="fp-dl"><span>From</span><span class="fp-date"><input id="fb_orig_min" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label><label class="fp-dl"><span>To</span><span class="fp-date"><input id="fb_orig_max" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label></div><div class="fp-hint">Inclusive. Type 9/1/2026, 09/01/2026 or just 2026, or use the calendar.</div>
+      <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
+  </div>
+  <button type="button" class="fp-btn" id="fb_distress" aria-pressed="false" title="Trepp loan 30+ days late, in foreclosure, REO, a non-performing matured balloon, or with the special servicer; or a Reonomy preforeclosure filing."><span class="fb-box"></span>Distressed only</button>
+  <div class="fp" id="fp_more"><button type="button" class="fp-btn" aria-expanded="false">More Filters<span class="fb-cnt" id="fbMoreCnt"></span><span class="fp-car">&#9662;</span></button>
+    <div class="fp-pop" style="width:300px">
+      <div class="fp-sec"><div class="fp-h">Sale Price</div><p class="fp-d">Most recent sale: the CoStar comp when one matched, otherwise the Reonomy recorded sale. Type 5m or 750k.</p><div class="fp-row"><input id="fb_price_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_price_max" placeholder="Max" autocomplete="off"></div></div>
+      <div class="fp-sec"><div class="fp-h">Price / Unit</div><p class="fp-d">Sale price divided by units. Portfolio sales are left out because the per-parcel math is unreliable.</p><div class="fp-row"><input id="fb_ppu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_ppu_max" placeholder="Max" autocomplete="off"></div></div>
+      <div class="fp-sec"><div class="fp-h">Assessed Value</div><p class="fp-d">Total assessed value (land + improvements) from the city or county assessor.</p><div class="fp-row"><input id="fb_asr_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_asr_max" placeholder="Max" autocomplete="off"></div></div>
+      <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
+  </div>
+</div>
+<div class="toolbar">
+  <span class="tb-count" id="tbCount"></span>
+  <div id="fChips"></div>
+  <button id="fbClear" type="button" onclick="fbClear()" title="Clear every filter">Clear all</button>
   <div class="src-filter">
     <button class="src-btn active" data-src="all" onclick="setSrc('all')">All Sources</button>
     <button class="src-btn" data-src="trepp" onclick="setSrc('trepp')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:4px"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Has Trepp</button>
@@ -425,7 +494,6 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <option value="sale_amount">Sort: Sale Price</option>
     <option value="balance">Sort: Loan Balance</option>
   </select>
-  <span class="tb-count" id="tbCount"></span>
   <span class="tb-count" id="matchInfo" style="color:var(--text3)"></span>
   <span id="sfMatchBadge" class="sf-match-badge" style="display:none"></span>
   <span id="geocodeStatus" style="display:none;font-size:11px;color:var(--purple);flex-shrink:0;"></span>
@@ -812,7 +880,7 @@ async function loadData(){
   setLoading(false);
   document.getElementById('loadingList').style.display='none';
   initMap();
-  {const qg=document.getElementById('fb_quad_group'),isDC=window.GS_REGION==='dc';if(qg){qg.style.display=isDC?'':'none';if(!isDC)document.getElementById('fb_quad').value='';}if(window.syncFilterBar)syncFilterBar();}
+  {const qg=document.getElementById('fb_quad_group'),isDC=window.GS_REGION==='dc';if(qg){qg.style.display=isDC?'':'none';if(!isDC&&window.resetQuad)resetQuad();}if(window.syncFilterBar)syncFilterBar();}
   applyFilters();
   // geocodeTreppOnly();  // disabled — coordinates now baked into data_trepp.json
 }
@@ -847,7 +915,7 @@ function applyFilters(){
   else if(sort==='sale_amount')data.sort((a,b)=>(parseFloat(b.sale_amount)||0)-(parseFloat(a.sale_amount)||0));
   else if(sort==='balance')data.sort((a,b)=>{const ba=parseFloat(a._trepp?.current_balance)||0;const bb=parseFloat(b._trepp?.current_balance)||0;return bb-ba;});
   filtered=data;renderList();renderMap();
-  document.getElementById('tbCount').textContent=`Showing ${filtered.length.toLocaleString()} of ${allData.length.toLocaleString()}`;
+  document.getElementById('tbCount').textContent=`${filtered.length.toLocaleString()} of ${allData.length.toLocaleString()} properties`;
 }
 document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value;applyFilters();});
 // Tiers toggle independently (Hot + Warm, etc). All clears them; toggling the
@@ -1890,6 +1958,9 @@ btn.addEventListener("click",function(e){
   if(data){for(var k in data){h+='<div class="sil"><b>'+k+"</b><span>"+fmt(data[k])+"</span></div>";}}
   else h+="<div>Still loading...</div>";
   h+='<div class="sinote">Dates reflect the newest record inside each dataset (e.g. most recent sale), not when the file was uploaded.</div>';
+  var mi=document.getElementById("matchInfo"),sf=document.getElementById("sfMatchBadge");
+  if(mi&&mi.textContent)h+='<div class="sinote">Matching: '+mi.textContent+'</div>';
+  if(sf&&sf.textContent.trim())h+='<div class="sinote">'+sf.textContent.trim()+'</div>';
   pop.innerHTML=h;
   var r=btn.getBoundingClientRect();
   pop.style.top=(r.bottom+8)+"px";
@@ -1921,13 +1992,25 @@ var FIELDS=[
  {key:"price",get:function(p){return pfNum(p.sale_amount);}},
  {key:"ppu",get:function(p){var v=pfNum(p.price_per_unit);if(v==null&&!p._portfolio){var sa=pfNum(p.sale_amount),u=pfNum(p.total_units);if(sa&&u)v=sa/u;}return v;}},
  {key:"year",get:function(p){var v=pfNum(p.year_built);if(v==null&&p._trepp)v=pfNum(p._trepp.year_built);return v;}},
- {key:"asr",get:function(p){if(window.asrOf){var a=window.asrOf(p);if(a)return a.total;}return pfNum(p.asr_total_value);}},
- {key:"orig",get:function(p){return p._trepp?pfYear(p._trepp.origination_date):null;}},
- {key:"mat",get:function(p){return p._trepp?pfYear(p._trepp.maturity_date):null;}}
+ {key:"asr",get:function(p){if(window.asrOf){var a=window.asrOf(p);if(a)return a.total;}return pfNum(p.asr_total_value);}}
 ];
 // Year straight from the string. new Date("2025-01-01") is UTC midnight, which
 // getFullYear() in US time zones reads as 2024.
 function pfYear(v){var m=String(v||"").match(/\b(19|20)\d\d\b/);return m?+m[0]:null;}
+// Dates as typed: 9/1/2026 or 09/01/2026 (also - or . separators), 9/1/26,
+// 2026-09-01, or a bare year (2026 = Jan 1 as From, Dec 31 as To). Returns
+// local-midnight ms, null when empty, NaN when unreadable.
+function dayMs(y,m,d){var t=new Date(y,m-1,d);return (t.getFullYear()===y&&t.getMonth()===m-1&&t.getDate()===d)?t.getTime():NaN;}
+function parseDay(v,isEnd){
+  v=String(v==null?"":v).trim();if(!v)return null;
+  var m;
+  if((m=v.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})$/))){var y=+m[3];if(y<100)y+=(y>50?1900:2000);return dayMs(y,+m[1],+m[2]);}
+  if((m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))return dayMs(+m[1],+m[2],+m[3]);
+  if((m=v.match(/^(\d{4})$/)))return isEnd?dayMs(+m[1],12,31):dayMs(+m[1],1,1);
+  return NaN;
+}
+function okDay(t){return typeof t==="number"&&!isNaN(t);}
+window.parseDay=parseDay;
 var QUAD_FULL={NORTHWEST:"NW",NORTHEAST:"NE",SOUTHWEST:"SW",SOUTHEAST:"SE"};
 function quadOf(p){
   var srcs=[p.address_line_1,p.address,p.address_full,p._trepp&&p._trepp.address,p._costar&&p._costar.property_address];
@@ -1954,25 +2037,59 @@ function isDistressed(p){
 }
 window.isDistressed=isDistressed;
 var distressOn=false;
-// Blue captions on set fields, a count on More Filters, red Clear.
-function syncFilterUI(){
-  var any=false;
-  document.querySelectorAll("#filterBar .fbg").forEach(function(g){
-    var on=[].some.call(g.querySelectorAll("input,select"),function(el){return String(el.value).trim()!=="";});
-    if(g.contains(document.getElementById("fb_distress")))on=distressOn;
-    if(g.id==="fb_quad_group"&&g.style.display==="none")on=false;
-    g.classList.toggle("on",on);if(on)any=true;
-  });
-  var q=document.getElementById("fb_quad");q.classList.toggle("on",!!q.value);
-  var n=document.querySelectorAll("#fbMorePanel .fbg.on").length;
-  document.getElementById("fbMoreCnt").textContent=n||"";
-  document.getElementById("fbMore").classList.toggle("on",n>0);
-  var d=document.getElementById("fb_distress");d.classList.toggle("on",distressOn);d.setAttribute("aria-pressed",distressOn);
-  document.getElementById("fbClear").classList.toggle("active",any);
+function quadBoxes(){return [].slice.call(document.querySelectorAll("#fb_quad_group input[type=checkbox]"));}
+function quadSel(){return quadBoxes().filter(function(c){return c.checked;}).map(function(c){return c.value;});}
+window.resetQuad=function(){quadBoxes().forEach(function(c){c.checked=false;});};
+function setv(id){var e=document.getElementById(id);if(e)e.value="";}
+function clr(k){setv("fb_"+k+"_min");setv("fb_"+k+"_max");}
+function fmtN(n){return Math.round(n).toLocaleString();}
+function fmtYr(n){return String(Math.round(n));}
+function fmtMoney(n){return n>=1e6?"$"+(+(n/1e6).toFixed(1))+"M":n>=1e3?"$"+Math.round(n/1e3)+"K":"$"+Math.round(n);}
+function rngText(k,f){
+  var mn=parseNumInput("fb_"+k+"_min"),mx=parseNumInput("fb_"+k+"_max");
+  if(mn===null&&mx===null)return "";
+  if(mn!==null&&mx!==null)return f(mn)+"\u2013"+f(mx);
+  return mn!==null?f(mn)+"+":"\u2264 "+f(mx);
 }
-window.syncFilterUI=syncFilterUI;
-window.applyRangeFilters=function(data){
-  syncFilterUI();
+function showDay(v){v=String(v||"").trim();if(/^\d{4}$/.test(v))return v;var t=parseDay(v,false);if(!okDay(t))return "";var d=new Date(t);return (d.getMonth()+1)+"/"+d.getDate()+"/"+d.getFullYear();}
+function dateText(k){
+  var a=showDay(document.getElementById("fb_"+k+"_min").value),b=showDay(document.getElementById("fb_"+k+"_max").value);
+  if(a&&b)return a+"–"+b;
+  return a?"from "+a:b?"through "+b:"";
+}
+// One entry per filter: which control it lives in, its chip label, a short
+// value summary ("" = not set) and how to clear it.
+var FILTERS=[
+ {el:"fb_quad_group",label:"Quadrant",val:function(){var q=quadSel();return window.GS_REGION==="dc"&&q.length?q.join(", "):"";},clear:function(){resetQuad();}},
+ {el:"fp_units",label:"Units",val:function(){return rngText("units",fmtN);},clear:function(){clr("units");}},
+ {el:"fp_year",label:"Built",val:function(){return rngText("year",fmtYr);},clear:function(){clr("year");}},
+ {el:"fp_sold",label:"Last sold",val:function(){var y=parseNumInput("fb_sold_after");return y===null?"":"since "+fmtYr(y);},clear:function(){setv("fb_sold_after");}},
+ {el:"fp_mat",label:"Matures",val:function(){var d=parseNumInput("fb_due_yrs");return [dateText("mat"),d===null?"":"within "+d+" yr"+(d===1?"":"s")].filter(Boolean).join(" \u00b7 ");},clear:function(){clr("mat");setv("fb_due_yrs");}},
+ {el:"fp_orig",label:"Originated",val:function(){return dateText("orig");},clear:function(){clr("orig");}},
+ {el:"fb_distress",label:"Distressed",val:function(){return distressOn?"only":"";},clear:function(){distressOn=false;},red:true},
+ {more:true,label:"Sale price",val:function(){return rngText("price",fmtMoney);},clear:function(){clr("price");}},
+ {more:true,label:"Price/unit",val:function(){return rngText("ppu",fmtMoney);},clear:function(){clr("ppu");}},
+ {more:true,label:"Assessed",val:function(){return rngText("asr",fmtMoney);},clear:function(){clr("asr");}}
+];
+// Button values, applied-filter chips, More count, red Clear all.
+function syncFilterUI(){
+  var chips=[],more=0;
+  FILTERS.forEach(function(f,i){
+    var v=f.val();
+    if(f.more){if(v)more++;}
+    else{
+      var el=document.getElementById(f.el);
+      if(el){el.classList.toggle("on",!!v);var sv=el.querySelector(".fp-val");if(sv)sv.textContent=v?": "+v:"";}
+    }
+    if(v)chips.push('<span class="f-chip'+(f.red?' red':'')+'"><b>'+f.label+'</b>'+v+'<button type="button" data-fi="'+i+'" title="Remove this filter">\u2715</button></span>');
+  });
+  var d=document.getElementById("fb_distress");d.setAttribute("aria-pressed",distressOn);
+  document.getElementById("fp_more").classList.toggle("on",more>0);
+  document.getElementById("fbMoreCnt").textContent=more||"";
+  document.getElementById("fChips").innerHTML=chips.join("");
+  document.getElementById("fbClear").classList.toggle("active",chips.length>0);
+}
+window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
   FIELDS.forEach(function(f){
     var mn=parseNumInput("fb_"+f.key+"_min"),mx=parseNumInput("fb_"+f.key+"_max");
     if(mn===null&&mx===null)return;
@@ -1982,6 +2099,20 @@ window.applyRangeFilters=function(data){
       if(mn!==null&&x<mn)return false;
       if(mx!==null&&x>mx)return false;
       return true;
+    });
+  });
+  // Loan dates, inclusive on both ends. Unreadable entries are ignored and
+  // outlined red once the box loses focus.
+  [["orig","origination_date"],["mat","maturity_date"]].forEach(function(kc){
+    var a=document.getElementById("fb_"+kc[0]+"_min"),b=document.getElementById("fb_"+kc[0]+"_max");
+    var lo=parseDay(a.value,false),hi=parseDay(b.value,true);
+    [[a,lo],[b,hi]].forEach(function(x){x[0].classList.toggle("bad",x[1]!==null&&!okDay(x[1])&&document.activeElement!==x[0]);});
+    if(!okDay(lo)&&!okDay(hi))return;
+    data=data.filter(function(p){
+      if(!p._trepp)return false;
+      var d=parseDay(p._trepp[kc[1]],false);
+      if(!okDay(d))return false;
+      return (!okDay(lo)||d>=lo)&&(!okDay(hi)||d<=hi);
     });
   });
   var sy=parseNumInput("fb_sold_after");
@@ -1999,29 +2130,63 @@ window.applyRangeFilters=function(data){
       return !isNaN(d)&&d>=now&&d<=lim;
     });
   }
-  var qd=document.getElementById("fb_quad");
-  if(qd&&qd.value&&window.GS_REGION==="dc")data=data.filter(function(p){return quadOf(p)===qd.value;});
   if(distressOn)data=data.filter(isDistressed);
+  // Quadrant last, so its counts reflect every other active filter.
+  var qc={NW:0,NE:0,SE:0,SW:0};
+  if(window.GS_REGION==="dc"){
+    data.forEach(function(p){var q=quadOf(p);if(q in qc)qc[q]++;});
+    var qs=quadSel();
+    if(qs.length)data=data.filter(function(p){return qs.indexOf(quadOf(p))>=0;});
+  }
+  document.querySelectorAll("#fb_quad_group .q-opt").forEach(function(o){var n=qc[o.dataset.q];o.querySelector(".q-n").textContent=n.toLocaleString();o.classList.toggle("q-zero",n===0);});
+  syncFilterUI();
   return data;
 };
+function refilter(){if(window.applyFilters)applyFilters();else syncFilterUI();}
 window.fbClear=function(){
-  document.querySelectorAll("#filterBar input,#filterBar select").forEach(function(i){i.value="";});
-  distressOn=false;setMore(false);
-  if(window.applyFilters)applyFilters();else syncFilterUI();
+  document.querySelectorAll("#filterBar input").forEach(function(i){if(i.type==="checkbox")i.checked=false;else i.value="";});
+  distressOn=false;closePops();refilter();
 };
-document.getElementById("fb_distress").addEventListener("click",function(){
-  distressOn=!distressOn;if(window.applyFilters)applyFilters();else syncFilterUI();
-});
-var moreWrap=document.getElementById("fbMoreWrap");
-function setMore(open){
-  document.getElementById("fbMorePanel").classList.toggle("open",open);
-  var b=document.getElementById("fbMore");b.classList.toggle("open",open);b.setAttribute("aria-expanded",open);
-  if(open){var f=document.querySelector("#fbMorePanel input");if(f)f.focus();}
+document.getElementById("fb_distress").addEventListener("click",function(){distressOn=!distressOn;refilter();});
+document.getElementById("fb_quad_all").addEventListener("click",function(){var b=quadBoxes(),all=b.every(function(c){return c.checked;});b.forEach(function(c){c.checked=!all;});refilter();});
+document.getElementById("fChips").addEventListener("click",function(e){var b=e.target.closest("button[data-fi]");if(!b)return;FILTERS[+b.dataset.fi].clear();refilter();});
+// Pill popovers: one open at a time; click outside, Esc, Enter or Done closes.
+function closePops(keep){
+  document.querySelectorAll("#filterBar .fp.open").forEach(function(f){if(f!==keep){f.classList.remove("open");f.querySelector(".fp-btn").setAttribute("aria-expanded","false");}});
 }
-document.getElementById("fbMore").addEventListener("click",function(){setMore(!document.getElementById("fbMorePanel").classList.contains("open"));});
-document.addEventListener("click",function(e){if(!moreWrap.contains(e.target))setMore(false);});
-document.addEventListener("keydown",function(e){if(e.key==="Escape")setMore(false);});
-document.querySelectorAll("#filterBar input,#filterBar select").forEach(function(inp){
+document.querySelectorAll("#filterBar .fp").forEach(function(fp){
+  var b=fp.querySelector(".fp-btn"),pop=fp.querySelector(".fp-pop");
+  b.addEventListener("click",function(){
+    var open=!fp.classList.contains("open");closePops(fp);
+    fp.classList.toggle("open",open);b.setAttribute("aria-expanded",open);
+    if(!open)return;
+    pop.style.left="0";pop.style.right="auto";
+    if(pop.getBoundingClientRect().right>window.innerWidth-8){pop.style.left="auto";pop.style.right="0";}
+    var f=pop.querySelector("input:not([type=checkbox])");if(f)f.focus();
+  });
+  fp.querySelector(".fp-done").addEventListener("click",function(){closePops();});
+  fp.querySelector(".fp-clear").addEventListener("click",function(){
+    fp.querySelectorAll("input").forEach(function(i){if(i.type==="checkbox")i.checked=false;else i.value="";});refilter();
+  });
+  pop.addEventListener("keydown",function(e){if(e.key==="Enter")closePops();});
+});
+document.addEventListener("click",function(e){if(!e.target.closest("#filterBar .fp"))closePops();});
+// Calendar buttons open the browser's own date picker and write m/d/yyyy
+// back into the text box, which stays free to type in.
+document.querySelectorAll("#filterBar .fp-date").forEach(function(w){
+  var t=w.querySelector("input:not(.fp-dnat)"),n=w.querySelector(".fp-dnat");
+  w.querySelector(".fp-cal").addEventListener("click",function(){
+    var ms=parseDay(t.value,false),d=okDay(ms)?new Date(ms):null;
+    n.value=d?d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"):"";
+    try{n.showPicker();}catch(e){n.focus();n.click();}
+  });
+  n.addEventListener("change",function(){
+    var m=n.value.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return;
+    t.value=(+m[2])+"/"+(+m[3])+"/"+m[1];t.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+  t.addEventListener("blur",refilter);
+});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closePops();});document.querySelectorAll("#filterBar input,#filterBar select").forEach(function(inp){
   inp.addEventListener(inp.tagName==="SELECT"?"change":"input",function(){if(window.applyFilters)applyFilters();});
 });
 // The bar wraps to a second row on narrower screens; keep --filterbar equal to
