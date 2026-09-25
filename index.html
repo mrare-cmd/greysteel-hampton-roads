@@ -223,7 +223,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .fp{position:relative;flex-shrink:0}
 .fp-btn{height:34px;padding:0 10px 0 12px;border:1px solid var(--border);border-radius:17px;background:var(--white);color:var(--text);font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s,color .2s,box-shadow .2s}
 .fp-btn:hover{background:var(--bg);border-color:#c4c7cc}
-.fp-car{font-size:9px;color:var(--text3);transition:transform .2s}
+.fp-car{display:inline-flex;align-items:center;margin-left:2px;color:var(--text2);transition:transform .2s}
 .fp.open>.fp-btn{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,115,232,.12)}
 .fp.open>.fp-btn .fp-car{transform:rotate(180deg)}
 .fp.on>.fp-btn{background:var(--blue-light);border-color:var(--blue);color:var(--blue)}
@@ -379,7 +379,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v20</div>
+<div id="verBadge">v21</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -427,7 +427,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <button class="tier-btn" data-tier="cold" onclick="setTier('cold')"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#188038;margin-right:5px;vertical-align:middle"></span>Cold</button>
   </div>
   <div class="fl-sep"></div>
-  <div class="fp" id="fb_quad_group" style="display:none"><button type="button" class="fp-btn" aria-expanded="false">Quadrant<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+  <div class="fp" id="fb_quad_group" style="display:none"><button type="button" class="fp-btn" aria-expanded="false">Quadrant<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop" style="width:250px"><div class="fp-h">DC Quadrant</div><p class="fp-d">Read from the street address. Tick one or more. Counts reflect your other filters.</p>
         <label class="q-opt" data-q="NW"><input type="checkbox" value="NW"><span class="q-t">Northwest (NW)</span><span class="q-n">0</span></label>
         <label class="q-opt" data-q="NE"><input type="checkbox" value="NE"><span class="q-t">Northeast (NE)</span><span class="q-n">0</span></label>
@@ -435,40 +435,41 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
         <label class="q-opt" data-q="SW"><input type="checkbox" value="SW"><span class="q-t">Southwest (SW)</span><span class="q-n">0</span></label>
       <div class="fp-foot"><button type="button" class="fp-link" id="fb_quad_all">Select all</button><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
-  <div class="fp" id="fp_units"><button type="button" class="fp-btn" aria-expanded="false">Units<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+  <div class="fp" id="fp_units"><button type="button" class="fp-btn" aria-expanded="false">Units<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop"><div class="fp-h">Units</div>
       <div class="fp-row"><input id="fb_units_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_units_max" placeholder="Max" autocomplete="off"></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
-  <div class="fp" id="fp_year"><button type="button" class="fp-btn" aria-expanded="false">Year Built<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+  <div class="fp" id="fp_year"><button type="button" class="fp-btn" aria-expanded="false">Year Built<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop"><div class="fp-h">Year Built</div>
       <div class="fp-row"><input id="fb_year_min" placeholder="From" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_year_max" placeholder="To" autocomplete="off"></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
-  <div class="fp" id="fp_sold"><button type="button" class="fp-btn" aria-expanded="false">Last Sold<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+  <div class="fp" id="fp_sold"><button type="button" class="fp-btn" aria-expanded="false">Last Sold<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop"><div class="fp-h">Last Sold</div><p class="fp-d">Most recent recorded sale was in this year or later.</p>
       <div class="fp-row"><span class="fbunit">Sold in or after</span><input id="fb_sold_after" placeholder="Year" autocomplete="off"></div>
       <label class="fp-chk"><input type="checkbox" id="fb_sold_nodate">Include properties with no sale date</label>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
-  <div class="fp" id="fp_mat"><button type="button" class="fp-btn" aria-expanded="false">Loan Maturity<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+  <div class="fp" id="fp_mat"><button type="button" class="fp-btn" aria-expanded="false">Loan Maturity<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Maturity</div><p class="fp-d">When the property&#39;s current Trepp loan comes due. Only properties with a matched loan are kept.</p>
       <div class="fp-drow"><label class="fp-dl"><span>From</span><span class="fp-date"><input id="fb_mat_min" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label><label class="fp-dl"><span>To</span><span class="fp-date"><input id="fb_mat_max" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label></div><div class="fp-hint">Inclusive. Type 9/1/2026, 09/01/2026 or just 2026, or use the calendar.</div>
       <div class="fp-or">or</div><div class="fp-sub">Matures within the next</div><div class="fp-row"><input id="fb_due_yrs" placeholder="#" autocomplete="off"><span class="fbunit">years from today</span></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
-  <div class="fp" id="fp_orig"><button type="button" class="fp-btn" aria-expanded="false">Originated<span class="fp-val"></span><span class="fp-car">&#9662;</span></button>
+  <div class="fp" id="fp_orig"><button type="button" class="fp-btn" aria-expanded="false">Originated<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Originated</div><p class="fp-d">When the property&#39;s current Trepp loan closed. Only properties with a matched loan are kept.</p>
       <div class="fp-drow"><label class="fp-dl"><span>From</span><span class="fp-date"><input id="fb_orig_min" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label><label class="fp-dl"><span>To</span><span class="fp-date"><input id="fb_orig_max" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label></div><div class="fp-hint">Inclusive. Type 9/1/2026, 09/01/2026 or just 2026, or use the calendar.</div>
       <div class="fp-or">or</div><div class="fp-sub">Originated within the past</div><div class="fp-row"><input id="fb_orig_yrs" placeholder="#" autocomplete="off"><span class="fbunit">years</span></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <button type="button" class="fp-btn" id="fb_distress" aria-pressed="false" title="Trepp loan 30+ days late, in foreclosure, REO, a non-performing matured balloon, or with the special servicer; or a Reonomy preforeclosure filing."><span class="fb-box"></span>Distressed only</button>
-  <div class="fp" id="fp_more"><button type="button" class="fp-btn" aria-expanded="false">More Filters<span class="fb-cnt" id="fbMoreCnt"></span><span class="fp-car">&#9662;</span></button>
+  <div class="fp" id="fp_more"><button type="button" class="fp-btn" aria-expanded="false">More Filters<span class="fb-cnt" id="fbMoreCnt"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop" style="width:300px">
       <div class="fp-sec"><div class="fp-h">Sale Price</div><p class="fp-d">Most recent sale: the CoStar comp when one matched, otherwise the Reonomy recorded sale. Type 5m or 750k.</p><div class="fp-row"><input id="fb_price_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_price_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Price / Unit</div><p class="fp-d">Sale price divided by units. Portfolio sales are left out because the per-parcel math is unreliable.</p><div class="fp-row"><input id="fb_ppu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_ppu_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Assessed Value</div><p class="fp-d">Total assessed value (land + improvements) from the city or county assessor.</p><div class="fp-row"><input id="fb_asr_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_asr_max" placeholder="Max" autocomplete="off"></div></div>
+      <div class="fp-sec"><div class="fp-h">Loan Balance / Unit</div><p class="fp-d">Current Trepp loan balance divided by the loan&#39;s units. Loans with no reported balance are left out. Type 150k.</p><div class="fp-row"><input id="fb_bpu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_bpu_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
 </div>
@@ -2026,7 +2027,10 @@ var FIELDS=[
  {key:"price",get:function(p){return pfNum(p.sale_amount);}},
  {key:"ppu",get:function(p){var v=pfNum(p.price_per_unit);if(v==null&&!p._portfolio){var sa=pfNum(p.sale_amount),u=pfNum(p.total_units);if(sa&&u)v=sa/u;}return v;}},
  {key:"year",get:function(p){var v=pfNum(p.year_built);if(v==null&&p._trepp)v=pfNum(p._trepp.year_built);return v;}},
- {key:"asr",get:function(p){if(window.asrOf){var a=window.asrOf(p);if(a)return a.total;}return pfNum(p.asr_total_value);}}
+ {key:"asr",get:function(p){if(window.asrOf){var a=window.asrOf(p);if(a)return a.total;}return pfNum(p.asr_total_value);}},
+ // Balance per unit uses the loan's own unit count first: a Reonomy parcel can be
+ // one piece of a complex the loan covers in full. Blank balance = unknown, so out.
+ {key:"bpu",get:function(p){var t=p._trepp;if(!t)return null;var b=pfNum(t.current_balance);if(b===null)return null;var u=pfNum(t.number_of_units)||pfNum(p.total_units);return u?b/u:null;}}
 ];
 // Year straight from the string. new Date("2025-01-01") is UTC midnight, which
 // getFullYear() in US time zones reads as 2024.
@@ -2103,7 +2107,8 @@ var FILTERS=[
  {el:"fb_distress",label:"Distressed",val:function(){return distressOn?"only":"";},clear:function(){distressOn=false;},red:true},
  {more:true,label:"Sale price",val:function(){return rngText("price",fmtMoney);},clear:function(){clr("price");}},
  {more:true,label:"Price/unit",val:function(){return rngText("ppu",fmtMoney);},clear:function(){clr("ppu");}},
- {more:true,label:"Assessed",val:function(){return rngText("asr",fmtMoney);},clear:function(){clr("asr");}}
+ {more:true,label:"Assessed",val:function(){return rngText("asr",fmtMoney);},clear:function(){clr("asr");}},
+ {more:true,label:"Balance/unit",val:function(){return rngText("bpu",fmtMoney);},clear:function(){clr("bpu");}}
 ];
 // Button values, applied-filter chips, More count, red Clear all.
 function syncFilterUI(){
