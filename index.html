@@ -379,7 +379,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
 </style>
 </head>
 <body>
-<div id="verBadge">v22</div>
+<div id="verBadge">v23</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -464,14 +464,14 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <div class="fp" id="fp_bpu"><button type="button" class="fp-btn" aria-expanded="false">Balance / Unit<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-    <div class="fp-pop"><div class="fp-h">Loan Balance / Unit</div><p class="fp-d">Current Trepp loan balance divided by the loan&#39;s units. Loans with no reported balance are left out. Type 150k.</p>
+    <div class="fp-pop"><div class="fp-h">Loan Balance / Unit</div><p class="fp-d">Current Trepp loan balance divided by the loan&#39;s units. Loans with no reported balance are left out.</p>
       <div class="fp-row"><input id="fb_bpu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_bpu_max" placeholder="Max" autocomplete="off"></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <button type="button" class="fp-btn" id="fb_distress" aria-pressed="false" title="Trepp loan 30+ days late, in foreclosure, REO, a non-performing matured balloon, or with the special servicer; or a Reonomy preforeclosure filing."><span class="fb-box"></span>Distressed</button>
   <div class="fp" id="fp_more"><button type="button" class="fp-btn" aria-expanded="false">More Filters<span class="fb-cnt" id="fbMoreCnt"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop" style="width:300px">
-      <div class="fp-sec"><div class="fp-h">Sale Price</div><p class="fp-d">Most recent sale: the CoStar comp when one matched, otherwise the Reonomy recorded sale. Type 5m or 750k.</p><div class="fp-row"><input id="fb_price_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_price_max" placeholder="Max" autocomplete="off"></div></div>
+      <div class="fp-sec"><div class="fp-h">Sale Price</div><p class="fp-d">Most recent sale: the CoStar comp when one matched, otherwise the Reonomy recorded sale.</p><div class="fp-row"><input id="fb_price_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_price_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Price / Unit</div><p class="fp-d">Sale price divided by units. Portfolio sales are left out because the per-parcel math is unreliable.</p><div class="fp-row"><input id="fb_ppu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_ppu_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Assessed Value</div><p class="fp-d">Total assessed value (land + improvements) from the city or county assessor.</p><div class="fp-row"><input id="fb_asr_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_asr_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
