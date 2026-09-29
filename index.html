@@ -452,7 +452,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v33</div>
+<div id="verBadge">v34</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1631,10 +1631,13 @@ function parseFile(buf,fname){
   var ws=wb.Sheets[wb.SheetNames[0]];
   var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null});
   if(!rows.length)throw new Error(fname+": empty file");
-  var src=detect(rows[0]||[]);
+  var src=detect(rows[0]||[]),hdrRow=-1,note="";
   if(!src){
-    // Trepp headers live on row 6 (index 5)
-    if(rows.length>5&&rows[5]&&rows[5].some(function(c){return String(c||"")==="Trepp Real ID";}))src="trepp";
+    // Trepp: the header row is the one with "Trepp Real ID". The standard export
+    // puts 5 title rows above it (row 6); trimmed exports have it on row 1.
+    for(var hr=0;hr<Math.min(rows.length,12);hr++){
+      if(rows[hr]&&rows[hr].some(function(c){return String(c||"").trim()==="Trepp Real ID";})){hdrRow=hr;src="trepp";break;}
+    }
   }
   if(!src)throw new Error(fname+": could not identify source (need Reonomy, CoStar, Trepp, or a Salesforce report)");
   var out=[];
@@ -1654,18 +1657,23 @@ function parseFile(buf,fname){
       if(isBlank(o2.property_name)&&!isBlank(o2.property_address))o2.property_name=o2.property_address;
       if(any2)out.push(o2);}
   }else if(src==="trepp"){
-    var names=rows[5].map(treppCol);
-    for(var i3=6;i3<rows.length;i3++){var o3={},any3=false;
+    var names=rows[hdrRow].map(treppCol),skipped={},nSkip=0;
+    for(var i3=hdrRow+1;i3<rows.length;i3++){var o3={},any3=false;
       for(var j3=0;j3<names.length;j3++){if(!names[j3])continue;var v3=rows[i3][j3];o3[names[j3]]=v3;if(!isBlank(v3))any3=true;}
       if(typeof o3.address==="string")o3.address=stdSuffix(o3.address);
-      if(any3)out.push(o3);}
+      if(!any3)continue;
+      // multifamily tool: leave out hotels, health care, office etc. (blank / "-" kept)
+      var pt=String(o3.property_type||"").trim();
+      if(pt&&pt!=="-"&&!/^(multi-?family|co-?op housing|mixed use)$/i.test(pt)){skipped[pt]=(skipped[pt]||0)+1;nSkip++;continue;}
+      out.push(o3);}
+    if(nSkip)note=nSkip+" non-multifamily loans left out ("+Object.keys(skipped).map(function(k){return k+" "+skipped[k];}).join(", ")+")";
   }else{ // salesforce csv/xlsx
     var hd4=rows[0];
     for(var i4=1;i4<rows.length;i4++){var o4={},any4=false;
       for(var j4=0;j4<hd4.length;j4++){if(hd4[j4]==null)continue;var v4=rows[i4][j4];o4[String(hd4[j4]).trim()]=v4==null?"":String(v4);if(!isBlank(v4))any4=true;}
       if(any4)out.push(o4);}
   }
-  return {source:src,rows:out,fname:fname};
+  return {source:src,rows:out,fname:fname,note:note};
 }
 
 // ── keyed merge (blank never overwrites) ──
@@ -2170,7 +2178,7 @@ async function analyze(){
     else stt=mergeInto(datasets.trepp,p.rows,keyTrepp,TREPP_NUM);
     if(stt.added||stt.updated)dirty.add(p.source);
     if(stt.newRows&&stt.newRows.length)stt.newRows.forEach(function(r){allNew.push({row:r,src:p.source});});
-    lines.push(p.fname+" ("+p.source+"): "+stt.added+" new, "+stt.updated+" updated, "+stt.unchanged+" unchanged"+(stt.skipped?", "+stt.skipped+" skipped (no ID)":""));
+    lines.push(p.fname+" ("+p.source+"): "+stt.added+" new, "+stt.updated+" updated, "+stt.unchanged+" unchanged"+(stt.skipped?", "+stt.skipped+" skipped (no ID)":"")+(p.note?"; "+p.note:""));
   });
   // geocode new trepp rows missing coords
   var toGeo=datasets.trepp.filter(function(r){return isBlank(r.latitude)&&!isBlank(r.address);});
