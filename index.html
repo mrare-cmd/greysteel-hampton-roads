@@ -452,7 +452,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v32</div>
+<div id="verBadge">v33</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -836,8 +836,21 @@ window.DU=DU;
 window.LID_API="https://hap-update.mrareshide.workers.dev";
 function lidAuth(){try{return {Authorization:"Bearer "+(localStorage.getItem("hap_session")||"")};}catch(e){return {};}}
 window.lidAuth=lidAuth;
+// Each file is requested by its exact version (blob sha from /loanid/manifest),
+// so a version the browser has already downloaded loads from its cache and an
+// upload automatically means a new address. Without a manifest: latest, uncached.
+window.__lidManifest=null;
+function loadManifest(){
+  return fetch(LID_API+"/loanid/manifest",{headers:lidAuth(),cache:"no-store"})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(j){window.__lidManifest=j&&j.ok?j.files:null;return window.__lidManifest;})
+    .catch(function(){window.__lidManifest=null;return null;});
+}
+window.loadManifest=loadManifest;
 function dataFetch(name,fresh){
-  return fetch(LID_API+"/loanid/data/"+RD()+name+(fresh?"?fresh=1":""),{headers:lidAuth(),cache:"no-store"}).then(function(r){
+  var v=!fresh&&window.__lidManifest&&window.__lidManifest[RD()+name];
+  var url=LID_API+"/loanid/data/"+RD()+name+(fresh?"?fresh=1":v?"?v="+v:"");
+  return fetch(url,{headers:lidAuth(),cache:v?"default":"no-store"}).then(function(r){
     if(r.status===401){try{localStorage.removeItem("hap_session");}catch(e){}location.reload();throw new Error("Your sign-in expired");}
     if(!r.ok)throw new Error("Could not load "+name+" (HTTP "+r.status+")");
     return r;
@@ -847,11 +860,15 @@ window.dataFetch=dataFetch;
 async function loadData(){
   setLoading(true);
   {const ll=document.getElementById('loadingList');if(ll)ll.style.display='block';}  // gone if a filter was touched mid-load
+  const _t0=performance.now();
+  await loadManifest();
   let [props,trepps,costarArr]=await Promise.all([
     dataFetch('data_reonomy.json').then(r=>r.json()),
     dataFetch('data_trepp.json').then(r=>r.json()),
     dataFetch('data_costar.json').then(r=>r.json()),
   ]);
+  window.__lidLoadSecs=(performance.now()-_t0)/1000;
+  console.info('[LoanID] '+RD()+' data loaded in '+window.__lidLoadSecs.toFixed(1)+'s'+(window.__lidManifest?' (versioned, cacheable)':' (no manifest, uncached)'));
   // Normalize unit counts so "276.0" renders as "276"
   const _fixUnits=(arr,flds)=>{(arr||[]).forEach(r=>{flds.forEach(f=>{
     const v=r[f];
@@ -2285,6 +2302,7 @@ btn.addEventListener("click",function(e){
   if(data){for(var k in data){h+='<div class="sil"><b>'+k+"</b><span>"+fmt(data[k])+"</span></div>";}}
   else h+="<div>Still loading...</div>";
   h+='<div class="sinote">Dates reflect the newest record inside each dataset (e.g. most recent sale), not when the file was uploaded.</div>';
+  if(window.__lidLoadSecs)h+='<div class="sinote">This market loaded in '+window.__lidLoadSecs.toFixed(1)+' s'+(window.__lidLoadSecs<1.5?' (from cache)':'')+'.</div>';
   var mi=document.getElementById("matchInfo"),sf=document.getElementById("sfMatchBadge");
   if(mi&&mi.textContent)h+='<div class="sinote">Matching: '+mi.textContent+'</div>';
   if(sf&&sf.textContent.trim())h+='<div class="sinote">'+sf.textContent.trim()+'</div>';
