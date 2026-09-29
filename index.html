@@ -148,6 +148,9 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .mtl-b i{display:block;background:#aecbfa;border-radius:3px 3px 0 0;min-height:2px;transition:background .15s,opacity .15s}
 .mtl-b:hover i,.mtl-b.sel i{background:var(--blue)}
 .mtl-b.edge i{background:#fcd2a8}
+.mtl-b[data-k="past"],.mtl-x span.edge:first-child{margin-right:7px}
+.mtl-b[data-k="later"],.mtl-x span.edge:last-child{margin-left:7px}
+.mtl-x span.edge:last-child{text-align:right;direction:rtl}
 .mtl-b.edge:hover i,.mtl-b.edge.sel i{background:var(--orange)}
 .mtl-b.zero{cursor:default}
 .mtl-b.zero i{background:var(--border)}
@@ -492,7 +495,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v37</div>
+<div id="verBadge">v38</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -2616,7 +2619,7 @@ window.isAssumable=isAssumable;
 // ── maturity timeline: loans by quarter, click a bar to filter ──
 // Buckets: "past" (matured in the last 12 months), the next 20 quarters,
 // "later" (5+ years). Uses the same loan date as the Maturity filter.
-var matQ=null;
+var matQ=new Set();   // selected quarter keys; empty = all
 function tlBuckets(){
   var now=new Date(),y=now.getFullYear(),q=Math.floor(now.getMonth()/3)+1,out=[{k:"past",label:"Matured in the last 12 months",edge:true}];
   for(var i=0;i<20;i++){out.push({k:y+"-"+q,y:y,q:q,first:i===0,label:"Q"+q+" "+y});q++;if(q>4){q=1;y++;}}
@@ -2631,8 +2634,8 @@ function tlKeyOf(p,bset){
   return bset[k]?k:"later";
 }
 function tlLabel(k){
-  if(k==="past")return "matured in the last 12 months";
-  if(k==="later")return "5+ years out";
+  if(k==="past")return "Past 12 mo";
+  if(k==="later")return "5+ yrs out";
   var a=k.split("-");return "Q"+a[1]+" "+a[0];
 }
 function renderTL(tc,B){
@@ -2641,22 +2644,24 @@ function renderTL(tc,B){
   var total=0,max=0;
   B.forEach(function(b){var n=tc[b.k]||0;total+=n;if(!b.edge&&n>max)max=n;});
   if(!max)B.forEach(function(b){max=Math.max(max,tc[b.k]||0);});
-  el.classList.toggle("has-sel",!!matQ);
-  var head='<div class="mtl-h"><span class="mtl-t">Loans maturing by quarter</span><span class="mtl-hint">'+(matQ?'<a href="#" id="mtlClear">Clear quarter</a>':(total?'Click a bar to filter':''))+'</span></div>';
-  if(!total&&!matQ){el.innerHTML=head+'<div class="mtl-empty">No loan maturity dates for the properties shown.</div>';return;}
+  el.classList.toggle("has-sel",matQ.size>0);
+  var head='<div class="mtl-h"><span class="mtl-t">Loans maturing by quarter</span><span class="mtl-hint">'+(matQ.size?'<a href="#" id="mtlClear">Clear '+(matQ.size>1?matQ.size+' quarters':'quarter')+'</a>':(total?'Click bars to filter (pick several)':''))+'</span></div>';
+  if(!total&&!matQ.size){el.innerHTML=head+'<div class="mtl-empty">No loan maturity dates for the properties shown.</div>';return;}
   var bars=B.map(function(b){
     var n=tc[b.k]||0,h=max?Math.min(100,Math.max(n?8:4,Math.round(n/max*100))):4;
-    return '<div class="mtl-b'+(b.edge?' edge':'')+(n?'':' zero')+(matQ===b.k?' sel':'')+'" data-k="'+b.k+'" title="'+b.label+': '+n.toLocaleString()+' propert'+(n===1?'y':'ies')+'"><i style="height:'+h+'%"></i></div>';
+    return '<div class="mtl-b'+(b.edge?' edge':'')+(n?'':' zero')+(matQ.has(b.k)?' sel':'')+'" data-k="'+b.k+'" title="'+b.label+': '+n.toLocaleString()+' propert'+(n===1?'y':'ies')+'"><i style="height:'+h+'%"></i></div>';
   }).join("");
-  var xs=B.map(function(b){return '<span>'+(b.k==="past"?"Past":b.k==="later"?"Later":(b.q===1||b.first?String(b.y):""))+'</span>';}).join("");
+  // year label on each Q1 only; a partial first year stays unlabeled so it never crowds "Past"
+  var xs=B.map(function(b){return '<span'+(b.edge?' class="edge"':'')+'>'+(b.k==="past"?"Past":b.k==="later"?"Later":(b.q===1?String(b.y):""))+'</span>';}).join("");
   el.innerHTML=head+'<div class="mtl-bars">'+bars+'</div><div class="mtl-x">'+xs+'</div>';
 }
 document.getElementById("matTL").addEventListener("click",function(e){
-  if(e.target.id==="mtlClear"){e.preventDefault();matQ=null;refilter();return;}
+  if(e.target.id==="mtlClear"){e.preventDefault();matQ.clear();refilter();return;}
   var b=e.target.closest(".mtl-b");if(!b)return;
   var k=b.dataset.k;
-  if(b.classList.contains("zero")&&matQ!==k)return;
-  matQ=(matQ===k)?null:k;refilter();
+  if(b.classList.contains("zero")&&!matQ.has(k))return;
+  if(matQ.has(k))matQ.delete(k);else matQ.add(k);   // bars toggle independently
+  refilter();
 });
 window.parseDay=parseDay;
 var QUAD_FULL={NORTHWEST:"NW",NORTHEAST:"NE",SOUTHWEST:"SW",SOUTHEAST:"SE"};
@@ -2709,7 +2714,11 @@ function dateText(k){
 // One entry per filter: which control it lives in, its chip label, a short
 // value summary ("" = not set) and how to clear it.
 var FILTERS=[
- {el:"",label:"Matures in",val:function(){return matQ?tlLabel(matQ):"";},clear:function(){matQ=null;}},
+ {el:"",label:"Maturity",val:function(){
+   if(!matQ.size)return "";
+   var ord=function(k){return k==="past"?-1:k==="later"?1e6:+k.replace("-","");};
+   var ks=[...matQ].sort(function(a,b){return ord(a)-ord(b);});
+   return ks.length>3?ks.length+" quarters":ks.map(tlLabel).join(", ");},clear:function(){matQ.clear();}},
  {el:"",label:"Map",val:function(){return window.geoLabel?geoLabel():"";},clear:function(){if(window.clearGeo)clearGeo(false);}},
  {el:"fb_quad_group",label:"Quadrant",val:function(){var q=quadSel();return window.GS_REGION==="dc"&&q.length?q.join(", "):"";},clear:function(){resetQuad();}},
  {el:"fp_units",label:"Units",val:function(){return rngText("units",fmtN);},clear:function(){clr("units");}},
@@ -2748,7 +2757,7 @@ function syncFilterUI(){
   document.getElementById("fbClear").classList.toggle("active",chips.length>0);
   if(window.lidSetWords){
     var lw=[];
-    if(document.getElementById("fp_mat").classList.contains("on")||matQ)lw.push("Maturity");
+    if(document.getElementById("fp_mat").classList.contains("on")||matQ.size)lw.push("Maturity");
     if(document.getElementById("fp_orig").classList.contains("on"))lw.push("Origination");
     if(distressOn)lw.push("Distressed");
     if(document.getElementById("fb_asm").checked)lw.push("Assumable");
@@ -2824,7 +2833,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
   var B=tlBuckets(),bset={};B.forEach(function(b){bset[b.k]=1;});
   var qs=window.GS_REGION==="dc"?quadSel():[];
   var inQuad=function(p){return !qs.length||qs.indexOf(quadOf(p))>=0;};
-  var inTL=function(p){return !matQ||tlKeyOf(p,bset)===matQ;};
+  var inTL=function(p){return !matQ.size||matQ.has(tlKeyOf(p,bset));};
   var qc={NW:0,NE:0,SE:0,SW:0},tc={};
   data.forEach(function(p){
     var a=inQuad(p),b=inTL(p);
@@ -2840,7 +2849,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
 function refilter(){if(window.applyFilters)applyFilters();else syncFilterUI();}
 window.fbClear=function(){
   document.querySelectorAll("#filterBar input").forEach(function(i){if(i.type==="checkbox")i.checked=false;else i.value="";});
-  distressOn=false;matQ=null;closePops();if(window.clearGeo)clearGeo(false);refilter();
+  distressOn=false;matQ.clear();closePops();if(window.clearGeo)clearGeo(false);refilter();
 };
 document.getElementById("fb_distress").addEventListener("click",function(){distressOn=!distressOn;refilter();});
 document.getElementById("fb_quad_all").addEventListener("click",function(){var b=quadBoxes(),all=b.every(function(c){return c.checked;});b.forEach(function(c){c.checked=!all;});refilter();});
