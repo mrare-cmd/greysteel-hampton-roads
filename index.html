@@ -452,7 +452,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v34</div>
+<div id="verBadge">v35</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -857,6 +857,43 @@ function dataFetch(name,fresh){
   });
 }
 window.dataFetch=dataFetch;
+// Geocoding goes through the sign-in Worker: it asks the Census geocoder
+// server-side (browsers can't read Census replies) and caches every answer.
+// items: [{k, a:street, c:city, s:state, z:zip}] -> {k: {lat,lng} | null}
+function geocodeBatch(items){
+  return fetch(LID_API+"/loanid/geocode",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},lidAuth()),body:JSON.stringify({items:items})})
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(j){return j&&j.ok?j.results:{};})
+    .catch(function(){return {};});
+}
+async function geocodeMany(list,onProgress){
+  var out={},chunks=[],next=0,done=0;
+  for(var i=0;i<list.length;i+=10)chunks.push(list.slice(i,i+10));
+  async function lane(){while(next<chunks.length){var c=chunks[next++];Object.assign(out,await geocodeBatch(c));done+=c.length;if(onProgress)onProgress(done,list.length);}}
+  await Promise.all([lane(),lane(),lane()]);
+  return out;
+}
+window.geocodeMany=geocodeMany;
+var REGION_STATE={hampton:"VA",dc:"DC",princegeorges:"MD",montgomery:"MD"};
+// Properties with no map location get one in the background after a market
+// loads, so they appear on the map and in draw/radius filters. Display only:
+// nothing is saved here (uploads save coordinates with the data).
+async function healMissingCoords(){
+  var reg=GS_REGION;if(!reg)return;
+  var need=allData.filter(function(p){
+    var la=parseFloat(p.latitude),lo=parseFloat(p.longitude);
+    return (isNaN(la)||isNaN(lo))&&(p.address_line_1||(p._trepp&&p._trepp.address));
+  }).slice(0,400);
+  if(!need.length)return;
+  var list=need.map(function(p,i){var t=p._trepp||{};return {k:String(i),a:p.address_line_1||t.address,
+    c:p.address_city||t.city||(reg==="dc"?"Washington":""),s:REGION_STATE[reg],z:p.address_postal_code||t.zip||""};});
+  var res=await geocodeMany(list);
+  if(GS_REGION!==reg)return;                         // market changed meanwhile
+  var n=0;
+  need.forEach(function(p,i){var g=res[String(i)];if(g){p.latitude=g.lat;p.longitude=g.lng;n++;}});
+  console.info("[LoanID] placed "+n+" of "+need.length+" properties that had no map location");
+  if(n){_lastFilterSig="";applyFilters();}
+}
 async function loadData(){
   setLoading(true);
   {const ll=document.getElementById('loadingList');if(ll)ll.style.display='block';}  // gone if a filter was touched mid-load
@@ -1012,6 +1049,7 @@ async function loadData(){
   setLoading(false);
   {const ll=document.getElementById('loadingList');if(ll)ll.style.display='none';}  // gone if a filter was touched mid-load
   initMap();
+  setTimeout(function(){healMissingCoords().catch(function(){});},800);
   {const qg=document.getElementById('fb_quad_group'),isDC=window.GS_REGION==='dc';if(qg){qg.style.display=isDC?'':'none';if(!isDC&&window.resetQuad)resetQuad();}if(window.syncFilterBar)syncFilterBar();}
   applyFilters();
   // geocodeTreppOnly();  // disabled — coordinates now baked into data_trepp.json
@@ -1836,14 +1874,6 @@ function regionCity(city){
   if(c)return c;
   return (window.GS_REGION==="dc")?"Washington":"";
 }
-function geocodeOne(addr,city,zip){
-  var q=encodeURIComponent(String(addr)+", "+regionCity(city)+", "+regionState()+" "+String(zip||""));
-  var u="https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address="+q+"&benchmark=Public_AR_Current&format=json";
-  return fetch(u).then(function(r){return r.json();}).then(function(j){
-    var m=j&&j.result&&j.result.addressMatches&&j.result.addressMatches[0];
-    return m?{lat:m.coordinates.y,lng:m.coordinates.x}:null;
-  }).catch(function(){return null;});
-}
 
 // ── assessed values for new rows (VB by GPIN, Norfolk by address) ──
 var ASR_VB_URL="https://services2.arcgis.com/CyVvlIiUfRBmMQuu/arcgis/rest/services/Property_Sales_/FeatureServer/0/query";
@@ -2180,21 +2210,19 @@ async function analyze(){
     if(stt.newRows&&stt.newRows.length)stt.newRows.forEach(function(r){allNew.push({row:r,src:p.source});});
     lines.push(p.fname+" ("+p.source+"): "+stt.added+" new, "+stt.updated+" updated, "+stt.unchanged+" unchanged"+(stt.skipped?", "+stt.skipped+" skipped (no ID)":"")+(p.note?"; "+p.note:""));
   });
-  // geocode new trepp rows missing coords
+  // Map locations for every Trepp loan still missing one (new or old), through
+  // the Worker. Runs on any upload for this market; found coordinates are saved.
   var toGeo=datasets.trepp.filter(function(r){return isBlank(r.latitude)&&!isBlank(r.address);});
-  if(toGeo.length&&dirty.has("trepp")){
-    var got=0,firstErr=null;
-    var cap=Math.min(toGeo.length,150);
-    for(var g=0;g<cap;g++){
-      prog("Geocoding new Trepp addresses ("+(g+1)+"/"+cap+")...");
-      var gr=null;
-      try{ gr=await geocodeOne(toGeo[g].address,toGeo[g].city,toGeo[g].zip); }
-      catch(err){ if(!firstErr)firstErr=String(err&&err.message||err); }
-      if(gr){toGeo[g].latitude=gr.lat;toGeo[g].longitude=gr.lng;got++;}
-    }
-    var note="Geocoded "+got+"/"+cap+" new Trepp addresses";
-    if(toGeo.length>cap)note+=" ("+(toGeo.length-cap)+" left for next upload)";
-    if(got===0)note+=firstErr?(" \u2014 error: "+firstErr):" \u2014 all lookups returned no match (run geocode locally instead)";
+  if(toGeo.length){
+    var cap=Math.min(toGeo.length,400);
+    var glist=toGeo.slice(0,cap).map(function(r,i){return {k:String(i),a:r.address,c:regionCity(r.city),s:regionState(),z:r.zip||""};});
+    var gres=await window.geocodeMany(glist,function(d,n){prog("Finding map locations ("+d+"/"+n+")...");});
+    var got=0;
+    glist.forEach(function(it,i){var g=gres[it.k];if(g){toGeo[i].latitude=g.lat;toGeo[i].longitude=g.lng;got++;}});
+    if(got)dirty.add("trepp");
+    var note="Map locations: found "+got+" of "+cap+" Trepp loans that had none";
+    if(toGeo.length>cap)note+=" ("+(toGeo.length-cap)+" more on the next upload)";
+    if(got<cap)note+=" — the rest had no Census address match";
     lines.push(note);
   }
   var ASRF={reonomy:{addr:"address_line_1",apn:"apn"},costar:{addr:"property_address",apn:"parcel_number_1_min"},trepp:{addr:"address",apn:"assessor_parcel_num"}};
