@@ -495,7 +495,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v38</div>
+<div id="verBadge">v39</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -574,7 +574,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
   <div class="fp" id="fp_mat"><button type="button" class="fp-btn" aria-expanded="false">Maturity<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Maturity</div><p class="fp-d">When the current loan comes due: the Trepp loan when there is one, otherwise the latest mortgage recorded in Reonomy.</p>
       <div class="fp-drow"><label class="fp-dl"><span>From</span><span class="fp-date"><input id="fb_mat_min" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label><label class="fp-dl"><span>To</span><span class="fp-date"><input id="fb_mat_max" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label></div><div class="fp-hint">Inclusive. Type 9/1/2026, 09/01/2026 or just 2026, or use the calendar.</div>
-      <div class="fp-or">or</div><div class="fp-sub">Matures within the next</div><div class="fp-row"><input id="fb_due_yrs" placeholder="#" autocomplete="off"><span class="fbunit">years from today</span></div>
+      <div class="fp-or">or</div><div class="fp-sub">Matures between</div><div class="fp-row"><input id="fb_due_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_due_yrs" placeholder="Max" autocomplete="off"><span class="fbunit">years from today</span></div><div class="fp-hint">Max only = within that many years. Min only = more than that many years out.</div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <div class="fp" id="fp_orig"><button type="button" class="fp-btn" aria-expanded="false">Originated<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
@@ -2724,7 +2724,10 @@ var FILTERS=[
  {el:"fp_units",label:"Units",val:function(){return rngText("units",fmtN);},clear:function(){clr("units");}},
  {el:"fp_year",label:"Built",val:function(){var v=rngText("year",fmtYr);return v&&document.getElementById("fb_year_unknown").checked?v+" + unknown":v;},clear:function(){clr("year");document.getElementById("fb_year_unknown").checked=false;}},
  {el:"fp_sold",label:"Last sold",val:function(){var y=parseNumInput("fb_sold_after");return y===null?"":"since "+fmtYr(y)+(document.getElementById("fb_sold_nodate").checked?" + no sale date":"");},clear:function(){setv("fb_sold_after");document.getElementById("fb_sold_nodate").checked=false;}},
- {el:"fp_mat",label:"Matures",val:function(){var d=parseNumInput("fb_due_yrs");return [dateText("mat"),d===null?"":"within "+d+" yr"+(d===1?"":"s")].filter(Boolean).join(" \u00b7 ");},clear:function(){clr("mat");setv("fb_due_yrs");}},
+ {el:"fp_mat",label:"Matures",val:function(){
+   var a=parseNumInput("fb_due_min"),b=parseNumInput("fb_due_yrs"),yr=function(n){return n+" yr"+(n===1?"":"s");};
+   var rel=a!==null&&b!==null?"in "+a+"\u2013"+yr(b):b!==null?"within "+yr(b):a!==null?"more than "+yr(a)+" out":"";
+   return [dateText("mat"),rel].filter(Boolean).join(" \u00b7 ");},clear:function(){clr("mat");setv("fb_due_yrs");setv("fb_due_min");}},
  {el:"fp_orig",label:"Originated",val:function(){var d=parseNumInput("fb_orig_yrs");return [dateText("orig"),d===null?"":"past "+d+" yr"+(d===1?"":"s")].filter(Boolean).join(" \u00b7 ");},clear:function(){clr("orig");setv("fb_orig_yrs");}},
  {el:"fb_distress",label:"Distressed",val:function(){return distressOn?"only":"";},clear:function(){distressOn=false;},red:true},
  {more:true,label:"Sale price",val:function(){return rngText("price",fmtMoney);},clear:function(){clr("price");}},
@@ -2816,12 +2819,15 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
       return y===null?noDate:y>=sy;
     });
   }
-  var due=parseNumInput("fb_due_yrs");
-  if(due!==null){
-    var now=Date.now(),lim=now+due*365.25*864e5;
+  // years from today, inclusive: Min only = more than Min years out,
+  // Max only = within Max years, both = between them
+  var dMin=parseNumInput("fb_due_min"),due=parseNumInput("fb_due_yrs");
+  if(dMin!==null||due!==null){
+    var now=Date.now(),YR=365.25*864e5;
+    var lo=now+(dMin!==null?dMin:0)*YR,hi=due!==null?now+due*YR:Infinity;
     data=data.filter(function(p){
       var l=loanMat(p);
-      return !!l&&l.ms>=now&&l.ms<=lim;
+      return !!l&&l.ms>=lo&&l.ms<=hi;
     });
   }
   if(distressOn)data=data.filter(isDistressed);
