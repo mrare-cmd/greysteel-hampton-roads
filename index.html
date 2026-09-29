@@ -135,6 +135,46 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .recalc-btn:hover{background:#1557b0}
 .main{margin-top:calc(var(--header) + var(--filterbar) + var(--toolbar));height:calc(100vh - var(--header) - var(--filterbar) - var(--toolbar));display:flex;overflow:hidden;}
 .list-panel{width:420px;flex-shrink:0;overflow-y:auto;background:var(--white);border-right:1px solid var(--border);}
+/* list column = maturity timeline strip + the property list */
+.list-col{width:420px;flex-shrink:0;display:flex;flex-direction:column;min-height:0;background:var(--white);border-right:1px solid var(--border)}
+.list-col .list-panel{width:auto;flex:1;min-height:0;border-right:none}
+#matTL{padding:9px 14px 7px;border-bottom:1px solid var(--border);flex-shrink:0}
+.mtl-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.mtl-t{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
+.mtl-hint{font-size:11px;color:var(--text3)}
+.mtl-hint a{color:var(--blue);text-decoration:none;font-weight:500}
+.mtl-bars{display:flex;align-items:flex-end;gap:2px;height:44px}
+.mtl-b{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer}
+.mtl-b i{display:block;background:#aecbfa;border-radius:3px 3px 0 0;min-height:2px;transition:background .15s,opacity .15s}
+.mtl-b:hover i,.mtl-b.sel i{background:var(--blue)}
+.mtl-b.edge i{background:#fcd2a8}
+.mtl-b.edge:hover i,.mtl-b.edge.sel i{background:var(--orange)}
+.mtl-b.zero{cursor:default}
+.mtl-b.zero i{background:var(--border)}
+#matTL.has-sel .mtl-b:not(.sel) i{opacity:.35}
+.mtl-x{display:flex;gap:2px;margin-top:3px}
+.mtl-x span{flex:1;min-width:0;font-size:9.5px;color:var(--text3);white-space:nowrap;overflow:visible}
+.mtl-empty{font-size:12px;color:var(--text3);padding:4px 0 6px}
+/* usage & upload history panel */
+#usePanel{position:fixed;inset:0;z-index:6500;background:rgba(32,33,36,.4);display:none;align-items:center;justify-content:center}
+#usePanel.show{display:flex}
+#usePanel .up-card{width:760px;max-width:calc(100vw - 32px);max-height:86vh;overflow:auto;background:var(--white);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:20px 22px}
+#usePanel h3{margin:0 0 2px;font-size:17px}
+#usePanel h4{margin:18px 0 8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
+#usePanel .up-sub{font-size:12px;color:var(--text2)}
+#usePanel table{width:100%;border-collapse:collapse;font-size:12.5px}
+#usePanel th{text-align:left;font-size:11px;color:var(--text2);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border)}
+#usePanel td{padding:7px 8px;border-bottom:1px solid #f1f3f4;vertical-align:top}
+#usePanel .muted{color:var(--text3)}
+#usePanel .tag{display:inline-block;padding:1px 7px;border-radius:9px;background:var(--bg);font-size:11px;margin:0 3px 2px 0}
+#usePanel .undone{color:var(--text3);text-decoration:line-through}
+#usePanel .ubtn{height:26px;padding:0 10px;border-radius:13px;border:1px solid var(--border);background:var(--white);font-size:12px;cursor:pointer}
+#usePanel .ubtn:hover{background:var(--bg)}
+#usePanel .ubtn.warn{border-color:var(--red);color:var(--red)}
+#usePanel .ubtn.warn:hover{background:var(--red);color:#fff}
+#usePanel .close{float:right}
+#umUsage{width:100%;height:32px;border-radius:16px;border:1px solid var(--border);background:var(--white);font-size:12.5px;color:var(--text);cursor:pointer;margin-bottom:8px}
+#umUsage:hover{background:var(--bg)}
 .map-panel{flex:1;position:relative;z-index:1}
 #map{width:100%;height:100%}
 .prop-card{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
@@ -452,7 +492,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v36</div>
+<div id="verBadge">v37</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -486,7 +526,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div id="loadingSpinner" class="loading-spinner" style="display:none"></div>
     <span id="totalBadge" class="hdr-badge">–</span>
     <div id="userWrap" hidden><button type="button" id="userChip" aria-haspopup="true" aria-expanded="false"><span class="uc-av" id="ucAv"></span><span id="ucName"></span></button>
-      <div id="userMenu"><div class="um-n" id="umName"></div><div class="um-e" id="umEmail"></div><button type="button" id="signOutBtn">Sign out</button></div></div>
+      <div id="userMenu"><div class="um-n" id="umName"></div><div class="um-e" id="umEmail"></div><button type="button" id="umUsage">Usage &amp; upload history</button><button type="button" id="signOutBtn">Sign out</button></div></div>
     <button class="hdr-btn" id="weightsToggleBtn" onclick="toggleWeights()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       Scoring Weights
@@ -638,12 +678,14 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
   </div>
 </div>
 <div class="main">
+  <div class="list-col"><div id="matTL"></div>
   <div class="list-panel" id="listPanel">
     <div id="loadingList">
       <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
       <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
       <div class="skeleton"></div><div class="skeleton"></div>
     </div>
+  </div>
   </div>
   <div class="map-panel">
     <div id="map"></div>
@@ -1256,6 +1298,88 @@ function buildChips(p){
 })();
 </script>
 <script>
+// ─── Usage & upload history ───
+// Upload history (anyone signed in) comes from the private repo's commits,
+// grouped into uploads; each can be undone if nothing newer changed its files.
+// Usage stats come from the Worker's usage log and are admin-only.
+(function(){
+  var API="https://hap-update.mrareshide.workers.dev";
+  function auth(){try{return {Authorization:"Bearer "+(localStorage.getItem("hap_session")||"")};}catch(e){return {};}}
+  function esc(v){return String(v==null?"":v).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  var MK={hampton:"Hampton Roads",dc:"Washington DC",montgomery:"Montgomery",princegeorges:"Prince George's"};
+  var panel=document.createElement("div");panel.id="usePanel";
+  panel.innerHTML='<div class="up-card"><button type="button" class="ubtn close" id="useClose">Close</button><h3>Usage &amp; upload history</h3><div class="up-sub">Uploads come from the private data repo; each one can be undone if nothing newer changed its files.</div><h4>Recent uploads</h4><div id="useHist" class="muted">Loading&hellip;</div><h4>Who uses LoanID (last 90 days)</h4><div id="useStats" class="muted">Loading&hellip;</div></div>';
+  document.body.appendChild(panel);
+  function fmtD(s){var d=new Date(s);return isNaN(d)?"":d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});}
+  function who(e){return esc(String(e||"").split("@")[0].replace(/[._]/g," "));}
+  // commits (newest first) -> uploads: same person, within 10 minutes of each other
+  function group(commits){
+    var ups=[],undos=[];
+    commits.forEach(function(c){
+      if(c.undo){undos.push(c);return;}
+      var g=ups[ups.length-1];
+      if(g&&!g.closed&&g.by===c.by&&Math.abs(new Date(g.last)-new Date(c.date))<=600000){g.shas.push(c.sha);g.paths.push(c.path);g.last=c.date;g.first=c.date;}
+      else{if(g)g.closed=true;ups.push({by:c.by,shas:[c.sha],paths:[c.path],first:c.date,last:c.date});}
+    });
+    ups.forEach(function(g){
+      var stamp=String(g.first).slice(0,16).replace("T"," ");
+      var u=undos.filter(function(x){return x.msg.indexOf("of "+stamp+" UTC")>=0;})[0];
+      if(u)g.undoneBy=u.by;
+    });
+    return ups;
+  }
+  function loadHist(){
+    var el=document.getElementById("useHist");el.textContent="Loading\u2026";
+    fetch(API+"/loanid/history",{headers:auth(),cache:"no-store"}).then(function(r){return r.json();}).then(function(j){
+      if(!j.ok){el.textContent="Could not load upload history ("+(j.error||"error")+").";return;}
+      var ups=group(j.commits);
+      if(!ups.length){el.textContent="No uploads yet.";return;}
+      el.classList.remove("muted");
+      el.innerHTML='<table><tr><th>When</th><th>Who</th><th>Market</th><th>Files</th><th></th></tr>'+ups.slice(0,25).map(function(g,i){
+        var mk={},files=g.paths.filter(function(p){return !/data_salesforce\.json$/.test(p);});
+        g.paths.forEach(function(p){mk[p.split("/")[0]]=1;});
+        var cls=g.undoneBy?' class="undone"':'';
+        return '<tr><td'+cls+'>'+esc(fmtD(g.first))+'</td><td'+cls+'>'+who(g.by)+'</td><td'+cls+'>'+Object.keys(mk).map(function(m){return esc(MK[m]||m);}).join(", ")+'</td><td'+cls+'>'+
+          (files.length?files:g.paths).map(function(p){return '<span class="tag">'+esc(p.split("/")[1].replace("data_","").replace(".json",""))+'</span>';}).join("")+'</td><td>'+
+          (g.undoneBy?'<span class="muted">Undone by '+who(g.undoneBy)+'</span>':'<button type="button" class="ubtn warn" data-i="'+i+'">Undo</button>')+'</td></tr>';
+      }).join("")+'</table><div class="up-sub" id="useMsg" style="margin-top:8px"></div>';
+      el.querySelectorAll("button[data-i]").forEach(function(b){b.addEventListener("click",function(){
+        var g=ups[+b.dataset.i];
+        if(!confirm("Undo the upload of "+fmtD(g.first)+" by "+String(g.by).split("@")[0]+"? The files it changed go back to how they were before it."))return;
+        b.disabled=true;document.getElementById("useMsg").textContent="Undoing\u2026";
+        window.lidUndo(g.shas).then(function(r){
+          document.getElementById("useMsg").textContent=r.ok?"Undone. Reload the page to see the previous data.":"Could not undo: "+(r.error||"unknown error");
+          if(r.ok)loadHist();else b.disabled=false;
+        });
+      });});
+    }).catch(function(){el.textContent="Could not load upload history.";});
+  }
+  function loadStats(){
+    var el=document.getElementById("useStats");el.textContent="Loading\u2026";
+    fetch(API+"/usage?days=90&prefix=loanid:",{headers:auth(),cache:"no-store"}).then(function(r){
+      if(r.status===403){el.textContent="Usage stats are visible to LoanID admins.";return null;}
+      return r.json();
+    }).then(function(j){
+      if(!j)return;
+      if(!j.ok){el.textContent=j.error||"Could not load usage.";return;}
+      if(!j.rows.length){el.textContent="No LoanID activity logged yet.";return;}
+      el.classList.remove("muted");
+      el.innerHTML='<div class="up-sub" style="margin-bottom:6px">'+j.users+' people, '+Object.keys(j.byDay).length+' active days</div><table><tr><th>Person</th><th>Active days</th><th>Markets opened</th><th>Uploads</th><th>Last used</th></tr>'+j.rows.map(function(r){
+        var mk=[],up=r.actions["loanid:upload"]||0,un=r.actions["loanid:undo"]||0;
+        Object.keys(r.actions).forEach(function(a){var m=/^loanid:load:(\w+)/.exec(a);if(m)mk.push('<span class="tag">'+esc(MK[m[1]]||m[1])+' '+r.actions[a]+'</span>');});
+        return '<tr><td>'+who(r.email)+'<div class="muted">'+esc(r.email)+'</div></td><td>'+r.days+'</td><td>'+(mk.join("")||'<span class="muted">none</span>')+'</td><td>'+up+(un?' <span class="muted">('+un+' undone)</span>':'')+'</td><td>'+esc(fmtD(r.last))+'</td></tr>';
+      }).join("")+'</table>';
+    }).catch(function(){el.textContent="Could not load usage.";});
+  }
+  document.getElementById("umUsage").addEventListener("click",function(){
+    document.getElementById("userMenu").classList.remove("open");
+    panel.classList.add("show");loadHist();loadStats();
+  });
+  document.getElementById("useClose").addEventListener("click",function(){panel.classList.remove("show");});
+  panel.addEventListener("click",function(e){if(e.target===panel)panel.classList.remove("show");});
+})();
+</script>
+<script>
 // ─── LoanID wordmark roller ───
 // Holds on "LoanID" until a loan filter is set, then follows it (Maturity,
 // Origination, Distressed, Assumable), rotating every 10 s if several are on.
@@ -1742,7 +1866,7 @@ function mergeInto(cur,incoming,keyOf,extraNum){
   var numeric=inferNumeric(cur,extraNum);
   var idx=new Map(),maxId=0;
   cur.forEach(function(r){var k=keyOf(r);if(k)idx.set(k,r);var n=Number(r.id);if(!isNaN(n)&&n>maxId)maxId=n;});
-  var st={added:0,updated:0,unchanged:0,skipped:0,newRows:[]};
+  var st={added:0,updated:0,unchanged:0,skipped:0,newRows:[],changed:[],fieldCounts:{}};
   incoming.forEach(function(raw){
     var row={};
     for(var c in raw){row[c]=cleanVal(raw[c],numeric.has(c));}
@@ -1751,8 +1875,13 @@ function mergeInto(cur,incoming,keyOf,extraNum){
     var ex=idx.get(k);
     if(!ex){maxId+=1;row.id=maxId;cur.push(row);idx.set(k,row);st.added++;st.newRows.push(row);}
     else{
-      var ch=0;
-      for(var c2 in row){var nv=row[c2];if(nv===null)continue;if(ex[c2]!==nv){ex[c2]=nv;ch++;}}
+      var ch=0,diffs=[];
+      for(var c2 in row){var nv=row[c2];if(nv===null)continue;if(ex[c2]!==nv){
+        // record real changes for the preview (450000.0 vs 450000 is not one)
+        var ov=ex[c2],same=(typeof ov==="number"||typeof nv==="number")?Number(ov)===Number(nv):String(ov==null?"":ov).trim()===String(nv).trim();
+        if(!same){diffs.push([c2,ov,nv]);st.fieldCounts[c2]=(st.fieldCounts[c2]||0)+1;}
+        ex[c2]=nv;ch++;}}
+      if(diffs.length&&st.changed.length<300)st.changed.push({row:ex,diffs:diffs});
       if(ch>0)st.updated++;else st.unchanged++;
     }
   });
@@ -2058,7 +2187,7 @@ function commitFile(path,contentStr,sha,pw){
   }).then(function(r){
     if(r.status===401)throw new Error("Your sign-in expired. Reload the page and sign in again.");
     if(!r.ok)return r.text().then(function(t){throw new Error(path+": HTTP "+r.status+" "+t.slice(0,200));});
-    return true;
+    return r.json().catch(function(){return {};});
   });
 }
 
@@ -2076,6 +2205,11 @@ var css="#upModalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-ind
 "#upFiles .upf b{font-size:12.5px}"+
 ".up-src{font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:9px;color:#fff;background:#888}"+
 ".up-src.reonomy{background:#4285f4}.up-src.costar{background:#188038}.up-src.trepp{background:#7b3ff2}.up-src.salesforce{background:#00A1E0}"+
+"#upDetail{display:none;border:1px solid #e0e3e7;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12.5px;line-height:1.5;max-height:260px;overflow:auto}"+
+"#upDetail summary{cursor:pointer;font-weight:600;padding:3px 0}"+
+"#upDetail ul{margin:3px 0 6px 18px;padding:0}"+
+"#upDetail .upd-h{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5f6368;margin-top:6px}"+
+"#upDetail .upd-m{color:#80868b}"+
 "#upResults{background:#f4f9f4;border:1px solid #cde6cd;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:none;white-space:pre-wrap;font-size:12.5px;line-height:1.55}"+
 "#upProgress{display:none;margin-bottom:10px;font-size:12.5px;color:#333}"+
 "#upModal .up-btnrow{display:flex;gap:10px;justify-content:flex-end}"+
@@ -2094,8 +2228,9 @@ modal.innerHTML='<div id="upModal">'+
 '<input type="file" id="upFileInput" multiple accept=".xlsx,.xls,.csv" style="display:none">'+
 '<div id="upFiles"></div>'+
 '<div id="upResults"></div>'+
+'<div id="upDetail"></div>'+
 '<div id="upProgress"></div>'+
-'<div class="up-btnrow"><button id="upCancel">Close</button><button id="upAnalyze" class="primary" disabled>Analyze</button><button id="upCommit" class="primary" style="display:none" disabled>Publish to live site</button></div>'+
+'<div class="up-btnrow"><button id="upCancel">Close</button><button id="upAnalyze" class="primary" disabled>Analyze</button><button id="upUndo" style="display:none">Undo this upload</button><button id="upCommit" class="primary" style="display:none" disabled>Publish to live site</button></div>'+
 '</div>';
 document.body.appendChild(modal);
 
@@ -2113,6 +2248,7 @@ function resetModal(){
   $("upProgress").style.display="none";$("upProgress").textContent="";
   $("upAnalyze").disabled=true;$("upAnalyze").style.display="";
   $("upCommit").style.display="none";$("upCommit").disabled=true;
+  $("upUndo").style.display="none";$("upDetail").style.display="none";$("upDetail").innerHTML="";
 }
 btn.addEventListener("click",function(){resetModal();modal.classList.add("show");});
 $("upCancel").addEventListener("click",function(){modal.classList.remove("show");});
@@ -2212,7 +2348,7 @@ async function analyze(){
     costar:await fetchDataset("data_costar.json"),
     trepp:await fetchDataset("data_trepp.json")
   };
-  var dirty=new Set(),lines=[],sfFile=null,allNew=[];
+  var dirty=new Set(),lines=[],sfFile=null,allNew=[],previews=[];
   parsed.forEach(function(p){
     if(p.source==="salesforce"){sfFile=p;return;}
     var stt;
@@ -2221,6 +2357,7 @@ async function analyze(){
     else stt=mergeInto(datasets.trepp,p.rows,keyTrepp,TREPP_NUM);
     if(stt.added||stt.updated)dirty.add(p.source);
     if(stt.newRows&&stt.newRows.length)stt.newRows.forEach(function(r){allNew.push({row:r,src:p.source});});
+    previews.push({fname:p.fname,src:p.source,stt:stt});
     lines.push(p.fname+" ("+p.source+"): "+stt.added+" new, "+stt.updated+" updated, "+stt.unchanged+" unchanged"+(stt.skipped?", "+stt.skipped+" skipped (no ID)":"")+(p.note?"; "+p.note:""));
   });
   // Map locations for every Trepp loan still missing one (new or old), through
@@ -2238,27 +2375,6 @@ async function analyze(){
     if(got<cap)note+=" — the rest had no Census address match";
     lines.push(note);
   }
-  var ASRF={reonomy:{addr:"address_line_1",apn:"apn"},costar:{addr:"property_address",apn:"parcel_number_1_min"},trepp:{addr:"address",apn:"assessor_parcel_num"}};
-  var asrCands=[];
-  ["reonomy","costar","trepp"].forEach(function(ds){
-    if(!dirty.has(ds))return;
-    var cfg=ASRF[ds];
-    datasets[ds].forEach(function(row){
-      if(row.asr_total_value)return;
-      var city=String(row.address_city||row.city||"").toLowerCase();
-      if(city&&city!=="norfolk"&&city.indexOf("virginia beach")!==0)return;
-      asrCands.push([row,cfg]);
-    });
-  });
-  if(asrCands.length){
-    var asrCap=Math.min(asrCands.length,120),asrGot=0;
-    for(var ai=0;ai<asrCap;ai++){
-      prog("Assessed values ("+(ai+1)+"/"+asrCap+")...");
-      if(await asrLookupRow(asrCands[ai][0],asrCands[ai][1]))asrGot++;
-    }
-    lines.push("Assessed values: "+asrGot+" fetched of "+asrCap+" attempted"+(asrCands.length>asrCap?" ("+(asrCands.length-asrCap)+" deferred to next upload)":""));
-  }
-  if(allNew.length){await enrichAssessments(allNew,lines,prog);}
   if(sfFile){
     prog("Matching Salesforce contacts across all properties...");
     var counts=sfMatchAll(datasets,sfFile.rows);
@@ -2274,10 +2390,37 @@ async function analyze(){
   lines.push(toPush.length?("Will publish: "+toPush.join(", ")):"No changes detected. Nothing to publish.");
   $("upResults").textContent=lines.join("\n");
   $("upResults").style.display="block";
+  $("upDetail").innerHTML=previewHtml(previews);$("upDetail").style.display=previews.length?"block":"none";
   $("upProgress").style.display="none";
   $("upAnalyze").style.display="none";
   $("upCommit").style.display=toPush.length?"":"none";
   $("upCommit").disabled=!toPush.length;
+}
+
+// "What will change": sample new rows and changed rows per file, before publishing.
+var PREVIEW_FIELDS=["current_balance","maturity_date","delinquency_status","spec_serv_status","loan_rate","occupancy_pct","dscr_noi",
+  "sale_price","sale_date","sale_amount","sale_recorded_date","reported_owner_name","number_of_units","total_units","year_built"];
+function escP(v){return String(v==null?"":v).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function fmtP(v){if(v==null||v==="")return "blank";if(typeof v==="number")return v.toLocaleString();var t=String(v);return t.length>34?t.slice(0,33)+"\u2026":t;}
+function rowName(r){return r.property_name||r.address_line_1||r.address||r.property_address||("ID "+(r.id||"?"));}
+function niceField(f){return String(f).replace(/_/g," ");}
+function previewHtml(pv){
+  return pv.map(function(x){
+    var st=x.stt,h='<details'+(pv.length===1?' open':'')+'><summary>'+escP(x.fname)+' ('+x.src+'): '+st.added+' new, '+st.updated+' updated</summary>';
+    if(st.newRows.length){
+      h+='<div class="upd-h">New ('+st.newRows.length+')</div><ul>'+st.newRows.slice(0,8).map(function(r){var a=r.address_line_1||r.address||r.property_address||"";var nm=rowName(r);return '<li>'+escP(nm)+(a&&a!==nm?' <span class="upd-m">\u00b7 '+escP(a)+'</span>':'')+'</li>';}).join("")+(st.newRows.length>8?'<li class="upd-m">+'+(st.newRows.length-8)+' more</li>':'')+'</ul>';
+    }
+    if(st.changed.length){
+      h+='<div class="upd-h">Changed (showing '+Math.min(8,st.changed.length)+' of '+st.changed.length+')</div><ul>'+st.changed.slice(0,8).map(function(c){
+        var d=c.diffs.slice().sort(function(a,b){var ia=PREVIEW_FIELDS.indexOf(a[0]),ib=PREVIEW_FIELDS.indexOf(b[0]);return (ia<0?99:ia)-(ib<0?99:ib);}).slice(0,3);
+        return '<li>'+escP(rowName(c.row))+': '+d.map(function(x){return '<span class="upd-m">'+escP(niceField(x[0]))+'</span> '+escP(fmtP(x[1]))+' \u2192 <b>'+escP(fmtP(x[2]))+'</b>';}).join(', ')+(c.diffs.length>3?' <span class="upd-m">+'+(c.diffs.length-3)+' more fields</span>':'')+'</li>';
+      }).join("")+'</ul>';
+      var fc=Object.keys(st.fieldCounts).sort(function(a,b){return st.fieldCounts[b]-st.fieldCounts[a];}).slice(0,6);
+      h+='<div class="upd-m">Most-changed fields: '+fc.map(function(f){return escP(niceField(f))+' ('+st.fieldCounts[f]+')';}).join(', ')+'</div>';
+    }
+    if(!st.newRows.length&&!st.changed.length)h+='<div class="upd-m">No real changes in this file.</div>';
+    return h+'</details>';
+  }).join("");
 }
 
 // wire commit
@@ -2292,12 +2435,14 @@ $("upCommit").addEventListener("click",function(){
 async function doCommit(pw){
   var fileMap={reonomy:"data_reonomy.json",costar:"data_costar.json",trepp:"data_trepp.json"};
   prog("Preparing upload...");
+  pending.commits=[];
   var shas=await getShas();
   var list=[];pending.dirty.forEach(function(d){list.push(d);});
   for(var i=0;i<list.length;i++){
     var ds=list[i],fname=fileMap[ds];
     prog("Publishing "+fname+" ("+(i+1)+"/"+list.length+")... this can take a moment for large files");
-    await commitFile(fname,JSON.stringify(pending.datasets[ds]),shas[fname],pw);
+    var res=await commitFile(fname,JSON.stringify(pending.datasets[ds]),shas[fname],pw);
+    if(res&&res.commit)pending.commits.push(res.commit);
   }
   // Record when each source was uploaded (data_salesforce.json doubles as this
   // market's upload log), so "Data as of" can show upload dates, not only the
@@ -2311,10 +2456,26 @@ async function doCommit(pw){
     meta.sources=Object.assign({},meta.sources||{});
     list.forEach(function(ds){meta.sources[ds]=now;});
     if(pending.sfMeta)meta.sources.salesforce=now;
-    await commitFile("data_salesforce.json",JSON.stringify(meta),shas["data_salesforce.json"],pw);
+    var mres=await commitFile("data_salesforce.json",JSON.stringify(meta),shas["data_salesforce.json"],pw);
+    if(mres&&mres.commit)pending.commits.push(mres.commit);
   }
   prog("Done! Reload the page to see the new data (other offices may take up to 2 minutes).");
+  $("upCommit").style.display="none";
+  if(pending.commits.length)$("upUndo").style.display="";
 }
+window.lidUndo=function(commits){
+  return fetch(window.LID_API+"/loanid/undo",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},window.lidAuth()),body:JSON.stringify({commits:commits})})
+    .then(function(r){return r.json().catch(function(){return {ok:false,error:"HTTP "+r.status};});});
+};
+$("upUndo").addEventListener("click",function(){
+  if(!pending.commits||!pending.commits.length)return;
+  if(!confirm("Undo this upload? Every file it changed goes back to how it was before."))return;
+  $("upUndo").disabled=true;prog("Undoing upload...");
+  window.lidUndo(pending.commits).then(function(j){
+    if(j.ok){prog("Upload undone ("+j.restored.join(", ")+"). Reload the page to see the previous data.");$("upUndo").style.display="none";}
+    else{prog("Could not undo: "+(j.error||"unknown error"));$("upUndo").disabled=false;}
+  });
+});
 })();
 </script>
 
@@ -2452,6 +2613,51 @@ function isAssumable(p){
   return okDay(m)&&m>=Date.now();
 }
 window.isAssumable=isAssumable;
+// ── maturity timeline: loans by quarter, click a bar to filter ──
+// Buckets: "past" (matured in the last 12 months), the next 20 quarters,
+// "later" (5+ years). Uses the same loan date as the Maturity filter.
+var matQ=null;
+function tlBuckets(){
+  var now=new Date(),y=now.getFullYear(),q=Math.floor(now.getMonth()/3)+1,out=[{k:"past",label:"Matured in the last 12 months",edge:true}];
+  for(var i=0;i<20;i++){out.push({k:y+"-"+q,y:y,q:q,first:i===0,label:"Q"+q+" "+y});q++;if(q>4){q=1;y++;}}
+  out.push({k:"later",label:"5+ years out",edge:true});
+  return out;
+}
+function tlKeyOf(p,bset){
+  var l=loanMat(p);if(!l)return null;
+  var now=Date.now();
+  if(l.ms<now)return l.ms>=now-365*864e5?"past":null;
+  var d=new Date(l.ms),k=d.getFullYear()+"-"+(Math.floor(d.getMonth()/3)+1);
+  return bset[k]?k:"later";
+}
+function tlLabel(k){
+  if(k==="past")return "matured in the last 12 months";
+  if(k==="later")return "5+ years out";
+  var a=k.split("-");return "Q"+a[1]+" "+a[0];
+}
+function renderTL(tc,B){
+  var el=document.getElementById("matTL");if(!el)return;
+  // scale to the busiest quarter; Past/Later can be huge, so they cap at full height
+  var total=0,max=0;
+  B.forEach(function(b){var n=tc[b.k]||0;total+=n;if(!b.edge&&n>max)max=n;});
+  if(!max)B.forEach(function(b){max=Math.max(max,tc[b.k]||0);});
+  el.classList.toggle("has-sel",!!matQ);
+  var head='<div class="mtl-h"><span class="mtl-t">Loans maturing by quarter</span><span class="mtl-hint">'+(matQ?'<a href="#" id="mtlClear">Clear quarter</a>':(total?'Click a bar to filter':''))+'</span></div>';
+  if(!total&&!matQ){el.innerHTML=head+'<div class="mtl-empty">No loan maturity dates for the properties shown.</div>';return;}
+  var bars=B.map(function(b){
+    var n=tc[b.k]||0,h=max?Math.min(100,Math.max(n?8:4,Math.round(n/max*100))):4;
+    return '<div class="mtl-b'+(b.edge?' edge':'')+(n?'':' zero')+(matQ===b.k?' sel':'')+'" data-k="'+b.k+'" title="'+b.label+': '+n.toLocaleString()+' propert'+(n===1?'y':'ies')+'"><i style="height:'+h+'%"></i></div>';
+  }).join("");
+  var xs=B.map(function(b){return '<span>'+(b.k==="past"?"Past":b.k==="later"?"Later":(b.q===1||b.first?String(b.y):""))+'</span>';}).join("");
+  el.innerHTML=head+'<div class="mtl-bars">'+bars+'</div><div class="mtl-x">'+xs+'</div>';
+}
+document.getElementById("matTL").addEventListener("click",function(e){
+  if(e.target.id==="mtlClear"){e.preventDefault();matQ=null;refilter();return;}
+  var b=e.target.closest(".mtl-b");if(!b)return;
+  var k=b.dataset.k;
+  if(b.classList.contains("zero")&&matQ!==k)return;
+  matQ=(matQ===k)?null:k;refilter();
+});
 window.parseDay=parseDay;
 var QUAD_FULL={NORTHWEST:"NW",NORTHEAST:"NE",SOUTHWEST:"SW",SOUTHEAST:"SE"};
 function quadOf(p){
@@ -2503,6 +2709,7 @@ function dateText(k){
 // One entry per filter: which control it lives in, its chip label, a short
 // value summary ("" = not set) and how to clear it.
 var FILTERS=[
+ {el:"",label:"Matures in",val:function(){return matQ?tlLabel(matQ):"";},clear:function(){matQ=null;}},
  {el:"",label:"Map",val:function(){return window.geoLabel?geoLabel():"";},clear:function(){if(window.clearGeo)clearGeo(false);}},
  {el:"fb_quad_group",label:"Quadrant",val:function(){var q=quadSel();return window.GS_REGION==="dc"&&q.length?q.join(", "):"";},clear:function(){resetQuad();}},
  {el:"fp_units",label:"Units",val:function(){return rngText("units",fmtN);},clear:function(){clr("units");}},
@@ -2541,7 +2748,7 @@ function syncFilterUI(){
   document.getElementById("fbClear").classList.toggle("active",chips.length>0);
   if(window.lidSetWords){
     var lw=[];
-    if(document.getElementById("fp_mat").classList.contains("on"))lw.push("Maturity");
+    if(document.getElementById("fp_mat").classList.contains("on")||matQ)lw.push("Maturity");
     if(document.getElementById("fp_orig").classList.contains("on"))lw.push("Origination");
     if(distressOn)lw.push("Distressed");
     if(document.getElementById("fb_asm").checked)lw.push("Assumable");
@@ -2612,13 +2819,20 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
   if(document.getElementById("fb_asm").checked)data=data.filter(isAssumable);
   if(document.getElementById("fb_rate_fixed").checked)data=data.filter(function(p){return !!p._trepp&&/^fixed/i.test(String(p._trepp.rate_type||""));});
   if(window.GEO)data=data.filter(window.geoContains);
-  // Quadrant last, so its counts reflect every other active filter.
-  var qc={NW:0,NE:0,SE:0,SW:0};
-  if(window.GS_REGION==="dc"){
-    data.forEach(function(p){var q=quadOf(p);if(q in qc)qc[q]++;});
-    var qs=quadSel();
-    if(qs.length)data=data.filter(function(p){return qs.indexOf(quadOf(p))>=0;});
-  }
+  // Quadrant and maturity quarter last: each one's counts reflect every other
+  // active filter, including the other one.
+  var B=tlBuckets(),bset={};B.forEach(function(b){bset[b.k]=1;});
+  var qs=window.GS_REGION==="dc"?quadSel():[];
+  var inQuad=function(p){return !qs.length||qs.indexOf(quadOf(p))>=0;};
+  var inTL=function(p){return !matQ||tlKeyOf(p,bset)===matQ;};
+  var qc={NW:0,NE:0,SE:0,SW:0},tc={};
+  data.forEach(function(p){
+    var a=inQuad(p),b=inTL(p);
+    if(b&&window.GS_REGION==="dc"){var q=quadOf(p);if(q in qc)qc[q]++;}
+    if(a){var k=tlKeyOf(p,bset);if(k)tc[k]=(tc[k]||0)+1;}
+  });
+  data=data.filter(function(p){return inQuad(p)&&inTL(p);});
+  renderTL(tc,B);
   document.querySelectorAll("#fb_quad_group .q-opt").forEach(function(o){var n=qc[o.dataset.q];o.querySelector(".q-n").textContent=n.toLocaleString();o.classList.toggle("q-zero",n===0);});
   syncFilterUI();
   return data;
@@ -2626,7 +2840,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
 function refilter(){if(window.applyFilters)applyFilters();else syncFilterUI();}
 window.fbClear=function(){
   document.querySelectorAll("#filterBar input").forEach(function(i){if(i.type==="checkbox")i.checked=false;else i.value="";});
-  distressOn=false;closePops();if(window.clearGeo)clearGeo(false);refilter();
+  distressOn=false;matQ=null;closePops();if(window.clearGeo)clearGeo(false);refilter();
 };
 document.getElementById("fb_distress").addEventListener("click",function(){distressOn=!distressOn;refilter();});
 document.getElementById("fb_quad_all").addEventListener("click",function(){var b=quadBoxes(),all=b.every(function(c){return c.checked;});b.forEach(function(c){c.checked=!all;});refilter();});
