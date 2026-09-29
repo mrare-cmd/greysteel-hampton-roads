@@ -452,7 +452,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v35</div>
+<div id="verBadge">v36</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -694,6 +694,14 @@ function getWeights(){
 </body>
 </html>
 <script>
+// Trepp delinquency, one definition for score, flags, chips and drawer (the
+// Distressed filter uses the same list). 2 = real distress: 30+ days late,
+// foreclosure, REO, non-performing matured balloon. 1 = under 30 days late.
+// 0 = paying: Current, Grace/Not yet due, Perf Mat Balloon, blank.
+function dqLevel(v){var x=String(v||"").trim();
+  if(/^(30 days|60 days|90\+ days|foreclosure|reo|nonperf mat balloon)$/i.test(x))return 2;
+  if(/^< ?1 month$/i.test(x))return 1;
+  return 0;}
 function scoreProperty(p){
   const details=[];const t=p._trepp;const catScores={};
   // HOLD PERIOD
@@ -766,14 +774,15 @@ function scoreProperty(p){
   if(p.preforeclosure_final_judgement_amount&&parseFloat(p.preforeclosure_final_judgement_amount)>0)dSignals.push({s:70,label:`Final judgement: ${fmtMoney(p.preforeclosure_final_judgement_amount)}${p.preforeclosure_plaintiff_1?' — Plaintiff: '+p.preforeclosure_plaintiff_1:''}`});
   if(p.preforeclosure_recording_date&&!prefoActive&&!auction&&!(parseFloat(p.preforeclosure_final_judgement_amount)>0))dSignals.push({s:40,label:`Preforeclosure filing on record${p.preforeclosure_doc_type?' ('+p.preforeclosure_doc_type+')':''} — ${fmtDate(p.preforeclosure_recording_date)}`});
   if(t){
-    const delinq=(t.delinquency_status||'').toLowerCase(),watchlist=(t.watchlist_status||'').toLowerCase(),specServ=(t.spec_serv_status||'').toLowerCase();
+    const delinq=(t.delinquency_status||'').toLowerCase(),watchlist=(t.watchlist_status||'').toLowerCase(),specServ=(t.spec_serv_status||'').toLowerCase(),dq=dqLevel(t.delinquency_status);
     const dscr=parseFloat(t.dscr_noi)||null,ltv=parseFloat(t.ltv)||null,modLoan=(t.modified_loan||'').toLowerCase();
     const timesDelinq=parseFloat(t.num_times_known_delinquent_last_12_months)||0;
     const reoDate=t.reo_date&&t.reo_date!=='-',bankrupt=t.bankruptcy_date&&t.bankruptcy_date!=='-';
     if(specServ==='yes'){const reason=t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?` — Reason: ${t.special_servicer_transfer_reason}`:'';const ss=t.special_servicer&&t.special_servicer!=='-'?` (${t.special_servicer})`:'';dSignals.push({s:100,label:`${IC.trepp}Trepp: ${IC.alert}In special servicing${ss}${reason}`,trepp:true});}
     if(reoDate)dSignals.push({s:100,label:`${IC.trepp}Trepp: REO — became real estate owned ${fmtDate(t.reo_date)}`,trepp:true});
     if(bankrupt)dSignals.push({s:95,label:`${IC.trepp}Trepp: Bankruptcy filed ${fmtDate(t.bankruptcy_date)}`,trepp:true});
-    if(delinq&&delinq!=='current'&&delinq!=='-')dSignals.push({s:90,label:`${IC.trepp}Trepp: Loan delinquent — status: ${t.delinquency_status}`,trepp:true});
+    if(dq===2)dSignals.push({s:90,label:`${IC.trepp}Trepp: Loan delinquent — status: ${t.delinquency_status}`,trepp:true});
+    else if(dq===1)dSignals.push({s:45,label:`${IC.trepp}Trepp: Payment under 30 days late`,trepp:true});
     if(timesDelinq>0)dSignals.push({s:Math.min(75,50+timesDelinq*10),label:`${IC.trepp}Trepp: Delinquent ${timesDelinq}x in last 12 months`,trepp:true});
     if(watchlist==='yes'){const wd=t.watchlist_date&&t.watchlist_date!=='-'?` since ${fmtDate(t.watchlist_date)}`:'';dSignals.push({s:65,label:`${IC.trepp}Trepp: On watchlist${wd}`,trepp:true});}
     if(dscr!==null&&dscr>0){if(dscr<1.0)dSignals.push({s:80,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — loan not covering debt service`,trepp:true});else if(dscr<1.25)dSignals.push({s:50,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — stressed (below 1.25)`,trepp:true});else dSignals.push({s:0,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — healthy`,trepp:true});}
@@ -804,7 +813,7 @@ function scoreProperty(p){
   const w=getWeights();
   const weightMap={holdPeriod:w.holdPeriod,loanMaturity:w.loanMaturity,distress:w.distress,marketSignals:w.marketSignals};
   const distressScore=catScores.distress??0,maturityScore=catScores.loanMaturity??0,holdScore=catScores.holdPeriod??0,marketScore=catScores.marketSignals??0;
-  const tCritical=t&&((t.spec_serv_status||'').toLowerCase()==='yes'||(t.reo_date&&t.reo_date!=='-')||(t.bankruptcy_date&&t.bankruptcy_date!=='-')||((t.delinquency_status||'').toLowerCase()!=='current'&&(t.delinquency_status||'').toLowerCase()!=='-'&&t.delinquency_status));
+  const tCritical=t&&((t.spec_serv_status||'').toLowerCase()==='yes'||(t.reo_date&&t.reo_date!=='-')||(t.bankruptcy_date&&t.bankruptcy_date!=='-')||dqLevel(t.delinquency_status)===2);
   const pressureExists=distressScore>0||maturityScore>0||tCritical;
   let finalScore,scoringMode;
   if(pressureExists){let weightedSum=0,wAvailable=0;for(const [cat,score] of Object.entries(catScores)){weightedSum+=score*weightMap[cat];wAvailable+=weightMap[cat];}finalScore=wAvailable>0?Math.round(weightedSum/wAvailable):0;scoringMode='pressure';}
@@ -1045,7 +1054,11 @@ async function loadData(){
     });
   });
   document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only`;
-  if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);dataFetch('data_salesforce.json').then(function(r){return r.ok?r.json():null;}).then(function(j){if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);window.__renderSrcInfo(__sd);}}).catch(function(){});}
+  window.__srcUploads={};
+  if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);dataFetch('data_salesforce.json').then(function(r){return r.ok?r.json():null;}).then(function(j){var up={},src=(j&&j.sources)||{};
+      [['reonomy','Reonomy'],['costar','CoStar'],['trepp','Trepp']].forEach(function(x){if(src[x[0]])up[x[1]]=new Date(src[x[0]]);});
+      if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);up['Salesforce']=new Date(j.uploaded_at);}
+      window.__srcUploads=up;window.__renderSrcInfo(__sd);}).catch(function(){});}
   setLoading(false);
   {const ll=document.getElementById('loadingList');if(ll)ll.style.display='none';}  // gone if a filter was touched mid-load
   initMap();
@@ -1162,7 +1175,7 @@ function propCard(p){
 }
 function buildChips(p){
   const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
-  if(t){if((t.spec_serv_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Special Servicer'});if((t.reo_date||'')!=='-'&&t.reo_date)chips.push({cls:'trepp-distress',label:'REO'});const delinq=(t.delinquency_status||'').toLowerCase();if(delinq&&delinq!=='current'&&delinq!=='-')chips.push({cls:'trepp-distress',label:`${t.delinquency_status}`});if((t.watchlist_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Watchlist'});const dscr=parseFloat(t.dscr_noi);if(!isNaN(dscr)&&dscr>0&&dscr<1.25)chips.push({cls:'trepp-distress',label:`DSCR ${dscr.toFixed(2)}`});}
+  if(t){if((t.spec_serv_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Special Servicer'});if((t.reo_date||'')!=='-'&&t.reo_date)chips.push({cls:'trepp-distress',label:'REO'});if(dqLevel(t.delinquency_status))chips.push({cls:'trepp-distress',label:`${t.delinquency_status}`});if((t.watchlist_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Watchlist'});const dscr=parseFloat(t.dscr_noi);if(!isNaN(dscr)&&dscr>0&&dscr<1.25)chips.push({cls:'trepp-distress',label:`DSCR ${dscr.toFixed(2)}`});}
   if(p.preforeclosure_active_flag===true||p.preforeclosure_active_flag==='true'||p.preforeclosure_active_flag==='True')chips.push({cls:'distress',label:'Preforeclosure'});
   // same date the Loan Maturity filter uses (⬡ = Trepp, plain = Reonomy mortgage)
   const lm=window.loanMat?loanMat(p):null;
@@ -1470,7 +1483,7 @@ function buildDetailGrid(p){
   const dscrCls=dscr?dscr<1.0?'warn':dscr<1.25?'caution':'ok':null;const ltvCls=ltv?ltv>90?'warn':ltv>80?'caution':'ok':null;
   const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
   sec('Sale Data','sale',[['Sale Price',fmtMoney(p.sale_amount)],['Sale Date',fmtDate(p.sale_recorded_date)],['Price/SF',p.sales_price_per_sf?`$${parseFloat(p.sales_price_per_sf).toFixed(2)}`:null],['Price/Unit',fmtMoney(p.price_per_unit)],['Source',p._hasCostar?`CoStar (${p._matchMethod})`:'Reonomy'],p._hasCostar?['Prior Sale (Reo)',fmtMoney(p._reonomy_sale_amount)]:null])+
-  (t?sec('Trepp Loan Data','trepp',[['Property Name',t.property_name,true],['Loan Name',t.loan_name,true],['Source',t.source],['Assumable',window.isAssumable&&isAssumable(p)?'Yes, '+t.source+' loan (lender approval required)':null],['Originator',t.originator],['Origination Date',fmtDate(t.origination_date)],['Current Balance',fmtMoney(t.current_balance)],['Original Balance',fmtMoney(t.original_balance)],['Loan Rate',t.loan_rate?t.loan_rate+'%':null],['Rate Type',t.rate_type],['Amortization',t.amortization_type],['Loan Purpose',t.loan_purpose],['Maturity Date',fmtDate(t.maturity_date)],['UW Maturity',fmtDate(t.uw_maturity_date)],['Remaining Term',t.remaining_term?t.remaining_term+' months':null],['Periods Past Mat.',t.periods_past_maturity>0?t.periods_past_maturity:null],['DSCR (NOI)',dscr?dscr.toFixed(2):null,false,dscrCls],['DSCR (NCF)',t.dscr_ncf?parseFloat(t.dscr_ncf).toFixed(2):null],['LTV',ltv?ltv.toFixed(1)+'%':null,false,ltvCls],['Debt Yield (NOI)',t.debt_yield_noi?parseFloat(t.debt_yield_noi).toFixed(2)+'%':null],['Occupancy',t.occupancy_pct?parseFloat(t.occupancy_pct).toFixed(1)+'%':null],['Delinquency',t.delinquency_status&&t.delinquency_status!=='-'?t.delinquency_status:null,false,t?.delinquency_status&&t.delinquency_status.toLowerCase()!=='current'?'warn':null],['Watchlist',t.watchlist_status&&t.watchlist_status!=='-'?t.watchlist_status:null,false,t?.watchlist_status?.toLowerCase()==='yes'?'caution':null],['Special Servicer',t.spec_serv_status&&t.spec_serv_status!=='-'?t.spec_serv_status:null,false,t?.spec_serv_status?.toLowerCase()==='yes'?'warn':null],['Spec. Serv. Name',t.special_servicer&&t.special_servicer!=='-'?t.special_servicer:null,true],['Transfer Reason',t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?t.special_servicer_transfer_reason:null,true],['Modified',t.modified_loan&&t.modified_loan!=='-'?t.modified_loan:null],['Mod. Type',t.modification_type_servicer&&t.modification_type_servicer!=='-'?t.modification_type_servicer:null,true],['Extension Type',t.extension_type&&t.extension_type!=='-'?t.extension_type:null],['Rem. Extension Periods',t.remaining_extension_option_periods>0?t.remaining_extension_option_periods:null],['NOI',fmtMoney(t.noi)],['NCF',fmtMoney(t.ncf)],['Revenues',fmtMoney(t.revenues)],['Property Appraisal',fmtMoney(t.property_appraisal_value)],['Owner 1',t.owner_1_name&&t.owner_1_name!=='-'?t.owner_1_name:null,true],['Owner 1 Phone',t.owner_1_phone&&t.owner_1_phone!=='-'?t.owner_1_phone:null],['Owner 1 Email',t.owner_1_email&&t.owner_1_email!=='-'?t.owner_1_email:null,true],['Bankruptcy Date',t.bankruptcy_date&&t.bankruptcy_date!=='-'?fmtDate(t.bankruptcy_date):null,false,'warn'],['REO Date',t.reo_date&&t.reo_date!=='-'?fmtDate(t.reo_date):null,false,'warn']]):'<div style="padding:10px 0;font-size:12px;color:var(--text2)">⬡ No Trepp loan data matched for this property</div>')+
+  (t?sec('Trepp Loan Data','trepp',[['Property Name',t.property_name,true],['Loan Name',t.loan_name,true],['Source',t.source],['Assumable',window.isAssumable&&isAssumable(p)?'Yes, '+t.source+' loan (lender approval required)':null],['Originator',t.originator],['Origination Date',fmtDate(t.origination_date)],['Current Balance',fmtMoney(t.current_balance)],['Original Balance',fmtMoney(t.original_balance)],['Loan Rate',t.loan_rate?t.loan_rate+'%':null],['Rate Type',t.rate_type],['Amortization',t.amortization_type],['Loan Purpose',t.loan_purpose],['Maturity Date',fmtDate(t.maturity_date)],['UW Maturity',fmtDate(t.uw_maturity_date)],['Remaining Term',t.remaining_term?t.remaining_term+' months':null],['Periods Past Mat.',t.periods_past_maturity>0?t.periods_past_maturity:null],['DSCR (NOI)',dscr?dscr.toFixed(2):null,false,dscrCls],['DSCR (NCF)',t.dscr_ncf?parseFloat(t.dscr_ncf).toFixed(2):null],['LTV',ltv?ltv.toFixed(1)+'%':null,false,ltvCls],['Debt Yield (NOI)',t.debt_yield_noi?parseFloat(t.debt_yield_noi).toFixed(2)+'%':null],['Occupancy',t.occupancy_pct?parseFloat(t.occupancy_pct).toFixed(1)+'%':null],['Delinquency',t.delinquency_status&&t.delinquency_status!=='-'?t.delinquency_status:null,false,t&&dqLevel(t.delinquency_status)?'warn':null],['Watchlist',t.watchlist_status&&t.watchlist_status!=='-'?t.watchlist_status:null,false,t?.watchlist_status?.toLowerCase()==='yes'?'caution':null],['Special Servicer',t.spec_serv_status&&t.spec_serv_status!=='-'?t.spec_serv_status:null,false,t?.spec_serv_status?.toLowerCase()==='yes'?'warn':null],['Spec. Serv. Name',t.special_servicer&&t.special_servicer!=='-'?t.special_servicer:null,true],['Transfer Reason',t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?t.special_servicer_transfer_reason:null,true],['Modified',t.modified_loan&&t.modified_loan!=='-'?t.modified_loan:null],['Mod. Type',t.modification_type_servicer&&t.modification_type_servicer!=='-'?t.modification_type_servicer:null,true],['Extension Type',t.extension_type&&t.extension_type!=='-'?t.extension_type:null],['Rem. Extension Periods',t.remaining_extension_option_periods>0?t.remaining_extension_option_periods:null],['NOI',fmtMoney(t.noi)],['NCF',fmtMoney(t.ncf)],['Revenues',fmtMoney(t.revenues)],['Property Appraisal',fmtMoney(t.property_appraisal_value)],['Owner 1',t.owner_1_name&&t.owner_1_name!=='-'?t.owner_1_name:null,true],['Owner 1 Phone',t.owner_1_phone&&t.owner_1_phone!=='-'?t.owner_1_phone:null],['Owner 1 Email',t.owner_1_email&&t.owner_1_email!=='-'?t.owner_1_email:null,true],['Bankruptcy Date',t.bankruptcy_date&&t.bankruptcy_date!=='-'?fmtDate(t.bankruptcy_date):null,false,'warn'],['REO Date',t.reo_date&&t.reo_date!=='-'?fmtDate(t.reo_date):null,false,'warn']]):'<div style="padding:10px 0;font-size:12px;color:var(--text2)">⬡ No Trepp loan data matched for this property</div>')+
   (mat1V||mat2V?sec('Reonomy Mortgage','mortgage',[mat1V?['Lender',p.mortgage_standardized_name||p.mortgage_recorded_name,true]:null,mat1V?['Amount',fmtMoney(p.mortgage_amount)]:null,mat1V?['Maturity',fmtDate(p.mortgage_maturity_date)]:null,mat2V?['Lender 2',p.mortgage2_standardized_name||p.mortgage2_recorded_name,true]:null,mat2V?['Amount 2',fmtMoney(p.mortgage2_amount)]:null,mat2V?['Maturity 2',fmtDate(p.mortgage2_maturity_date)]:null]):'')+
   (c?sec('CoStar Market Data','costar',[['County',c.property_county],['Submarket',c.submarket_name],['Building Class',c.building_class],['Vacancy',c.vacancy?parseFloat(c.vacancy).toFixed(1)+'%':null],['Cap Rate',c.actual_cap_rate?parseFloat(c.actual_cap_rate).toFixed(2)+'%':null],['Buyer',c.buyer_true_company,true],['Seller',c.seller_true_company,true],['Match',p._matchMethod]]):'');
   return `<div class="detail-grid">${grid}</div>`;
@@ -2286,9 +2299,19 @@ async function doCommit(pw){
     prog("Publishing "+fname+" ("+(i+1)+"/"+list.length+")... this can take a moment for large files");
     await commitFile(fname,JSON.stringify(pending.datasets[ds]),shas[fname],pw);
   }
-  if(pending.sfMeta){
-    prog("Publishing Salesforce upload record...");
-    await commitFile("data_salesforce.json",JSON.stringify(pending.sfMeta),shas["data_salesforce.json"],pw);
+  // Record when each source was uploaded (data_salesforce.json doubles as this
+  // market's upload log), so "Data as of" can show upload dates, not only the
+  // newest record inside each file.
+  if(list.length||pending.sfMeta){
+    prog("Recording upload dates...");
+    var now=new Date().toISOString(),meta={};
+    try{meta=await fetchDataset("data_salesforce.json");}catch(e){meta={};}
+    if(!meta||typeof meta!=="object"||Array.isArray(meta))meta={};
+    if(pending.sfMeta)Object.assign(meta,pending.sfMeta);
+    meta.sources=Object.assign({},meta.sources||{});
+    list.forEach(function(ds){meta.sources[ds]=now;});
+    if(pending.sfMeta)meta.sources.salesforce=now;
+    await commitFile("data_salesforce.json",JSON.stringify(meta),shas["data_salesforce.json"],pw);
   }
   prog("Done! Reload the page to see the new data (other offices may take up to 2 minutes).");
 }
@@ -2327,7 +2350,7 @@ tb.parentElement.insertBefore(btn,tb);
 var data=null;
 // Button shows the newest per-source date; the popup lists each source,
 // since Reonomy's recorded sales lag CoStar and Trepp by months.
-window.__renderSrcInfo=function(d){data=d;var ds=Object.keys(d).map(function(k){return d[k];}).filter(Boolean);
+window.__renderSrcInfo=function(d){data=d;var up=window.__srcUploads||{};var ds=Object.keys(d).map(function(k){return d[k];}).concat(Object.keys(up).map(function(k){return up[k];})).filter(Boolean);
   document.getElementById("srcAsOf").textContent=ds.length?new Date(Math.max.apply(null,ds)).toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}):"\u2013";};
 function fmt(d){return d?d.toLocaleDateString():"n/a";}
 btn.addEventListener("click",function(e){
@@ -2335,9 +2358,10 @@ btn.addEventListener("click",function(e){
   if(pop.classList.contains("show")){pop.classList.remove("show");return;}
   var h="<h4>Data current through</h4>";
   var labels={"Reonomy":"latest recorded sale","CoStar":"latest sale comp","Trepp":"latest loan date"};
-  if(data){for(var k in data){h+='<div class="sil"><b>'+k+"</b><span>"+fmt(data[k])+"</span></div>";}}
+  var up=window.__srcUploads||{};
+  if(data){for(var k in data){h+='<div class="sil"><b>'+k+"</b><span>"+(k==="Salesforce"?"uploaded "+fmt(data[k]):fmt(data[k])+(up[k]?' <em style="color:#888;font-style:normal">· uploaded '+fmt(up[k])+'</em>':''))+"</span></div>";}}
   else h+="<div>Still loading...</div>";
-  h+='<div class="sinote">Dates reflect the newest record inside each dataset (e.g. most recent sale), not when the file was uploaded.</div>';
+  h+='<div class="sinote">First date: the newest record inside each dataset (latest sale, latest loan). "Uploaded" is when that file was last sent to LoanID.</div>';
   if(window.__lidLoadSecs)h+='<div class="sinote">This market loaded in '+window.__lidLoadSecs.toFixed(1)+' s'+(window.__lidLoadSecs<1.5?' (from cache)':'')+'.</div>';
   var mi=document.getElementById("matchInfo"),sf=document.getElementById("sfMatchBadge");
   if(mi&&mi.textContent)h+='<div class="sinote">Matching: '+mi.textContent+'</div>';
