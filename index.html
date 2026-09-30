@@ -190,6 +190,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .pc-src-badge.reonomy{background:var(--blue-light);color:var(--blue)}
 .pc-src-badge.trepp{background:var(--purple-light);color:var(--purple)}
 .pc-src-badge.both{background:#f3e8ff;color:#6d28d9}
+.pc-src-badge.costar{background:#ffedd5;color:#c2410c}
 .score-badge{flex-shrink:0;min-width:44px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Google Sans',sans-serif;font-size:13px;font-weight:600;}
 .score-badge.hot{background:var(--red-light);color:var(--red)}
 .score-badge.warm{background:var(--orange-light);color:var(--orange)}
@@ -495,7 +496,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v39</div>
+<div id="verBadge">v40</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -719,7 +720,7 @@ const IC={
   cloud:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block"><path d="M6.5 19a4.5 4.5 0 010-9 5.5 5.5 0 0110.6-1.5A4 4 0 1118 19H6.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
   building:`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M9 21V9h6v12M3 9h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
 };
-function parseD(v){if(!v||v==='-')return null;const d=new Date(v);return isNaN(d)?null:d;}
+function parseD(v){if(!v||v==='-')return null;const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);const d=m?new Date(+m[1],m[2]-1,+m[3]):new Date(v);return isNaN(d)?null:d;}  // bare dates are local days, not UTC midnight
 function fmtMoney(v){const n=parseFloat(String(v||'').replace(/,/g,''));return isNaN(n)?null:'$'+Math.round(n).toLocaleString();}
 function fmtDate(v){const d=parseD(v);return d?d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):null;}
 function yearsSince(d){return d?(new Date()-d)/(365.25*24*3600*1000):null;}
@@ -1015,48 +1016,108 @@ async function loadData(){
     for(let n=lo;n<=hi;n++)out.push(n+' '+m[3]);
     return out;
   }
-  // Trepp address index
-  const treppByAddr={};
+  // Parcel numbers in one shape across sources: DC Reonomy "6271-0000-0813" /
+  // "4111-E000-0027", CoStar "6271-0813" / "4111E-0027" and Trepp
+  // "6239 S    0044" all reduce to square+suffix+lot ("62710813", "4111E0027").
+  const apnKey=a=>{
+    let x=String(a||'').trim().toUpperCase();
+    const m=x.match(/^(\w+)-([A-Z]?)0{3,4}-(\w+)$/);if(m)x=m[1]+m[2]+m[3];
+    x=x.replace(/[^0-9A-Z]/g,'').replace(/^0+/,'');
+    return x.length>=4?x:'';
+  };
+  const saleMs=c=>Date.parse((c&&c.sale_date)||0)||0;
+  // Trepp indexes: address (and property name), parcel number
+  const treppByAddr={},treppByApn={};
   (trepps||[]).forEach(t=>{
     addrVariantsLD(t.address||'').forEach(av=>{
       const fullAddr=normalizeAddr(av+(t.city?' '+t.city:''));if(fullAddr&&!treppByAddr[fullAddr])treppByAddr[fullAddr]=t;
       const addrOnly=normalizeAddr(av);if(addrOnly&&!treppByAddr[addrOnly])treppByAddr[addrOnly]=t;
     });
     const nameKey=normalizeAddr(t.property_name||'');if(nameKey&&!treppByAddr[nameKey])treppByAddr[nameKey]=t;
+    const ak=apnKey(t.assessor_parcel_num);if(ak&&!treppByApn[ak])treppByApn[ak]=t;
   });
-  // CoStar indexes
-  const costarByAddr={},costarByCoord={};
+  // CoStar indexes: address, parcel number (both ends of a parcel range), map grid
+  const costarByAddr={},costarByApn={},costarByCoord={};
   (costarArr||[]).forEach(c=>{
-    addrVariantsLD(c.property_address||'').forEach(av=>{const ak=normalizeAddr(av);if(!ak)return;const ex=costarByAddr[ak];if(!ex||(Date.parse(c.sale_date||0)||0)>(Date.parse(ex.sale_date||0)||0))costarByAddr[ak]=c;});
+    addrVariantsLD(c.property_address||'').forEach(av=>{const ak=normalizeAddr(av);if(!ak)return;const ex=costarByAddr[ak];if(!ex||saleMs(c)>saleMs(ex))costarByAddr[ak]=c;});
+    new Set([apnKey(c.parcel_number_1_min),apnKey(c.parcel_number_2_max)]).forEach(k=>{if(!k)return;const ex=costarByApn[k];if(!ex||saleMs(c)>saleMs(ex))costarByApn[k]=c;});
     const lat=parseFloat(c.latitude),lng=parseFloat(c.longitude);
-    if(!isNaN(lat)&&!isNaN(lng)){const bucket=`${Math.round(lat*1000)}_${Math.round(lng*1000)}`;if(!costarByCoord[bucket])costarByCoord[bucket]=[];costarByCoord[bucket].push({...c,_lat:lat,_lng:lng});}
+    if(!isNaN(lat)&&!isNaN(lng)){c._lat=lat;c._lng=lng;const bucket=`${Math.round(lat*1000)}_${Math.round(lng*1000)}`;(costarByCoord[bucket]=costarByCoord[bucket]||[]).push(c);}
   });
-  let teppMatchCount=0,costarMatchCount=0;const usedTreppIds=new Set();
-  allData=(props||[]).map(p=>{
-    let tMatch=null;
-    for(const av of addrVariantsLD(p.address_line_1||'')){
-      const k1=normalizeAddr(av+(p.address_city?' '+p.address_city:''));
-      const k2=normalizeAddr(av);
-      tMatch=treppByAddr[k1]||treppByAddr[k2]||null;
-      if(tMatch)break;
+  const nearCostar=(lat,lng,maxM)=>{
+    let best=null,bestDist=Infinity;
+    if(isNaN(lat)||isNaN(lng))return null;
+    const bLat=Math.round(lat*1000),bLng=Math.round(lng*1000);
+    for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++)for(const c of costarByCoord[`${bLat+dl}_${bLng+dg}`]||[]){
+      const dist=haversineMeters(lat,lng,c._lat,c._lng);
+      if(dist<maxM&&(dist<bestDist||(dist===bestDist&&saleMs(c)>saleMs(best)))){bestDist=dist;best=c;}
     }
-    if(tMatch){teppMatchCount++;usedTreppIds.add(tMatch.id);}
-    let cMatch=null,cMethod=null;
-    for(const av of addrVariantsLD(p.address_line_1||'')){const cak=normalizeAddr(av);if(costarByAddr[cak]){cMatch=costarByAddr[cak];cMethod='addr';break;}}
-    if(!cMatch){const pLat=parseFloat(p.latitude),pLng=parseFloat(p.longitude);if(!isNaN(pLat)&&!isNaN(pLng)){const bLat=Math.round(pLat*1000),bLng=Math.round(pLng*1000);let bestDist=Infinity;for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++){const bucket=`${bLat+dl}_${bLng+dg}`;for(const c of costarByCoord[bucket]||[]){const dist=haversineMeters(pLat,pLng,c._lat,c._lng);if(dist<20&&(dist<bestDist||(dist===bestDist&&(Date.parse(c.sale_date||0)||0)>(Date.parse((cMatch&&cMatch.sale_date)||0)||0)))){bestDist=dist;cMatch=c;cMethod=`coord(${Math.round(dist)}m)`;}}}}}
+    return best?{c:best,dist:bestDist}:null;
+  };
+  // CoStar sale for a property: parcel number or exact address, newest sale
+  // winning; failing both, the nearest CoStar pin within 20 m.
+  const findCostar=(addrLine,apn,lat,lng)=>{
+    let c=null,how=null;
+    const k=apnKey(apn);if(k&&costarByApn[k]){c=costarByApn[k];how='parcel';}
+    for(const av of addrVariantsLD(addrLine||'')){const x=costarByAddr[normalizeAddr(av)];if(x){if(!c||saleMs(x)>saleMs(c)){c=x;how='addr';}break;}}
+    if(c)return {c,how};
+    const n=nearCostar(parseFloat(lat),parseFloat(lng),20);
+    return n?{c:n.c,how:`coord(${Math.round(n.dist)}m)`}:{c:null,how:null};
+  };
+  // Trepp loan for each Reonomy parcel: address / property name, then parcel number
+  const treppFor=new Map(),usedTreppIds=new Set();
+  (props||[]).forEach(p=>{
+    let t=null,how=null;
+    for(const av of addrVariantsLD(p.address_line_1||'')){
+      t=treppByAddr[normalizeAddr(av+(p.address_city?' '+p.address_city:''))]||treppByAddr[normalizeAddr(av)]||null;
+      if(t){how='address';break;}
+    }
+    if(!t){const k=apnKey(p.apn);if(k&&treppByApn[k]){t=treppByApn[k];how='parcel #';}}
+    if(t){treppFor.set(p,{t,how});usedTreppIds.add(t.id);}
+  });
+  // Loans still unmatched: link to the nearest Reonomy parcel within 300 m whose
+  // recorded mortgage is the same loan -- matures the same month and was
+  // recorded within 60 days of Trepp's origination date.
+  {
+    const d10=v=>String(v||'').slice(0,10),DAY=864e5;
+    const open=(props||[]).filter(p=>!treppFor.has(p)&&!isNaN(parseFloat(p.latitude))&&!isNaN(parseFloat(p.longitude))&&(p.mortgage_maturity_date||p.mortgage2_maturity_date));
+    (trepps||[]).forEach(t=>{
+      if(usedTreppIds.has(t.id))return;
+      const tl=parseFloat(t.latitude),tg=parseFloat(t.longitude),mat=d10(t.maturity_date).slice(0,7),orig=Date.parse(d10(t.origination_date));
+      if(isNaN(tl)||isNaN(tg)||mat.length<7||isNaN(orig))return;
+      let best=null,bestDist=300;
+      open.forEach(p=>{
+        if(treppFor.has(p))return;
+        const dist=haversineMeters(tl,tg,parseFloat(p.latitude),parseFloat(p.longitude));
+        if(dist>bestDist)return;
+        const same=[['mortgage_recorded_date','mortgage_maturity_date'],['mortgage2_recorded_date','mortgage2_maturity_date']].some(([r,m])=>{
+          const rd=Date.parse(d10(p[r]));return d10(p[m]).slice(0,7)===mat&&!isNaN(rd)&&Math.abs(rd-orig)<=60*DAY;});
+        if(same){best=p;bestDist=dist;}
+      });
+      if(best){treppFor.set(best,{t,how:`loan dates (${Math.round(bestDist)} m away)`});usedTreppIds.add(t.id);}
+    });
+  }
+  // Reonomy counts units per parcel; a loan covers the whole property. When a
+  // loan sits on just one parcel and Trepp's count is more than double, the
+  // property spans parcels: use Trepp's count there (not for portfolio loans,
+  // whose count covers several scattered buildings).
+  const parcelsPerLoan={};treppFor.forEach(v=>{parcelsPerLoan[v.t.id]=(parcelsPerLoan[v.t.id]||0)+1;});
+  const unitsWith=(p,t)=>{if(!t||parcelsPerLoan[t.id]!==1||/portfolio/i.test(t.property_name||'')||/portfolio/i.test(t.loan_name||''))return p.total_units;const r=parseFloat(p.total_units),tu=parseFloat(t.number_of_units);return (!isNaN(tu)&&(isNaN(r)||tu>2*r))?tu:p.total_units;};
+  let teppMatchCount=0,costarMatchCount=0;
+  allData=(props||[]).map(p=>{
+    const tm=treppFor.get(p),tMatch=tm?tm.t:null;
+    if(tMatch)teppMatchCount++;
+    const {c:cMatch,how:cMethod}=findCostar(p.address_line_1,p.apn,p.latitude,p.longitude);
     if(cMatch)costarMatchCount++;
-    const merged={...p,sale_amount:cMatch?.sale_price||p.sale_amount,sale_recorded_date:cMatch?.sale_date||p.sale_recorded_date,sales_price_per_sf:cMatch?.price_per_sf||p.sales_price_per_sf,price_per_unit:cMatch?.price_per_unit||p.price_per_unit,vacancy:cMatch?.vacancy||p.vacancy,actual_cap_rate:cMatch?.actual_cap_rate||p.actual_cap_rate,building_class:cMatch?.building_class,submarket_name:cMatch?.submarket_name,buyer_true_company:cMatch?.buyer_true_company,seller_true_company:cMatch?.seller_true_company,_reonomy_sale_amount:p.sale_amount,_hasCostar:!!cMatch,_matchMethod:cMethod,_costar:cMatch||null,_trepp:tMatch||null,_source:tMatch?'both':'reonomy'};
+    const merged={...p,total_units:unitsWith(p,tMatch),_reonomy_units:p.total_units,sale_amount:cMatch?.sale_price||p.sale_amount,sale_recorded_date:cMatch?.sale_date||p.sale_recorded_date,sales_price_per_sf:cMatch?.price_per_sf||p.sales_price_per_sf,price_per_unit:cMatch?.price_per_unit||p.price_per_unit,vacancy:cMatch?.vacancy||p.vacancy,actual_cap_rate:cMatch?.actual_cap_rate||p.actual_cap_rate,building_class:cMatch?.building_class,submarket_name:cMatch?.submarket_name,buyer_true_company:cMatch?.buyer_true_company,seller_true_company:cMatch?.seller_true_company,_reonomy_sale_amount:p.sale_amount,_hasCostar:!!cMatch,_matchMethod:cMethod,_costar:cMatch||null,_trepp:tMatch||null,_treppMatch:tm?tm.how:null,_source:tMatch?'both':'reonomy'};
     const {score,tier,details,cats}=scoreProperty(merged);
     return decorateSF({...merged,_score:score,_tier:tier,_details:details,_cats:cats});
   });
   const treppOnly=(trepps||[]).filter(t=>!usedTreppIds.has(t.id));
   treppOnly.forEach(t=>{
     const pseudo={id:`trepp_${t.id}`,asr_land_value:t.asr_land_value,asr_improvement_value:t.asr_improvement_value,asr_total_value:t.asr_total_value,asr_year:t.asr_year,asr_city:t.asr_city,address_line_1:t.address||t.property_name,address_city:t.city,address_state:t.state,address_full:[t.address||t.property_name,t.city,t.state].filter(Boolean).join(', '),property_type:t.normalized_property_type||t.property_type,property_subtype:t.trepp_subtype,year_built:t.year_built,total_units:t.number_of_units,latitude:t.latitude?parseFloat(t.latitude):null,longitude:t.longitude?parseFloat(t.longitude):null,_trepp:t,_hasCostar:false,_costar:null,_source:'trepp',_matchMethod:null};
-    // Same CoStar lookup the Reonomy path uses: exact address first, then a
-    // 20 m coordinate match, newest sale winning ties.
-    let cM=null,cMeth=null;
-    for(const av of addrVariantsLD(pseudo.address_line_1||'')){const cak=normalizeAddr(av);if(costarByAddr[cak]){cM=costarByAddr[cak];cMeth='addr';break;}}
-    if(!cM){const tLat=parseFloat(pseudo.latitude),tLng=parseFloat(pseudo.longitude);if(!isNaN(tLat)&&!isNaN(tLng)){const bLat=Math.round(tLat*1000),bLng=Math.round(tLng*1000);let bestDist=Infinity;for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++){const bucket=`${bLat+dl}_${bLng+dg}`;for(const c of costarByCoord[bucket]||[]){const dist=haversineMeters(tLat,tLng,c._lat,c._lng);if(dist<20&&(dist<bestDist||(dist===bestDist&&(Date.parse(c.sale_date||0)||0)>(Date.parse((cM&&cM.sale_date)||0)||0)))){bestDist=dist;cM=c;cMeth=`coord(${Math.round(dist)}m)`;}}}}}
+    // Same CoStar lookup the Reonomy path uses (Trepp's parcel number too)
+    const {c:cM,how:cMeth}=findCostar(pseudo.address_line_1,t.assessor_parcel_num,pseudo.latitude,pseudo.longitude);
     if(cM){
       costarMatchCount++;
       pseudo.sale_amount=cM.sale_price||null;
@@ -1076,6 +1137,45 @@ async function loadData(){
     const {score,tier,details,cats}=scoreProperty(pseudo);
     allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
   });
+  // CoStar sales no property picked up become properties of their own, one per
+  // building (newest sale). Skipped when it's an older sale of a property
+  // already shown: same parcel or address, or within 20 m of one whose shown
+  // sale is at least as recent (a newer sale next door is a different building).
+  let costarOnlyCount=0;
+  {
+    const taken=new Set(allData.map(p=>p._costar).filter(Boolean));
+    const placeKeys=(apns,addr)=>{const ks=[];apns.forEach(a=>{const k=apnKey(a);if(k)ks.push('p:'+k);});addrVariantsLD(addr||'').forEach(av=>{const k=normalizeAddr(av);if(k)ks.push('a:'+k);});return ks;};
+    const shown=new Set(),pins=[];
+    allData.forEach(p=>{
+      placeKeys([p.apn,p._trepp&&p._trepp.assessor_parcel_num],p.address_line_1).forEach(k=>shown.add(k));
+      const c=p._costar;if(c)placeKeys([c.parcel_number_1_min,c.parcel_number_2_max],c.property_address).forEach(k=>shown.add(k));
+      const la=parseFloat(p.latitude),lo=parseFloat(p.longitude),ms=Date.parse(p.sale_recorded_date||0)||0;
+      if(!isNaN(la)&&!isNaN(lo))pins.push([la,lo,ms]);
+      if(c&&c._lat!==undefined)pins.push([c._lat,c._lng,ms]);
+    });
+    const grid={};pins.forEach(q=>{const k=`${Math.round(q[0]*1000)}_${Math.round(q[1]*1000)}`;(grid[k]=grid[k]||[]).push(q);});
+    const nearShown=(la,lo,ms)=>{const bl=Math.round(la*1000),bg=Math.round(lo*1000);for(let dl=-1;dl<=1;dl++)for(let dg=-1;dg<=1;dg++)for(const q of grid[`${bl+dl}_${bg+dg}`]||[])if(q[2]>=ms&&haversineMeters(la,lo,q[0],q[1])<20)return true;return false;};
+    const loose=(costarArr||[]).filter(c=>!taken.has(c)).sort((x,y)=>saleMs(y)-saleMs(x));   // newest first
+    loose.forEach(c=>{
+      const ks=placeKeys([c.parcel_number_1_min,c.parcel_number_2_max],c.property_address);
+      if(ks.some(k=>shown.has(k)))return;
+      if(c._lat!==undefined&&nearShown(c._lat,c._lng,saleMs(c)))return;
+      ks.forEach(k=>shown.add(k));
+      if(c._lat!==undefined){const k=`${Math.round(c._lat*1000)}_${Math.round(c._lng*1000)}`;(grid[k]=grid[k]||[]).push([c._lat,c._lng,saleMs(c)]);}
+      const city=c.portfolio_city||(window.GS_REGION==='dc'?'Washington':null),st=c.portfolio_state||null;
+      const pseudo={id:`costar_${c.id}`,address_line_1:c.property_address||c.property_name,address_city:city,address_state:st,address_postal_code:c.portfolio_zip||null,
+        address_full:[c.property_address||c.property_name,city,st].filter(Boolean).join(', '),apn:c.parcel_number_1_min||null,
+        property_type:'Multifamily',year_built:c.year_built,total_units:c.number_of_units,
+        latitude:c._lat!==undefined?c._lat:null,longitude:c._lng!==undefined?c._lng:null,
+        sale_amount:c.sale_price||null,sale_recorded_date:c.sale_date||null,sales_price_per_sf:c.price_per_sf||null,price_per_unit:c.price_per_unit||null,
+        vacancy:c.vacancy||null,actual_cap_rate:c.actual_cap_rate||null,building_class:c.building_class,submarket_name:c.submarket_name,
+        buyer_true_company:c.buyer_true_company,seller_true_company:c.seller_true_company,
+        _trepp:null,_hasCostar:true,_costar:c,_source:'costar',_matchMethod:'standalone'};
+      costarMatchCount++;costarOnlyCount++;
+      const {score,tier,details,cats}=scoreProperty(pseudo);
+      allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
+    });
+  }
   const total=allData.length;
   document.getElementById('totalBadge').textContent=total.toLocaleString();
   const _sfKeys=new Set();allData.forEach(p=>{if(!p._hasSF)return;const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);const key=normalizeAddr((p.address_line_1||p.address||p._trepp?.address||'')+' '+(p.address_city||p.city||''))||((!isNaN(lat)&&!isNaN(lng))?(Math.round(lat*1e5)+'_'+Math.round(lng*1e5)):('id_'+p.id));_sfKeys.add(key);});const sfMatchCount=_sfKeys.size;
@@ -1098,7 +1198,7 @@ async function loadData(){
       if(!p._hasCostar||!(p._costar&&p._costar.price_per_unit)){p.price_per_unit=null;}
     });
   });
-  document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only`;
+  document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only · ${costarOnlyCount} CoStar-only`;
   window.__srcUploads={};
   if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);dataFetch('data_salesforce.json').then(function(r){return r.ok?r.json():null;}).then(function(j){var up={},src=(j&&j.sources)||{};
       [['reonomy','Reonomy'],['costar','CoStar'],['trepp','Trepp']].forEach(function(x){if(src[x[0]])up[x[1]]=new Date(src[x[0]]);});
@@ -1213,8 +1313,8 @@ function propCard(p){
   const city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(', ');
   const subtype=p.property_subtype||p._trepp?.trepp_subtype||'';
   const units=p.total_units||p._trepp?.number_of_units||null;
-  const srcLabel=p._source==='trepp'?'Trepp only':p._trepp?'Reonomy + Trepp':'Reonomy';
-  const srcCls=p._source==='trepp'?'trepp':p._trepp?'both':'reonomy';
+  const srcLabel=p._source==='trepp'?'Trepp only':p._source==='costar'?'CoStar only':p._trepp?'Reonomy + Trepp':'Reonomy';
+  const srcCls=p._source==='trepp'?'trepp':p._source==='costar'?'costar':p._trepp?'both':'reonomy';
   const chips=buildChips(p);
   return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${name||addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${name?`<span>${addr}${city?', '+city:''}</span>`:city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
 }
@@ -1608,9 +1708,9 @@ function buildDetailGrid(p){
   const sec=(title,cls,rows)=>{const f=rows.filter(r=>r&&r[1]!=null&&r[1]!==''&&r[1]!==undefined);if(!f.length)return '';return `<div class="dg-section-head ${cls}">${title}</div>`+f.map(([lbl,val,full,valCls])=>`<div class="dg-item${full?' full':''}"><div class="dg-label">${lbl}</div><div class="dg-val${valCls?' '+valCls:''}">${val}</div></div>`).join('');};
   const dscr=t?parseFloat(t.dscr_noi):null,ltv=t?parseFloat(t.ltv):null;
   const dscrCls=dscr?dscr<1.0?'warn':dscr<1.25?'caution':'ok':null;const ltvCls=ltv?ltv>90?'warn':ltv>80?'caution':'ok':null;
-  const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
+  const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',(p.total_units||t?.number_of_units)&&p._reonomy_units!==undefined&&String(p._reonomy_units)!==String(p.total_units)?`${p.total_units} (Trepp; Reonomy parcel: ${p._reonomy_units||'?'})`:p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
   sec('Sale Data','sale',[['Sale Price',fmtMoney(p.sale_amount)],['Sale Date',fmtDate(p.sale_recorded_date)],['Price/SF',p.sales_price_per_sf?`$${parseFloat(p.sales_price_per_sf).toFixed(2)}`:null],['Price/Unit',fmtMoney(p.price_per_unit)],['Source',p._hasCostar?`CoStar (${p._matchMethod})`:'Reonomy'],p._hasCostar?['Prior Sale (Reo)',fmtMoney(p._reonomy_sale_amount)]:null])+
-  (t?sec('Trepp Loan Data','trepp',[['Property Name',t.property_name,true],['Loan Name',t.loan_name,true],['Source',t.source],['Assumable',window.isAssumable&&isAssumable(p)?'Yes, '+t.source+' loan (lender approval required)':null],['Originator',t.originator],['Origination Date',fmtDate(t.origination_date)],['Current Balance',fmtMoney(t.current_balance)],['Original Balance',fmtMoney(t.original_balance)],['Loan Rate',t.loan_rate?t.loan_rate+'%':null],['Rate Type',t.rate_type],['Amortization',t.amortization_type],['Loan Purpose',t.loan_purpose],['Maturity Date',fmtDate(t.maturity_date)],['UW Maturity',fmtDate(t.uw_maturity_date)],['Remaining Term',t.remaining_term?t.remaining_term+' months':null],['Periods Past Mat.',t.periods_past_maturity>0?t.periods_past_maturity:null],['DSCR (NOI)',dscr?dscr.toFixed(2):null,false,dscrCls],['DSCR (NCF)',t.dscr_ncf?parseFloat(t.dscr_ncf).toFixed(2):null],['LTV',ltv?ltv.toFixed(1)+'%':null,false,ltvCls],['Debt Yield (NOI)',t.debt_yield_noi?parseFloat(t.debt_yield_noi).toFixed(2)+'%':null],['Occupancy',t.occupancy_pct?parseFloat(t.occupancy_pct).toFixed(1)+'%':null],['Delinquency',t.delinquency_status&&t.delinquency_status!=='-'?t.delinquency_status:null,false,t&&dqLevel(t.delinquency_status)?'warn':null],['Watchlist',t.watchlist_status&&t.watchlist_status!=='-'?t.watchlist_status:null,false,t?.watchlist_status?.toLowerCase()==='yes'?'caution':null],['Special Servicer',t.spec_serv_status&&t.spec_serv_status!=='-'?t.spec_serv_status:null,false,t?.spec_serv_status?.toLowerCase()==='yes'?'warn':null],['Spec. Serv. Name',t.special_servicer&&t.special_servicer!=='-'?t.special_servicer:null,true],['Transfer Reason',t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?t.special_servicer_transfer_reason:null,true],['Modified',t.modified_loan&&t.modified_loan!=='-'?t.modified_loan:null],['Mod. Type',t.modification_type_servicer&&t.modification_type_servicer!=='-'?t.modification_type_servicer:null,true],['Extension Type',t.extension_type&&t.extension_type!=='-'?t.extension_type:null],['Rem. Extension Periods',t.remaining_extension_option_periods>0?t.remaining_extension_option_periods:null],['NOI',fmtMoney(t.noi)],['NCF',fmtMoney(t.ncf)],['Revenues',fmtMoney(t.revenues)],['Property Appraisal',fmtMoney(t.property_appraisal_value)],['Owner 1',t.owner_1_name&&t.owner_1_name!=='-'?t.owner_1_name:null,true],['Owner 1 Phone',t.owner_1_phone&&t.owner_1_phone!=='-'?t.owner_1_phone:null],['Owner 1 Email',t.owner_1_email&&t.owner_1_email!=='-'?t.owner_1_email:null,true],['Bankruptcy Date',t.bankruptcy_date&&t.bankruptcy_date!=='-'?fmtDate(t.bankruptcy_date):null,false,'warn'],['REO Date',t.reo_date&&t.reo_date!=='-'?fmtDate(t.reo_date):null,false,'warn']]):'<div style="padding:10px 0;font-size:12px;color:var(--text2)">⬡ No Trepp loan data matched for this property</div>')+
+  (t?sec('Trepp Loan Data','trepp',[['Property Name',t.property_name,true],['Loan Name',t.loan_name,true],['Source',t.source],['Matched by',p._treppMatch],['Assumable',window.isAssumable&&isAssumable(p)?'Yes, '+t.source+' loan (lender approval required)':null],['Originator',t.originator],['Origination Date',fmtDate(t.origination_date)],['Current Balance',fmtMoney(t.current_balance)],['Original Balance',fmtMoney(t.original_balance)],['Loan Rate',t.loan_rate?t.loan_rate+'%':null],['Rate Type',t.rate_type],['Amortization',t.amortization_type],['Loan Purpose',t.loan_purpose],['Maturity Date',fmtDate(t.maturity_date)],['UW Maturity',fmtDate(t.uw_maturity_date)],['Remaining Term',t.remaining_term?t.remaining_term+' months':null],['Periods Past Mat.',t.periods_past_maturity>0?t.periods_past_maturity:null],['DSCR (NOI)',dscr?dscr.toFixed(2):null,false,dscrCls],['DSCR (NCF)',t.dscr_ncf?parseFloat(t.dscr_ncf).toFixed(2):null],['LTV',ltv?ltv.toFixed(1)+'%':null,false,ltvCls],['Debt Yield (NOI)',t.debt_yield_noi?parseFloat(t.debt_yield_noi).toFixed(2)+'%':null],['Occupancy',t.occupancy_pct?parseFloat(t.occupancy_pct).toFixed(1)+'%':null],['Delinquency',t.delinquency_status&&t.delinquency_status!=='-'?t.delinquency_status:null,false,t&&dqLevel(t.delinquency_status)?'warn':null],['Watchlist',t.watchlist_status&&t.watchlist_status!=='-'?t.watchlist_status:null,false,t?.watchlist_status?.toLowerCase()==='yes'?'caution':null],['Special Servicer',t.spec_serv_status&&t.spec_serv_status!=='-'?t.spec_serv_status:null,false,t?.spec_serv_status?.toLowerCase()==='yes'?'warn':null],['Spec. Serv. Name',t.special_servicer&&t.special_servicer!=='-'?t.special_servicer:null,true],['Transfer Reason',t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?t.special_servicer_transfer_reason:null,true],['Modified',t.modified_loan&&t.modified_loan!=='-'?t.modified_loan:null],['Mod. Type',t.modification_type_servicer&&t.modification_type_servicer!=='-'?t.modification_type_servicer:null,true],['Extension Type',t.extension_type&&t.extension_type!=='-'?t.extension_type:null],['Rem. Extension Periods',t.remaining_extension_option_periods>0?t.remaining_extension_option_periods:null],['NOI',fmtMoney(t.noi)],['NCF',fmtMoney(t.ncf)],['Revenues',fmtMoney(t.revenues)],['Property Appraisal',fmtMoney(t.property_appraisal_value)],['Owner 1',t.owner_1_name&&t.owner_1_name!=='-'?t.owner_1_name:null,true],['Owner 1 Phone',t.owner_1_phone&&t.owner_1_phone!=='-'?t.owner_1_phone:null],['Owner 1 Email',t.owner_1_email&&t.owner_1_email!=='-'?t.owner_1_email:null,true],['Bankruptcy Date',t.bankruptcy_date&&t.bankruptcy_date!=='-'?fmtDate(t.bankruptcy_date):null,false,'warn'],['REO Date',t.reo_date&&t.reo_date!=='-'?fmtDate(t.reo_date):null,false,'warn']]):'<div style="padding:10px 0;font-size:12px;color:var(--text2)">⬡ No Trepp loan data matched for this property</div>')+
   (mat1V||mat2V?sec('Reonomy Mortgage','mortgage',[mat1V?['Lender',p.mortgage_standardized_name||p.mortgage_recorded_name,true]:null,mat1V?['Amount',fmtMoney(p.mortgage_amount)]:null,mat1V?['Maturity',fmtDate(p.mortgage_maturity_date)]:null,mat2V?['Lender 2',p.mortgage2_standardized_name||p.mortgage2_recorded_name,true]:null,mat2V?['Amount 2',fmtMoney(p.mortgage2_amount)]:null,mat2V?['Maturity 2',fmtDate(p.mortgage2_maturity_date)]:null]):'')+
   (c?sec('CoStar Market Data','costar',[['County',c.property_county],['Submarket',c.submarket_name],['Building Class',c.building_class],['Vacancy',c.vacancy?parseFloat(c.vacancy).toFixed(1)+'%':null],['Cap Rate',c.actual_cap_rate?parseFloat(c.actual_cap_rate).toFixed(2)+'%':null],['Buyer',c.buyer_true_company,true],['Seller',c.seller_true_company,true],['Match',p._matchMethod]]):'');
   return `<div class="detail-grid">${grid}</div>`;
