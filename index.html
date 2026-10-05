@@ -197,6 +197,9 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .score-badge.watch{background:var(--yellow-light);color:#c17800}
 .score-badge.cold{background:var(--green-light);color:var(--green)}
 .pc-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.pc-hit{font-size:11px;color:var(--text2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-hit span{color:var(--text3)}
+.pc-hit b{color:var(--text);background:#fef08a;border-radius:2px;font-weight:600}
 .pc-chip{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:500;background:var(--bg);color:var(--text2);border:1px solid var(--border);}
 .pc-chip.distress{background:#fce8e6;color:#d93025;border-color:#f5c6c2}
 .pc-chip.trepp-distress{background:var(--purple-light);color:var(--purple);border-color:#c4b5fd}
@@ -496,7 +499,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v40</div>
+<div id="verBadge">v41</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -524,7 +527,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
   </button>
   <div class="search-bar">
     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-    <input type="text" id="searchInput" placeholder="Search address, owner, submarket, loan name...">
+    <input type="text" id="searchInput" placeholder="Search anything: address, owner, lender, servicer, broker, notes...">
   </div>
   <div class="header-right">
     <div id="loadingSpinner" class="loading-spinner" style="display:none"></div>
@@ -1230,7 +1233,7 @@ async function geocodeTreppOnly(){
 // ─── FILTERING & SORTING ───
 function applyFilters(){
   let data=[...allData];
-  if(searchQ){const q=searchQ.toLowerCase();data=data.filter(p=>(p.address_line_1||p.address||'').toLowerCase().includes(q)||(p.address_city||p.city||'').toLowerCase().includes(q)||(p.reported_owner_name||'').toLowerCase().includes(q)||(p._trepp?.property_name||'').toLowerCase().includes(q)||(p._costar?.property_name||'').toLowerCase().includes(q)||(p._trepp?.loan_name||'').toLowerCase().includes(q)||(p._trepp?.originator||'').toLowerCase().includes(q)||(p._trepp?.trepp_submarket||'').toLowerCase().includes(q)||(p.submarket_name||'').toLowerCase().includes(q));}
+  if(searchQ){const terms=searchTerms(searchQ);if(terms.length)data=data.filter(p=>{const x=searchIndex(p).all;return terms.every(t=>x.includes(t));});}
   if(activeTiers.size)data=data.filter(p=>activeTiers.has(p._tier));
   if(activeSrc==='trepp')data=data.filter(p=>p._trepp);else if(activeSrc==='trepp-only')data=data.filter(p=>p._source==='trepp');
   const loanSrc=document.getElementById('loanSrcSelect')?.value||'all';
@@ -1242,6 +1245,8 @@ function applyFilters(){
   else if(sort==='hold')data.sort((a,b)=>{const ya=yearsSince(parseD(a.sale_recorded_date||a.sale_date))||0;const yb=yearsSince(parseD(b.sale_recorded_date||b.sale_date))||0;return yb-ya;});
   else if(sort==='sale_amount')data.sort((a,b)=>(parseFloat(b.sale_amount)||0)-(parseFloat(a.sale_amount)||0));
   else if(sort==='balance')data.sort((a,b)=>{const ba=parseFloat(a._trepp?.current_balance)||0;const bb=parseFloat(b._trepp?.current_balance)||0;return bb-ba;});
+  // while searching, properties whose name/address match come first (stable, so the chosen sort holds within each group)
+  if(searchQ){const terms=searchTerms(searchQ);if(terms.length){const top=[],rest=[];data.forEach(p=>{const sh=[bldgName(p),p.address_line_1,p.address,p.address_city,p.city].filter(Boolean).join(' ').toLowerCase();(terms.every(t=>sh.includes(t))?top:rest).push(p);});data=top.concat(rest);}}
   filtered=data;renderList();renderMap();if(window.syncGeoBox)syncGeoBox();
   document.getElementById('tbCount').textContent=`${filtered.length.toLocaleString()} of ${allData.length.toLocaleString()} properties`;
 }
@@ -1307,6 +1312,43 @@ function bldgName(p){
   return p._bname=out;
 }
 window.bldgName=bldgName;
+// ─── SEARCH EVERYTHING ───
+// Every text field from Reonomy, Trepp (incl. older loans), CoStar and
+// Salesforce, built once per property. Plain numbers and dates are left out so
+// "1818" finds the address, not every price containing 1818; IDs, ZIPs,
+// parcel numbers and phones stay in. Every word typed must appear somewhere.
+const SX_SKIP=/(^|_)(link|url|json|latitude|longitude|lat|lng)$|^id$|^_/;
+const SX_KEEPNUM=/zip|postal|apn|parcel|loan_id|comp_id|real_id|reonomy_id|document|phone|fips|census|cusip|deal|securitization|prospectus/;
+function searchTerms(q){return String(q||'').toLowerCase().split(/\s+/).filter(Boolean);}
+function searchIndex(p){
+  if(p._sx)return p._sx;
+  const fields=[];
+  const add=(src,o)=>{if(!o)return;for(const k in o){
+    if(SX_SKIP.test(k))continue;const v=o[k];
+    if(v===null||v===undefined||typeof v==='object'||typeof v==='boolean')continue;
+    const str=String(v).trim();if(!str||str==='-')continue;
+    if(!/[a-z]/i.test(str)&&!SX_KEEPNUM.test(k))continue;      // bare number or date
+    fields.push([src,k,str]);
+  }};
+  const nm=bldgName(p);if(nm)fields.push(['','building name',nm]);
+  add('',p);
+  add('Trepp',p._trepp);
+  (p._trepp&&p._trepp._loanHistory||[]).forEach(l=>add('Trepp (older loan)',l));
+  add('CoStar',p._costar);
+  (p._sfContacts||[]).forEach(c=>{if(c.name)fields.push(['Salesforce','contact',c.name]);(c.emails||[]).forEach(e=>fields.push(['Salesforce','email',e]));(c.phones||[]).forEach(f=>fields.push(['Salesforce','phone',f]));});
+  return p._sx={fields,all:fields.map(f=>f[2].toLowerCase()).join('\n')};
+}
+// Card line saying where a search hit came from, when it isn't in the card already.
+function searchHitLine(p){
+  const terms=searchTerms(searchQ);if(!terms.length)return '';
+  const shown=[bldgName(p),p.address_line_1,p.address,p.address_city,p.city].filter(Boolean).join(' ').toLowerCase();
+  const miss=terms.filter(t=>!shown.includes(t));if(!miss.length)return '';
+  const f=searchIndex(p).fields.find(x=>x[2].toLowerCase().includes(miss[0]));if(!f)return '';
+  const h=v=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const txt=f[2],i=txt.toLowerCase().indexOf(miss[0]),a=Math.max(0,i-30),b=Math.min(txt.length,i+miss[0].length+40);
+  const label=(f[0]?f[0]+' · ':'')+f[1].replace(/_/g,' ').replace(/^sf /,'Salesforce ');
+  return `<div class="pc-hit"><span>${h(label)}:</span> ${a?'…':''}${h(txt.slice(a,i))}<b>${h(txt.slice(i,i+miss[0].length))}</b>${h(txt.slice(i+miss[0].length,b))}${b<txt.length?'…':''}</div>`;
+}
 function propCard(p){
   const addr=p.address_line_1||p.address||p._trepp?.address||p._trepp?.property_name||'Unknown Address';
   const name=bldgName(p);
@@ -1316,7 +1358,7 @@ function propCard(p){
   const srcLabel=p._source==='trepp'?'Trepp only':p._source==='costar'?'CoStar only':p._trepp?'Reonomy + Trepp':'Reonomy';
   const srcCls=p._source==='trepp'?'trepp':p._source==='costar'?'costar':p._trepp?'both':'reonomy';
   const chips=buildChips(p);
-  return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${name||addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${name?`<span>${addr}${city?', '+city:''}</span>`:city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
+  return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${name||addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${name?`<span>${addr}${city?', '+city:''}</span>`:city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${searchHitLine(p)}${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
 }
 function buildChips(p){
   const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
