@@ -499,7 +499,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v41</div>
+<div id="verBadge">v42</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1962,9 +1962,17 @@ function parseFile(buf,fname){
   if(!src)throw new Error(fname+": could not identify source (need Reonomy, CoStar, Trepp, or a Salesforce report)");
   var out=[];
   if(src==="reonomy"){
-    var hd=rows[0];
-    for(var i=1;i<rows.length;i++){var o={},any=false;
-      for(var j=0;j<hd.length;j++){if(hd[j]==null)continue;var v=rows[i][j];o[String(hd[j]).trim()]=v;if(!isBlank(v))any=true;}
+    // Reonomy's xlsx formats money as "$18,550,000.00" and dates as "02/27/23",
+    // so read the stored cell values instead of the displayed text: numbers stay
+    // numbers, and date columns become "2023-02-27T00:00:00" like the rest of the data.
+    var hd=rows[0],rawRows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+    var isDateCol=hd.map(function(x){return /date/i.test(String(x||""));});
+    var serialIso=function(n){var d=new Date(Math.round((n-25569)*864e5));return isNaN(d)?null:d.toISOString().slice(0,10)+"T00:00:00";};
+    for(var i=1;i<rows.length;i++){var o={},any=false,rr=rawRows[i]||[];
+      for(var j=0;j<hd.length;j++){if(hd[j]==null)continue;var v=rows[i][j],rv=rr[j];
+        if(typeof rv==="number")v=(isDateCol[j]&&rv>0&&rv<80000)?serialIso(rv):rv;
+        else if(rv instanceof Date)v=rv.toISOString().slice(0,10)+"T00:00:00";
+        o[String(hd[j]).trim()]=v;if(!isBlank(v))any=true;}
       if(typeof o.address_line_1==="string")o.address_line_1=stdSuffix(o.address_line_1);
       if(typeof o.address_full==="string")o.address_full=stdSuffix(o.address_full);
       if(any)out.push(o);}
