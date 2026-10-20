@@ -499,7 +499,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v42</div>
+<div id="verBadge">v43</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -2864,6 +2864,9 @@ function dateText(k){
 // One entry per filter: which control it lives in, its chip label, a short
 // value summary ("" = not set) and how to clear it.
 var FILTERS=[
+ // the top search box counts as a filter: shows a chip, cleared by its ✕ and by Clear all
+ {el:"",label:"Search",val:function(){var q=String(searchQ||"").trim();return q?"“"+q.replace(/[&<>"]/g,"")+"”":"";},
+  clear:function(){searchQ="";var si=document.getElementById("searchInput");if(si)si.value="";}},
  {el:"",label:"Maturity",val:function(){
    if(!matQ.size)return "";
    var ord=function(k){return k==="past"?-1:k==="later"?1e6:+k.replace("-","");};
@@ -3005,7 +3008,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
 function refilter(){if(window.applyFilters)applyFilters();else syncFilterUI();}
 window.fbClear=function(){
   document.querySelectorAll("#filterBar input").forEach(function(i){if(i.type==="checkbox")i.checked=false;else i.value="";});
-  distressOn=false;matQ.clear();closePops();if(window.clearGeo)clearGeo(false);refilter();
+  distressOn=false;matQ.clear();searchQ="";{var si=document.getElementById("searchInput");if(si)si.value="";}closePops();if(window.clearGeo)clearGeo(false);refilter();
 };
 document.getElementById("fb_distress").addEventListener("click",function(){distressOn=!distressOn;refilter();});
 document.getElementById("fb_quad_all").addEventListener("click",function(){var b=quadBoxes(),all=b.every(function(c){return c.checked;});b.forEach(function(c){c.checked=!all;});refilter();});
