@@ -499,7 +499,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v43</div>
+<div id="verBadge">v44</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -3304,5 +3304,39 @@ function init(){
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
 else init();
+})();
+</script>
+<script>
+/* ---- presence: who is on the tools right now, and for how long ----
+   While this page is visible and someone has used the mouse or keyboard in
+   the last five minutes, it checks in with the sign-in Worker about once a
+   minute. Nothing is sent from a hidden tab, a locked screen or an idle page,
+   or before sign-in. Admins see the result in GreyHub's analytics. The same
+   block is on every site behind this sign-in; only SITE differs. */
+(function(){
+  var SITE = "loanid";
+  var API = "https://hap-update.mrareshide.workers.dev";
+  var IDLE = 5 * 60 * 1000, EVERY = 60 * 1000;
+  var lastInput = Date.now(), lastSent = 0, refused = null;
+  ["pointermove", "pointerdown", "keydown", "wheel", "touchstart", "scroll"].forEach(function(t){
+    window.addEventListener(t, function(){ lastInput = Date.now(); }, { passive:true, capture:true });
+  });
+  function checkIn(){
+    if (document.visibilityState !== "visible") return;
+    var now = Date.now();
+    if (now - lastInput > IDLE || now - lastSent < EVERY - 5000) return;
+    var t = null;
+    try { t = localStorage.getItem("hap_session"); } catch (e) {}
+    if (!t || t === refused) return;           /* signed out, or this token has expired */
+    lastSent = now;
+    fetch(API + "/presence", {
+      method:"POST", keepalive:true,
+      headers:{ Authorization:"Bearer " + t, "Content-Type":"application/json" },
+      body:JSON.stringify({ site:SITE })
+    }).then(function(r){ if (r.status === 401) refused = t; }).catch(function(){});
+  }
+  setInterval(checkIn, 15000);
+  document.addEventListener("visibilitychange", checkIn);
+  setTimeout(checkIn, 4000);
 })();
 </script>
