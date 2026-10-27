@@ -512,7 +512,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v46</div>
+<div id="verBadge">v47</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -630,7 +630,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
         <label class="fp-chk"><input type="checkbox" class="fb-ys" value="age">Age restricted</label>
         <label class="fp-chk"><input type="checkbox" class="fb-ys" value="student">Student / corporate / co-living</label>
         <label class="fp-chk"><input type="checkbox" class="fb-ys" value="secur">CMBS or agency loan</label>
-        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="flag">Loan on watch list, in arrears, accelerated or with a special servicer</label>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="flag">Loan on watch list, in arrears or accelerated</label>
         <label class="fp-chk"><input type="checkbox" class="fb-ys" value="any">Any property Yardi covers</label></div>
       <div class="fp-sec" id="fb_yardi_rate_sec"><div class="fp-h">Yardi Improvement Rating</div><p class="fp-d">Yardi's grade for the building itself (A newest and best kept, C/D dated).</p>
         <div class="fp-row" style="gap:14px"><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="A">A</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="B">B</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="C">C</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="D">D</label></div></div>
@@ -786,7 +786,7 @@ function dqLevel(v){var x=String(v||"").trim();
 const YARDI_FLAGS=[{re:/notice of acceleration/i,s:95,label:'Notice of acceleration on the loan'},
   {re:/loan in arrears/i,s:90,label:'CMBS loan in arrears'},{re:/watch ?list/i,s:65,label:'CMBS loan on the watch list'}];
 function yardiStatus(y){return String((y&&y.property_special_status)||'').split(',').map(x=>x.trim()).filter(Boolean);}
-function yardiCritical(y){return !!(y&&y.special_servicer)||yardiStatus(y).some(x=>/notice of acceleration|loan in arrears/i.test(x));}
+function yardiCritical(y){return yardiStatus(y).some(x=>/notice of acceleration|loan in arrears/i.test(x));}
 function yardiRows(p){return p._yardiAll||(p._yardi?[p._yardi]:[]);}
 function scoreProperty(p){
   const details=[];const t=p._trepp;const catScores={};
@@ -881,7 +881,6 @@ function scoreProperty(p){
   if(y){
     const ys=[];
     yardiRows(p).forEach(yy=>yardiStatus(yy).forEach(st=>{const f=YARDI_FLAGS.find(f=>f.re.test(st));if(f&&!ys.some(x=>x.s===f.s))ys.push({s:f.s,label:`Yardi: ${IC.alert}${f.label} (${st})`});}));
-    yardiRows(p).forEach(yy=>{if(yy.special_servicer&&!ys.some(x=>x.ss))ys.push({s:100,ss:1,label:`Yardi: ${IC.alert}Special servicer on the loan: ${yy.special_servicer}`});});
     if(ys.length){dSignals=dSignals.filter(d=>!(d.s===0&&/^No distress signals on record/.test(d.label)));dSignals.push(...ys);}
   }
   const maxDist=Math.max(...dSignals.map(d=>d.s));
@@ -903,6 +902,7 @@ function scoreProperty(p){
     else if(ir||lr)mSignals.push({s:0,label:`Yardi: improvement rating ${ir||'?'}, location ${lr||'?'}`});
     const info=yardiStatus(y).filter(x=>!YARDI_FLAGS.some(f=>f.re.test(x)));
     if(info.length)mSignals.push({s:0,label:`Yardi status: ${info.join(', ')}`});
+    if(y.special_servicer)mSignals.push({s:0,label:`Yardi: special servicer named on the loan, ${y.special_servicer} (information only, not scored as distress)`});
   }
   const maxMkt=Math.max(...mSignals.map(m=>m.s),0);
   mSignals.forEach(m=>details.push({cat:'Market',label:m.label,trepp:!!m.trepp}));
@@ -1572,7 +1572,6 @@ function buildChips(p){
   const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
   if(t){if((t.spec_serv_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Special Servicer'});if((t.reo_date||'')!=='-'&&t.reo_date)chips.push({cls:'trepp-distress',label:'REO'});if(dqLevel(t.delinquency_status))chips.push({cls:'trepp-distress',label:`${t.delinquency_status}`});if((t.watchlist_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Watchlist'});const dscr=parseFloat(t.dscr_noi);if(!isNaN(dscr)&&dscr>0&&dscr<1.25)chips.push({cls:'trepp-distress',label:`DSCR ${dscr.toFixed(2)}`});}
   {const yr=yardiRows(p),st=yr.map(y=>String(y.property_special_status||'')).join(', '),has=l=>chips.some(c=>c.label===l);
-   if(yr.some(y=>y.special_servicer)&&!has('Special Servicer'))chips.push({cls:'trepp-distress',label:'Special Servicer'});
    if(/notice of acceleration/i.test(st))chips.push({cls:'trepp-distress',label:'Loan Accelerated'});
    if(/loan in arrears/i.test(st))chips.push({cls:'trepp-distress',label:'Loan in Arrears'});
    if(/watch ?list/i.test(st)&&!has('Watchlist'))chips.push({cls:'trepp-distress',label:'Watchlist'});}
@@ -3122,7 +3121,7 @@ window.isDistressed=isDistressed;
 var distressOn=false;
 // Yardi filters (More Filters): status groups match Yardi's "Property Special Status" list
 var YS_RE={aff:/affordable/i,mixed:/mixed income/i,age:/age restricted/i,student:/student|co-living|corporate housing/i,
-  secur:/cmbs|agency securitization/i,flag:/watch ?list|arrears|acceleration|special servicer/i};
+  secur:/cmbs|agency securitization/i,flag:/watch ?list|arrears|acceleration/i};
 var YS_LABEL={aff:"affordable",mixed:"mixed income",age:"age restricted",student:"student/corporate",secur:"CMBS/agency loan",flag:"loan flagged",any:"any Yardi"};
 function yardiPicks(sel){return [].slice.call(document.querySelectorAll(sel)).filter(function(c){return c.checked;}).map(function(c){return c.value;});}
 function quadBoxes(){return [].slice.call(document.querySelectorAll("#fb_quad_group input[type=checkbox]"));}
@@ -3274,7 +3273,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
   }
   if(distressOn)data=data.filter(isDistressed);
   var ysel=yardiPicks(".fb-ys"),yrat=yardiPicks(".fb-yr");
-  if(ysel.length)data=data.filter(function(p){var rows=yardiRows(p);if(!rows.length)return false;var st=rows.map(function(y){return String(y.property_special_status||"")+(y.special_servicer?", special servicer":"");}).join(", ");
+  if(ysel.length)data=data.filter(function(p){var rows=yardiRows(p);if(!rows.length)return false;var st=rows.map(function(y){return String(y.property_special_status||"");}).join(", ");
     return ysel.some(function(k){return k==="any"||YS_RE[k].test(st);});});
   if(yrat.length)data=data.filter(function(p){return yardiRows(p).some(function(y){var r=String(y.impr_rating||"").trim().charAt(0).toUpperCase();return !!r&&yrat.indexOf(r)>=0;});});
   if(document.getElementById("fb_asm").checked)data=data.filter(isAssumable);
