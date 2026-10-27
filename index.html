@@ -191,6 +191,7 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .pc-src-badge.trepp{background:var(--purple-light);color:var(--purple)}
 .pc-src-badge.both{background:#f3e8ff;color:#6d28d9}
 .pc-src-badge.costar{background:#ffedd5;color:#c2410c}
+.pc-src-badge.yardi{background:#ccfbf1;color:#0f766e}
 .score-badge{flex-shrink:0;min-width:44px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Google Sans',sans-serif;font-size:13px;font-weight:600;}
 .score-badge.hot{background:var(--red-light);color:var(--red)}
 .score-badge.warm{background:var(--orange-light);color:var(--orange)}
@@ -243,6 +244,18 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .dg-section-head.reonomy{color:var(--blue)}
 .dg-section-head.trepp{color:var(--purple)}
 .dg-section-head.costar{color:var(--green)}
+.dg-section-head.yardi{color:#0f766e}
+.yd-block{border:1px solid #99f6e4;border-radius:10px;background:linear-gradient(180deg,#f0fdfa 0%,#ffffff 70%);padding:12px 14px;margin-bottom:18px}
+.yd-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.yd-badge{background:#0f766e;color:#fff;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:12px}
+.yd-sub{font-size:11px;color:#0f766e;font-weight:500}
+.yd-org{background:#fff;border:1px solid #ccfbf1;border-radius:8px;padding:9px 12px;margin-bottom:7px}
+.yd-org:last-child{margin-bottom:0}
+.yd-role{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0f766e}
+.yd-name{font-size:14px;font-weight:600;color:var(--text);margin-top:1px}
+.yd-line{font-size:12.5px;color:var(--text);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.yd-line a{color:#0f766e;text-decoration:none;font-weight:500}
+.yd-line span{color:var(--text2)}
 .dg-section-head.sale{color:var(--orange)}
 .dg-section-head.mortgage{color:var(--text2)}
 .dg-item{padding:8px 10px;background:var(--bg);border-radius:6px;}
@@ -499,7 +512,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v44</div>
+<div id="verBadge">v45</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -611,6 +624,16 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
       <div class="fp-sec"><div class="fp-h">Sale Price</div><p class="fp-d">Most recent sale: the CoStar comp when one matched, otherwise the Reonomy recorded sale.</p><div class="fp-row"><input id="fb_price_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_price_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Price / Unit</div><p class="fp-d">Sale price divided by units. Portfolio sales are left out because the per-parcel math is unreliable.</p><div class="fp-row"><input id="fb_ppu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_ppu_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Assessed Value</div><p class="fp-d">Total assessed value (land + improvements) from the city or county assessor.</p><div class="fp-row"><input id="fb_asr_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_asr_max" placeholder="Max" autocomplete="off"></div></div>
+      <div class="fp-sec" id="fb_yardi_sec"><div class="fp-h">Yardi Status</div><p class="fp-d">Yardi Matrix property status. Ticking several shows properties with any of them.</p>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="aff">Affordable</label>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="mixed">Mixed income</label>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="age">Age restricted</label>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="student">Student / corporate / co-living</label>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="secur">CMBS or agency loan</label>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="flag">Loan on watch list, in arrears or accelerated</label>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="any">Any property Yardi covers</label></div>
+      <div class="fp-sec" id="fb_yardi_rate_sec"><div class="fp-h">Yardi Improvement Rating</div><p class="fp-d">Yardi's grade for the building itself (A newest and best kept, C/D dated).</p>
+        <div class="fp-row" style="gap:14px"><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="A">A</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="B">B</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="C">C</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="D">D</label></div></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
 </div>
@@ -751,6 +774,12 @@ function dqLevel(v){var x=String(v||"").trim();
   if(/^(30 days|60 days|90\+ days|foreclosure|reo|nonperf mat balloon)$/i.test(x))return 2;
   if(/^< ?1 month$/i.test(x))return 1;
   return 0;}
+// Yardi "Property Special Status" is a comma list. Loan flags among them:
+const YARDI_FLAGS=[{re:/notice of acceleration/i,s:95,label:'Notice of acceleration on the loan'},
+  {re:/loan in arrears/i,s:90,label:'CMBS loan in arrears'},{re:/watch ?list/i,s:65,label:'CMBS loan on the watch list'}];
+function yardiStatus(y){return String((y&&y.property_special_status)||'').split(',').map(x=>x.trim()).filter(Boolean);}
+function yardiCritical(y){return yardiStatus(y).some(x=>/notice of acceleration|loan in arrears/i.test(x));}
+function yardiRows(p){return p._yardiAll||(p._yardi?[p._yardi]:[]);}
 function scoreProperty(p){
   const details=[];const t=p._trepp;const catScores={};
   // HOLD PERIOD
@@ -840,6 +869,12 @@ function scoreProperty(p){
     if(periodsPast>0&&!effectiveMat)dSignals.push({s:85,label:`${IC.trepp}Trepp: ${Math.round(periodsPast)} period${periodsPast!==1?'s':''} past maturity`,trepp:true});
     if(dSignals.length===0)dSignals.push({s:0,label:`${IC.trepp}Trepp: Loan current — no distress signals`,trepp:true});
   } else if(dSignals.length===0){dSignals.push({s:0,label:'No distress signals on record (no Trepp data)'});}
+  const y=p._yardi;
+  if(y){
+    const ys=[];
+    yardiRows(p).forEach(yy=>yardiStatus(yy).forEach(st=>{const f=YARDI_FLAGS.find(f=>f.re.test(st));if(f&&!ys.some(x=>x.s===f.s))ys.push({s:f.s,label:`Yardi: ${IC.alert}${f.label} (${st})`});}));
+    if(ys.length){dSignals=dSignals.filter(d=>!(d.s===0&&/^No distress signals on record/.test(d.label)));dSignals.push(...ys);}
+  }
   const maxDist=Math.max(...dSignals.map(d=>d.s));
   dSignals.forEach(d=>details.push({cat:'Distress',label:d.label,trepp:!!d.trepp}));
   if(maxDist>0)catScores.distress=maxDist;
@@ -853,16 +888,24 @@ function scoreProperty(p){
   if(t&&t.debt_yield_noi){const dy=parseFloat(t.debt_yield_noi);if(!isNaN(dy)&&dy>0){if(dy<6)mSignals.push({s:40,label:`${IC.trepp}Trepp: Debt yield ${dy.toFixed(2)}% — compressed`,trepp:true});else mSignals.push({s:0,label:`${IC.trepp}Trepp: Debt yield ${dy.toFixed(2)}%`,trepp:true});}}
   const yrB=parseFloat(p.year_built||t?.year_built);
   if(!isNaN(yrB)){const age=new Date().getFullYear()-Math.round(yrB);const lastReno=parseFloat(p.year_renovated||t?.renovation_year);const yearsAgoReno=!isNaN(lastReno)?new Date().getFullYear()-Math.round(lastReno):null;const noRecentReno=yearsAgoReno===null||yearsAgoReno>10;if(age>60&&noRecentReno)mSignals.push({s:30,label:`Aging building: built ${Math.round(yrB)} (${age} yrs), no renovation in last 10 yrs`});else if(!isNaN(lastReno))mSignals.push({s:0,label:`Built ${Math.round(yrB)}, renovated ${Math.round(lastReno)}`});}
+  if(y){
+    const ir=String(y.impr_rating||'').trim().toUpperCase(),lr=String(y.loc_rating||'').trim().toUpperCase();
+    if(/^(C|C-|D\+|D|D-|F)$/.test(ir))mSignals.push({s:30,label:`Yardi: improvement rating ${ir}${lr?' (location '+lr+')':''} \u2014 dated building, value-add candidate`});
+    else if(ir||lr)mSignals.push({s:0,label:`Yardi: improvement rating ${ir||'?'}, location ${lr||'?'}`});
+    const info=yardiStatus(y).filter(x=>!YARDI_FLAGS.some(f=>f.re.test(x)));
+    if(info.length)mSignals.push({s:0,label:`Yardi status: ${info.join(', ')}`});
+    if(y.special_servicer)mSignals.push({s:0,label:`Yardi: named special servicer ${y.special_servicer} (the deal's designated servicer, not a transfer)`});
+  }
   const maxMkt=Math.max(...mSignals.map(m=>m.s),0);
   mSignals.forEach(m=>details.push({cat:'Market',label:m.label,trepp:!!m.trepp}));
   if(maxMkt>0)catScores.marketSignals=maxMkt;
-  const sources=[];if(p._hasCostar)sources.push(`CoStar (${p._matchMethod})`);if(t)sources.push('Trepp');
+  const sources=[];if(p._hasCostar)sources.push(`CoStar (${p._matchMethod})`);if(t)sources.push('Trepp');if(y)sources.push(`Yardi (${p._yardiMatch||'matched'})`);
   details.push({cat:'Market',label:sources.length?`Data sources: ${sources.join(', ')}`:'Data source: Reonomy only'});
   // WEIGHTED FINAL — pressure-gated
   const w=getWeights();
   const weightMap={holdPeriod:w.holdPeriod,loanMaturity:w.loanMaturity,distress:w.distress,marketSignals:w.marketSignals};
   const distressScore=catScores.distress??0,maturityScore=catScores.loanMaturity??0,holdScore=catScores.holdPeriod??0,marketScore=catScores.marketSignals??0;
-  const tCritical=t&&((t.spec_serv_status||'').toLowerCase()==='yes'||(t.reo_date&&t.reo_date!=='-')||(t.bankruptcy_date&&t.bankruptcy_date!=='-')||dqLevel(t.delinquency_status)===2);
+  const tCritical=(t&&((t.spec_serv_status||'').toLowerCase()==='yes'||(t.reo_date&&t.reo_date!=='-')||(t.bankruptcy_date&&t.bankruptcy_date!=='-')||dqLevel(t.delinquency_status)===2))||yardiRows(p).some(yardiCritical);
   const pressureExists=distressScore>0||maturityScore>0||tCritical;
   let finalScore,scoringMode;
   if(pressureExists){let weightedSum=0,wAvailable=0;for(const [cat,score] of Object.entries(catScores)){weightedSum+=score*weightMap[cat];wAvailable+=weightMap[cat];}finalScore=wAvailable>0?Math.round(weightedSum/wAvailable):0;scoringMode='pressure';}
@@ -870,7 +913,7 @@ function scoreProperty(p){
   const tier=finalScore>=70?'hot':finalScore>=50?'warm':finalScore>=30?'watch':'cold';
   const cats={holdPeriod:holdScore,loanMaturity:maturityScore,distress:distressScore,marketSignals:marketScore};
   if(scoringMode==='no-pressure')details.push({cat:'Score',label:'No active pressure signals — score capped at Watch (max 49). Hold period and market signals shown for context only.'});
-  else{const missing=4-Object.keys(catScores).length;if(missing>0)details.push({cat:'Score',label:`Score renormalized — ${Object.keys(catScores).length} of 4 categories have data`});if(tCritical&&!catScores.loanMaturity&&!catScores.holdPeriod)details.push({cat:'Score',label:`${IC.trepp}Trepp critical flag present — pressure gate bypassed, full distress scoring applied`});}
+  else{const missing=4-Object.keys(catScores).length;if(missing>0)details.push({cat:'Score',label:`Score renormalized — ${Object.keys(catScores).length} of 4 categories have data`});if(tCritical&&!catScores.loanMaturity&&!catScores.holdPeriod)details.push({cat:'Score',label:`Critical distress flag present (${t&&!yardiRows(p).some(yardiCritical)?'Trepp':yardiRows(p).some(yardiCritical)&&!t?'Yardi':'Trepp/Yardi'}) — pressure gate bypassed, full distress scoring applied`});}
   return {score:finalScore,tier,details,cats};
 }
 </script>
@@ -957,11 +1000,18 @@ async function loadData(){
   {const ll=document.getElementById('loadingList');if(ll)ll.style.display='block';}  // gone if a filter was touched mid-load
   const _t0=performance.now();
   await loadManifest();
-  let [props,trepps,costarArr]=await Promise.all([
+  let [props,trepps,costarArr,yardiArr]=await Promise.all([
     dataFetch('data_reonomy.json').then(r=>r.json()),
     dataFetch('data_trepp.json').then(r=>r.json()),
     dataFetch('data_costar.json').then(r=>r.json()),
+    dataFetch('data_yardi.json').then(r=>r.json()).catch(()=>[]),   // optional: no file = no Yardi for this market
   ]);
+  if(!Array.isArray(yardiArr))yardiArr=[];
+  // Yardi text reaches cards, tooltips and score lines as HTML: drop < > " `
+  yardiArr.forEach(y=>{for(const k in y)if(typeof y[k]==='string')y[k]=y[k].replace(/[<>"`]/g,'');});
+  // Yardi filters only where this market has Yardi data
+  {const has=yardiArr.length>0;['fb_yardi_sec','fb_yardi_rate_sec'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=has?'':'none';});
+   if(!has)document.querySelectorAll('.fb-ys,.fb-yr').forEach(c=>{c.checked=false;});}
   window.__lidLoadSecs=(performance.now()-_t0)/1000;
   console.info('[LoanID] '+RD()+' data loaded in '+window.__lidLoadSecs.toFixed(1)+'s'+(window.__lidManifest?' (versioned, cacheable)':' (no manifest, uncached)'));
   // Normalize unit counts so "276.0" renders as "276"
@@ -1179,6 +1229,151 @@ async function loadData(){
       allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
     });
   }
+  // ── Yardi Matrix: one row per apartment property (50+ units) with owner,
+  // manager and special-servicer contacts. No parcel number, so each row is
+  // paired with a property shown above, best pairs first:
+  //   1 street address (incl. a no-quadrant address within 300 m)
+  //   2 building name (within 400 m; anywhere if the units agree)
+  //   3 map pin within 30 m, nearest first
+  //   4 map pin 30-120 m, only when the units agree AND the names share a word
+  //     or the property is big (150+ units)
+  // Tiers 2-4 also need a plausible size: Yardi's count may not exceed 1.6x
+  // what the property (or its same-owner sibling parcels within 250 m) holds.
+  // A second Yardi phase on an already-taken property attaches to it too.
+  // Rows left over become "Yardi only" properties.
+  let yardiMatchCount=0,yardiOnlyCount=0;
+  {
+    const YW={street:'st',avenue:'ave',place:'pl',terrace:'ter',road:'rd',drive:'dr',court:'ct',lane:'ln',boulevard:'blvd',circle:'cir',parkway:'pkwy',square:'sq',highway:'hwy',northwest:'nw',northeast:'ne',southwest:'sw',southeast:'se',north:'n',south:'s',east:'e',west:'w',douglass:'douglas',eye:'i'};
+    const yAddr=a=>{
+      let x=String(a||'').toLowerCase().replace(/\s*(#|\b(unit|apt|ste|suite)\b).*$/,'').replace(/\s+1\/2\b/,'').replace(/[.,]/g,' ')
+        .replace(/\b[a-z]+\b/g,w=>YW[w]||w).replace(/\s+/g,' ').trim();
+      x=x.replace(/^(\d+\w*) (nw|ne|sw|se) (.+)$/,'$1 $3 $2')                    // "1301 NW M Street"
+         .replace(/\b(st|ave|rd|pl|ter|dr|ct|ln|blvd) (e|n)$/,(m,t,d)=>t+' s'+d)    // "Street East" in DC = SE
+         .replace(/\bgood hope rd\b/,'marion barry ave');                          // renamed 2020
+      return x;
+    };
+    const noQuad=k=>k.replace(/ (nw|ne|sw|se)$/,'');
+    const yName=n=>String(n||'').toLowerCase().replace(/^(.*),\s*the$/,'the $1').replace(/[^a-z0-9 ]/g,' ').replace(/\b(the|apartments?|apts?|homes|residences?|at|of|and|on)\b/g,' ').replace(/\s+/g,' ').trim();
+    const STOP=new Set(['llc','inc','lp','ltd','limited','partnership','corp','corporation','co','company','the','trust','associates','assoc','owner','apartments','apartment','of','and','dc','ii','iii','iv','phase','street','st','ave','avenue','house','tower','towers','park','place','court','gardens','manor','residences','llp','fund','properties','property','holdings','realty','group','partners','development','housing','washington','north','south','east','west']);
+    const toks=t=>String(t||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>=4&&!STOP.has(w)&&!/^\d+$/.test(w));
+    const num=v=>{const n=parseFloat(v);return isNaN(n)||n<=0?null:n;};
+    const pinOf=p=>{const a=parseFloat(p.latitude),b=parseFloat(p.longitude);return isNaN(a)||isNaN(b)?null:[a,b];};
+    // same-owner sibling parcels within 250 m: a complex Reonomy splits into parcels
+    const ownerKey=o=>{const t=String(o||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w&&!STOP.has(w));
+      const k=t.join(' ');return !k||/district|housing authority|dcha|columbia housing|government|united states|wmata|metropolitan area transit|national park/.test(String(o).toLowerCase())?'':k;};
+    const byOwner=new Map();
+    allData.forEach(p=>{if(p._source!=='reonomy'&&p._source!=='both')return;const k=ownerKey(p.reported_owner_name),q=pinOf(p);if(!k||!q)return;let l=byOwner.get(k);if(!l)byOwner.set(k,l=[]);l.push(p);});
+    const sibCache=new Map();
+    const siblings=p=>{if(sibCache.has(p))return sibCache.get(p);let out=[];const k=(p._source==='reonomy'||p._source==='both')?ownerKey(p.reported_owner_name):'',q=pinOf(p);
+      if(k&&q)out=(byOwner.get(k)||[]).filter(o=>o!==p&&haversineMeters(q[0],q[1],+o.latitude,+o.longitude)<=250);sibCache.set(p,out);return out;};
+    const groupUnits=p=>[p,...siblings(p)].reduce((t,o)=>t+(num(o.total_units)||0),0);
+    const counts=p=>[p.total_units,p._reonomy_units,p._trepp&&p._trepp.number_of_units,p._costar&&p._costar.number_of_units].map(num).filter(Boolean);
+    const near=(a,b)=>Math.abs(a-b)<=Math.max(3,0.1*a);
+    const unitsAgree=(yu,p)=>!!yu&&(counts(p).some(u=>near(yu,u))||(siblings(p).length>0&&Math.abs(groupUnits(p)-yu)<=Math.max(3,0.15*yu)));
+    const plausible=(yu,p)=>{if(!yu)return true;const cap=Math.max(0,...counts(p),groupUnits(p));return !cap||yu<=1.6*cap;};
+    const nameWords=p=>new Set([bldgName(p),p._trepp&&p._trepp.property_name,p._costar&&p._costar.property_name,p.reported_owner_name].flatMap(toks));
+    const byAddr=new Map(),byAddrNQ=new Map(),byName=new Map(),grid={},G=500;   // grid cells ~0.002 deg (170-220 m)
+    const put=(m,k,p)=>{if(!k)return;let x=m.get(k);if(!x)m.set(k,x=new Set());x.add(p);};
+    allData.forEach(p=>{
+      [p.address_line_1,p._trepp&&p._trepp.address,p._costar&&p._costar.property_address].forEach(a=>addrVariantsLD(a||'').forEach(v=>{const k=yAddr(v);put(byAddr,k,p);put(byAddrNQ,noQuad(k),p);}));
+      [p._trepp&&p._trepp.property_name,p._costar&&p._costar.property_name].forEach(n=>{const k=yName(n);if(k.length>=4&&!/^\d/.test(k))put(byName,k,p);});
+      const q=pinOf(p);if(q){const k=Math.floor(q[0]*G)+'_'+Math.floor(q[1]*G);(grid[k]=grid[k]||[]).push([p,q[0],q[1]]);}
+    });
+    const pairs=[],cands=new Map();
+    yardiArr.forEach(y=>{
+      const yu=num(y.units),yq=pinOf(y),yWords=new Set(toks(yardiName(y.property_name)).concat(toks(y.owner)));
+      const dist=p=>{const q=pinOf(p);return yq&&q?haversineMeters(yq[0],yq[1],q[0],q[1]):null;};
+      const seen=new Set(),mine=[];
+      const add=(p,tier,how,d)=>{if(seen.has(p))return;seen.add(p);const m={y,p,tier,how,agree:unitsAgree(yu,p)?0:1,d:d==null?1e9:d};pairs.push(m);mine.push(m);};
+      const yCity=String(y.city||'').toLowerCase().trim();
+      const sameCity=p=>{const c=String(p.address_city||(p._trepp&&p._trepp.city)||(p._costar&&p._costar.portfolio_city)||'').toLowerCase().trim();return !yCity||!c||c===yCity;};
+      addrVariantsLD(y.address||'').forEach(v=>{const k=yAddr(v);
+        const x=byAddr.get(k);if(x)x.forEach(p=>{const d=dist(p);if(sameCity(p)&&(d===null||d<=2000||unitsAgree(yu,p)))add(p,1,'address',d);});
+        if(!/ (nw|ne|sw|se)$/.test(k)){const z=byAddrNQ.get(k);if(z)z.forEach(p=>{const d=dist(p);if(d!==null&&d<=300&&sameCity(p))add(p,1,'address',d);});}});
+      const nk=yName(y.property_name);
+      if(nk.length>=4&&!/^\d/.test(nk)){const x=byName.get(nk);if(x)x.forEach(p=>{const d=dist(p);if(((d!==null&&d<=400)||(d===null&&unitsAgree(yu,p)))&&plausible(yu,p))add(p,2,'name',d);});}
+      if(yq){const ga=Math.floor(yq[0]*G),gb=Math.floor(yq[1]*G);
+        for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)for(const q of grid[(ga+i)+'_'+(gb+j)]||[]){
+          const p=q[0];if(seen.has(p))continue;const d=haversineMeters(yq[0],yq[1],q[1],q[2]);
+          if(!plausible(yu,p)){if(d<=15)add(p,3,'map pin',d);continue;}
+          if(d<=30)add(p,3,'map pin',d);
+          else if(d<=120&&unitsAgree(yu,p)&&((yu||0)>=150||[...nameWords(p)].some(w=>yWords.has(w))))add(p,4,'map pin',d);}}
+      cands.set(y,mine);
+    });
+    // address and name: units agreement first, then distance. Pins: nearest first.
+    pairs.sort((a,b)=>a.tier-b.tier||(a.tier<=2?a.agree-b.agree:0)||a.d-b.d||a.agree-b.agree);
+    const usedY=new Set(),owner=new Map();   // property -> Yardi rows attached
+    pairs.forEach(m=>{if(usedY.has(m.y)||owner.has(m.p))return;usedY.add(m.y);owner.set(m.p,[m]);});
+    // second phase / second building on a property another Yardi row already
+    // took: attach it too when it shares the address or a 30 m pin and the
+    // combined Yardi units still fit the property
+    yardiArr.forEach(y=>{
+      if(usedY.has(y))return;
+      const yu=num(y.units)||0;
+      let best=(cands.get(y)||[]).filter(m=>(m.tier===1||m.tier===3)&&owner.has(m.p)).sort((a,b)=>a.tier-b.tier||a.d-b.d)[0];
+      if(!best){const yq=pinOf(y),nw=toks(yardiName(y.property_name));
+        if(yq&&nw.length)owner.forEach((l,p)=>{if(best)return;const q=pinOf(p),t=p._trepp;if(!q||!t)return;
+          const lw=new Set(toks(t.property_name).concat(toks(t.loan_name)));const d=haversineMeters(yq[0],yq[1],q[0],q[1]);
+          if(d<=300&&nw.some(w=>w.length>=5&&lw.has(w)))best={y,p,tier:5,how:'loan name',d};});}
+      if(!best||!owner.has(best.p))return;
+      const list=owner.get(best.p),tot=list.reduce((t,m)=>t+(num(m.y.units)||0),0)+yu,cap=Math.max(0,...counts(best.p),groupUnits(best.p));
+      if(cap&&tot<=1.25*cap){list.push(best);usedY.add(y);}
+    });
+    const rescore=p=>{delete p._bname;delete p._sx;const r=scoreProperty(p);p._score=r.score;p._tier=r.tier;p._details=r.details;p._cats=r.cats;};
+    owner.forEach((list,p)=>{
+      const y=list[0].y;
+      p._yardi=y;p._yardiAll=list.map(m=>m.y);yardiMatchCount+=list.length;
+      p._yardiMatch=list[0].how+(list[0].d<1e9?`, ${Math.round(list[0].d)} m away`:'')+(list.length>1?` (+${list.length-1} more Yardi propert${list.length>2?'ies':'y'} here)`:'');
+      // Units. When this parcel holds well under Yardi's count and nearby
+      // same-owner parcels (nearest first) make up the rest, it is a complex:
+      // each parcel keeps its own count, so the complex is not counted twice,
+      // and the drawer names the complex on each. Otherwise Yardi's count
+      // replaces ours when ours is under half of it, when Trepp or CoStar agree
+      // with Yardi (either direction), or when ours is a runaway 500+ count at
+      // 4x or more. A smaller overcount stays: it is usually a second building
+      // or phase on the same parcel.
+      const yu=list.reduce((t,m)=>t+(num(m.y.units)||0),0)||null,cu=num(p.total_units);
+      let picked=[];
+      if(yu&&(cu||0)<0.8*yu&&p._source!=='trepp'&&p._source!=='costar'){
+        const q=pinOf(p);let sum=cu||0;
+        for(const o of siblings(p).slice().sort((a,b)=>haversineMeters(q[0],q[1],+a.latitude,+a.longitude)-haversineMeters(q[0],q[1],+b.latitude,+b.longitude))){
+          if(owner.has(o)||o._partOfYardi)continue;const u=num(o.total_units);if(!u||sum+u>1.2*yu)continue;
+          picked.push(o);sum+=u;if(sum>=0.8*yu)break;}
+        if(sum<0.8*yu)picked=[];
+      }
+      if(picked.length){
+        p._yardiComplex={units:yu,parcels:picked.length+1};
+        picked.forEach(o=>{o._partOfYardi={name:yardiName(y.property_name),units:yu,id:p.id};});
+      }else if(yu){
+        const ref=[p._trepp&&p._trepp.number_of_units,p._costar&&p._costar.number_of_units].map(num).filter(Boolean);
+        const agrees=ref.some(u=>near(yu,u))&&!near(yu,cu);
+        if(plausible(yu,p)&&(!cu||yu>2*cu||(cu>=500&&cu>=4*yu)||agrees)){
+          const was=p._source==='trepp'?'Trepp':p._source==='costar'?'CoStar':(p._reonomy_units!==undefined&&String(p._reonomy_units)!==String(p.total_units))?'Trepp':'Reonomy parcel';
+          p._units_from={was:p.total_units,wasSrc:was};p.total_units=yu;
+        }
+      }
+      const yb=parseInt(String(y.completion_date||'').slice(0,4),10);
+      if(!num(p.year_built)&&yb>1700)p.year_built=yb;
+      if(!num(p.gross_building_area)&&num(y.sqft))p.gross_building_area=num(y.sqft);
+      if(!p.submarket_name&&y.submarket)p.submarket_name=y.submarket;
+      if(!p._hasSF){const sy=list.map(m=>m.y).find(z=>z.sf_contacts_json||z.sf_ownership_entity||z.sf_owner_name);
+        if(sy){for(const k in sy)if(k.indexOf('sf_')===0)p[k]=sy[k];decorateSF(p);}}
+      rescore(p);
+    });
+    yardiArr.forEach(y=>{
+      if(usedY.has(y))return;
+      const la=parseFloat(y.latitude),lo=parseFloat(y.longitude),yb=parseInt(String(y.completion_date||'').slice(0,4),10);
+      const pseudo={id:`yardi_${y.id}`,address_line_1:y.address||y.property_name,address_city:y.city,address_state:y.state,address_postal_code:y.zip||null,
+        address_full:[y.address||y.property_name,y.city,y.state].filter(Boolean).join(', '),property_type:'Multifamily',
+        year_built:yb>1700?yb:null,total_units:num(y.units),gross_building_area:num(y.sqft),submarket_name:y.submarket||null,
+        reported_owner_name:y.owner||null,latitude:isNaN(la)?null:la,longitude:isNaN(lo)?null:lo,
+        _trepp:null,_costar:null,_hasCostar:false,_matchMethod:null,_yardi:y,_yardiAll:[y],_yardiMatch:'standalone',_source:'yardi'};
+      for(const k in y)if(k.indexOf('sf_')===0)pseudo[k]=y[k];   // Salesforce match stamped on the Yardi row
+      yardiOnlyCount++;
+      const {score,tier,details,cats}=scoreProperty(pseudo);
+      allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
+    });
+  }
   const total=allData.length;
   document.getElementById('totalBadge').textContent=total.toLocaleString();
   const _sfKeys=new Set();allData.forEach(p=>{if(!p._hasSF)return;const lat=parseFloat(p.latitude),lng=parseFloat(p.longitude);const key=normalizeAddr((p.address_line_1||p.address||p._trepp?.address||'')+' '+(p.address_city||p.city||''))||((!isNaN(lat)&&!isNaN(lng))?(Math.round(lat*1e5)+'_'+Math.round(lng*1e5)):('id_'+p.id));_sfKeys.add(key);});const sfMatchCount=_sfKeys.size;
@@ -1201,10 +1396,11 @@ async function loadData(){
       if(!p._hasCostar||!(p._costar&&p._costar.price_per_unit)){p.price_per_unit=null;}
     });
   });
-  document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only · ${costarOnlyCount} CoStar-only`;
+  document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only · ${costarOnlyCount} CoStar-only${yardiArr.length?` · ${yardiMatchCount} Yardi · ${yardiOnlyCount} Yardi-only`:''}`;
   window.__srcUploads={};
   if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};window.__renderSrcInfo(__sd);dataFetch('data_salesforce.json').then(function(r){return r.ok?r.json():null;}).then(function(j){var up={},src=(j&&j.sources)||{};
-      [['reonomy','Reonomy'],['costar','CoStar'],['trepp','Trepp']].forEach(function(x){if(src[x[0]])up[x[1]]=new Date(src[x[0]]);});
+      [['reonomy','Reonomy'],['costar','CoStar'],['trepp','Trepp'],['yardi','Yardi']].forEach(function(x){if(src[x[0]])up[x[1]]=new Date(src[x[0]]);});
+      if(yardiArr.length&&up['Yardi'])__sd['Yardi']=up['Yardi'];
       if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);up['Salesforce']=new Date(j.uploaded_at);}
       window.__srcUploads=up;window.__renderSrcInfo(__sd);}).catch(function(){});}
   setLoading(false);
@@ -1297,11 +1493,13 @@ document.getElementById('listPanel').addEventListener('scroll',function(){
 // Building name for the title: Trepp first, then CoStar. Skips names that only
 // restate the street address ("4830 Chevy Chase Drive") and CoStar placeholders.
 const STREET_END=/\b(st|street|ave|avenue|dr|drive|rd|road|pl|place|ter|terrace|blvd|boulevard|ln|lane|way|ct|court|cir|circle|pkwy|parkway|hwy|highway|pike|sq|square)\.?(\s+(nw|ne|sw|se|n|s|e|w|north|south|east|west|northwest|northeast|southwest|southeast))?$/i;
+// Yardi files names as "Colonnade, The"; show "The Colonnade".
+function yardiName(n){const s=String(n||'').trim();const m=s.match(/^(.*),\s*(the|la|le|el)$/i);return m?m[2].charAt(0).toUpperCase()+m[2].slice(1).toLowerCase()+' '+m[1]:s;}
 function bldgName(p){
   if(p._bname!==undefined)return p._bname;
   const addr=normalizeAddr(p.address_line_1||p.address||'');
   let out=null;
-  for(const raw of [p._trepp?.property_name,p._costar?.property_name]){
+  for(const raw of [yardiName(p._yardi&&p._yardi.property_name),p._trepp?.property_name,p._costar?.property_name]){
     const n=String(raw||'').replace(/\s*\(part of .*portfolio\)\s*$/i,'').trim();
     if(!n||/^multi-property sale$|^\d+\s+unit apartment building$/i.test(n))continue;
     const k=normalizeAddr(n);
@@ -1335,6 +1533,7 @@ function searchIndex(p){
   add('Trepp',p._trepp);
   (p._trepp&&p._trepp._loanHistory||[]).forEach(l=>add('Trepp (older loan)',l));
   add('CoStar',p._costar);
+  yardiRows(p).forEach(yy=>add('Yardi',yy));
   (p._sfContacts||[]).forEach(c=>{if(c.name)fields.push(['Salesforce','contact',c.name]);(c.emails||[]).forEach(e=>fields.push(['Salesforce','email',e]));(c.phones||[]).forEach(f=>fields.push(['Salesforce','phone',f]));});
   return p._sx={fields,all:fields.map(f=>f[2].toLowerCase()).join('\n')};
 }
@@ -1355,8 +1554,8 @@ function propCard(p){
   const city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(', ');
   const subtype=p.property_subtype||p._trepp?.trepp_subtype||'';
   const units=p.total_units||p._trepp?.number_of_units||null;
-  const srcLabel=p._source==='trepp'?'Trepp only':p._source==='costar'?'CoStar only':p._trepp?'Reonomy + Trepp':'Reonomy';
-  const srcCls=p._source==='trepp'?'trepp':p._source==='costar'?'costar':p._trepp?'both':'reonomy';
+  const srcLabel=p._source==='trepp'?'Trepp only':p._source==='costar'?'CoStar only':p._source==='yardi'?'Yardi only':p._trepp?'Reonomy + Trepp':'Reonomy';
+  const srcCls=p._source==='trepp'?'trepp':p._source==='costar'?'costar':p._source==='yardi'?'yardi':p._trepp?'both':'reonomy';
   const chips=buildChips(p);
   return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${name||addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${name?`<span>${addr}${city?', '+city:''}</span>`:city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${searchHitLine(p)}${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
 }
@@ -1739,7 +1938,7 @@ function openDrawer(p){
   const catLabels={holdPeriod:'Hold',loanMaturity:'Maturity',distress:'Distress',marketSignals:'Market'};
   const catBars=Object.entries(p._cats).map(([k,v])=>`<div class="sb-row"><span class="sb-cat">${catLabels[k]||k}</span><div class="sb-bar-wrap"><div class="sb-bar ${k==='holdPeriod'?'hold':k==='loanMaturity'?'maturity':k==='distress'?'distress':'market'}" style="width:${v}%"></div></div><span class="sb-score">${v}</span></div>`).join('');
   const reasonsList=p._details.length?`<ul class="sb-reasons">${p._details.map(d=>`<li class="${d.trepp?'trepp-signal':''}">${d.label}</li>`).join('')}</ul>`:'<p style="font-size:12px;color:var(--text2)">No specific signals detected</p>';
-  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${bldgName(p)||addr}</div><div class="dd-sub">${bldgName(p)?addr+(city?', '+city:''):city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div>${(()=>{const u=parseFloat(p.total_units||p._trepp?.number_of_units||p._costar?.number_of_units||'');return isNaN(u)||u<=0?'':`<div class="dd-units">${Math.round(u).toLocaleString()} units</div>`;})()}</div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}${buildPortfolioNote(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div>${buildAssessed(p)}<div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
+  document.getElementById('drawerContent').innerHTML=`<div class="dd-header"><div style="flex:1;min-width:0"><div class="dd-title">${bldgName(p)||addr}</div><div class="dd-sub">${bldgName(p)?addr+(city?', '+city:''):city||''}${p.property_subtype||p._trepp?.trepp_subtype?` · ${p.property_subtype||p._trepp?.trepp_subtype}`:''}</div>${(()=>{const u=parseFloat(p.total_units||p._trepp?.number_of_units||p._costar?.number_of_units||'');return isNaN(u)||u<=0?'':`<div class="dd-units">${Math.round(u).toLocaleString()} units</div>`;})()}</div><div class="dd-score-big ${p._tier}"><div class="ddsb-num">${p._score}</div><div class="ddsb-label">${tierLabel}</div></div><button class="dd-close" onclick="closeDrawer()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="dd-body">${buildSalesforceContacts(p)}${buildYardiContacts(p)}${buildPortfolioNote(p)}<div class="dd-section"><div class="dd-section-title">Score Breakdown</div><div class="score-breakdown">${catBars}</div><div class="dd-section-title" style="margin-top:8px">Why this score?</div>${reasonsList}</div>${buildAssessed(p)}<div class="dd-section"><div class="dd-section-title">Property Details</div>${buildDetailGrid(p)}</div>${buildContacts(p)?`<div class="dd-section"><div class="dd-section-title">Contacts</div>${buildContacts(p)}</div>`:''}${p.link?`<div class="dd-section"><a href="${p.link}" target="_blank" class="reo-link">View on Reonomy <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:middle"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a></div>`:''}</div>`;
   document.getElementById('detailDrawer').classList.add('open');
   document.getElementById('backdrop').classList.add('show');
 }
@@ -1750,11 +1949,14 @@ function buildDetailGrid(p){
   const sec=(title,cls,rows)=>{const f=rows.filter(r=>r&&r[1]!=null&&r[1]!==''&&r[1]!==undefined);if(!f.length)return '';return `<div class="dg-section-head ${cls}">${title}</div>`+f.map(([lbl,val,full,valCls])=>`<div class="dg-item${full?' full':''}"><div class="dg-label">${lbl}</div><div class="dg-val${valCls?' '+valCls:''}">${val}</div></div>`).join('');};
   const dscr=t?parseFloat(t.dscr_noi):null,ltv=t?parseFloat(t.ltv):null;
   const dscrCls=dscr?dscr<1.0?'warn':dscr<1.25?'caution':'ok':null;const ltvCls=ltv?ltv>90?'warn':ltv>80?'caution':'ok':null;
-  const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',(p.total_units||t?.number_of_units)&&p._reonomy_units!==undefined&&String(p._reonomy_units)!==String(p.total_units)?`${p.total_units} (Trepp; Reonomy parcel: ${p._reonomy_units||'?'})`:p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
+  const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',p._units_from?`${p.total_units} (Yardi; ${p._units_from.wasSrc}: ${p._units_from.was||'?'})`:(p.total_units||t?.number_of_units)&&p._reonomy_units!==undefined&&String(p._reonomy_units)!==String(p.total_units)?`${p.total_units} (Trepp; Reonomy parcel: ${p._reonomy_units||'?'})`:p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
   sec('Sale Data','sale',[['Sale Price',fmtMoney(p.sale_amount)],['Sale Date',fmtDate(p.sale_recorded_date)],['Price/SF',p.sales_price_per_sf?`$${parseFloat(p.sales_price_per_sf).toFixed(2)}`:null],['Price/Unit',fmtMoney(p.price_per_unit)],['Source',p._hasCostar?`CoStar (${p._matchMethod})`:'Reonomy'],p._hasCostar?['Prior Sale (Reo)',fmtMoney(p._reonomy_sale_amount)]:null])+
   (t?sec('Trepp Loan Data','trepp',[['Property Name',t.property_name,true],['Loan Name',t.loan_name,true],['Source',t.source],['Matched by',p._treppMatch],['Assumable',window.isAssumable&&isAssumable(p)?'Yes, '+t.source+' loan (lender approval required)':null],['Originator',t.originator],['Origination Date',fmtDate(t.origination_date)],['Current Balance',fmtMoney(t.current_balance)],['Original Balance',fmtMoney(t.original_balance)],['Loan Rate',t.loan_rate?t.loan_rate+'%':null],['Rate Type',t.rate_type],['Amortization',t.amortization_type],['Loan Purpose',t.loan_purpose],['Maturity Date',fmtDate(t.maturity_date)],['UW Maturity',fmtDate(t.uw_maturity_date)],['Remaining Term',t.remaining_term?t.remaining_term+' months':null],['Periods Past Mat.',t.periods_past_maturity>0?t.periods_past_maturity:null],['DSCR (NOI)',dscr?dscr.toFixed(2):null,false,dscrCls],['DSCR (NCF)',t.dscr_ncf?parseFloat(t.dscr_ncf).toFixed(2):null],['LTV',ltv?ltv.toFixed(1)+'%':null,false,ltvCls],['Debt Yield (NOI)',t.debt_yield_noi?parseFloat(t.debt_yield_noi).toFixed(2)+'%':null],['Occupancy',t.occupancy_pct?parseFloat(t.occupancy_pct).toFixed(1)+'%':null],['Delinquency',t.delinquency_status&&t.delinquency_status!=='-'?t.delinquency_status:null,false,t&&dqLevel(t.delinquency_status)?'warn':null],['Watchlist',t.watchlist_status&&t.watchlist_status!=='-'?t.watchlist_status:null,false,t?.watchlist_status?.toLowerCase()==='yes'?'caution':null],['Special Servicer',t.spec_serv_status&&t.spec_serv_status!=='-'?t.spec_serv_status:null,false,t?.spec_serv_status?.toLowerCase()==='yes'?'warn':null],['Spec. Serv. Name',t.special_servicer&&t.special_servicer!=='-'?t.special_servicer:null,true],['Transfer Reason',t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?t.special_servicer_transfer_reason:null,true],['Modified',t.modified_loan&&t.modified_loan!=='-'?t.modified_loan:null],['Mod. Type',t.modification_type_servicer&&t.modification_type_servicer!=='-'?t.modification_type_servicer:null,true],['Extension Type',t.extension_type&&t.extension_type!=='-'?t.extension_type:null],['Rem. Extension Periods',t.remaining_extension_option_periods>0?t.remaining_extension_option_periods:null],['NOI',fmtMoney(t.noi)],['NCF',fmtMoney(t.ncf)],['Revenues',fmtMoney(t.revenues)],['Property Appraisal',fmtMoney(t.property_appraisal_value)],['Owner 1',t.owner_1_name&&t.owner_1_name!=='-'?t.owner_1_name:null,true],['Owner 1 Phone',t.owner_1_phone&&t.owner_1_phone!=='-'?t.owner_1_phone:null],['Owner 1 Email',t.owner_1_email&&t.owner_1_email!=='-'?t.owner_1_email:null,true],['Bankruptcy Date',t.bankruptcy_date&&t.bankruptcy_date!=='-'?fmtDate(t.bankruptcy_date):null,false,'warn'],['REO Date',t.reo_date&&t.reo_date!=='-'?fmtDate(t.reo_date):null,false,'warn']]):'<div style="padding:10px 0;font-size:12px;color:var(--text2)">⬡ No Trepp loan data matched for this property</div>')+
   (mat1V||mat2V?sec('Reonomy Mortgage','mortgage',[mat1V?['Lender',p.mortgage_standardized_name||p.mortgage_recorded_name,true]:null,mat1V?['Amount',fmtMoney(p.mortgage_amount)]:null,mat1V?['Maturity',fmtDate(p.mortgage_maturity_date)]:null,mat2V?['Lender 2',p.mortgage2_standardized_name||p.mortgage2_recorded_name,true]:null,mat2V?['Amount 2',fmtMoney(p.mortgage2_amount)]:null,mat2V?['Maturity 2',fmtDate(p.mortgage2_maturity_date)]:null]):'')+
-  (c?sec('CoStar Market Data','costar',[['County',c.property_county],['Submarket',c.submarket_name],['Building Class',c.building_class],['Vacancy',c.vacancy?parseFloat(c.vacancy).toFixed(1)+'%':null],['Cap Rate',c.actual_cap_rate?parseFloat(c.actual_cap_rate).toFixed(2)+'%':null],['Buyer',c.buyer_true_company,true],['Seller',c.seller_true_company,true],['Match',p._matchMethod]]):'');
+  (c?sec('CoStar Market Data','costar',[['County',c.property_county],['Submarket',c.submarket_name],['Building Class',c.building_class],['Vacancy',c.vacancy?parseFloat(c.vacancy).toFixed(1)+'%':null],['Cap Rate',c.actual_cap_rate?parseFloat(c.actual_cap_rate).toFixed(2)+'%':null],['Buyer',c.buyer_true_company,true],['Seller',c.seller_true_company,true],['Match',p._matchMethod]]):'')+
+  yardiRows(p).map(y=>(()=>{const e=v=>String(v==null?'':v).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));const yb=String(y.completion_date||'').slice(0,4);
+    return sec('Yardi Matrix','yardi',[['Property Name',e(yardiName(y.property_name)),true],['Submarket',e(y.submarket)],['Units',y.units],['Year Built',yb||null],['Rentable SF',parseFloat(y.sqft)>0?Math.round(y.sqft).toLocaleString()+' SF':null],
+      ['Improvement Rating',e(y.impr_rating)],['Location Rating',e(y.loc_rating)],['Status',yardiStatus(y).map(e).join(', ')||null,true],['Special Servicer',e(y.special_servicer),true],['Matched by',e(p._yardiMatch)]]);})()).join('');
   return `<div class="detail-grid">${grid}</div>`;
 }
 function hasSF(p){const hasFlat=!!(p.sf_owner_name||p.sf_owner_phone||p.sf_owner_email||p.sf_ownership_entity);let hasJson=false;if(p.sf_contacts_json){try{const cc=JSON.parse(p.sf_contacts_json)||[];hasJson=cc.some(c=>(c.name&&c.name.trim())||(c.phones&&c.phones.length)||(c.emails&&c.emails.length));}catch(e){}}return hasFlat||hasJson;}
@@ -1803,6 +2005,33 @@ function buildPortfolioNote(p){
   if(big)bits.push(`${cu} units in the full complex${nm?' ('+nm+')':''}`);
   if(isPf)bits.push(`recorded sale covered ${p._portfolio.count} parcels${p._portfolio.totalUnits?' with ~'+p._portfolio.totalUnits+' combined units':''}`);
   return `<div class="pf-note"><b>Portfolio:</b> ${bits.join(' · ')}. Parcel-level per-unit sale math is unreliable here.</div>`;
+}
+// Yardi contacts: owner (true owner company, not the deed LLC), manager and,
+// when the loan names one, the special servicer, each with its contact person.
+function buildYardiContacts(p){
+  const e0=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let note='';
+  if(p._yardiComplex)note=`<div class="pf-note"><b>Complex:</b> Yardi counts ${p._yardiComplex.units.toLocaleString()} units across this parcel and ${p._yardiComplex.parcels-1} same-owner parcel${p._yardiComplex.parcels>2?'s':''} nearby. Each parcel keeps its own count so the complex is not counted twice.</div>`;
+  else if(p._partOfYardi)note=`<div class="pf-note"><b>Part of ${e0(p._partOfYardi.name)}</b> (${p._partOfYardi.units.toLocaleString()} units per Yardi), a complex spread over several same-owner parcels. Its Yardi details are on the parcel it matched.</div>`;
+  return note+yardiRows(p).map(y=>yardiBlock(y)).join('');
+}
+function yardiBlock(y){
+  const e=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const ph=v=>{const d=String(v||'').replace(/\D/g,'');return d.length===10?`(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`:String(v||'');};
+  const web=v=>{const w=String(v||'').trim();return w?`<a href="${e(/^https?:/i.test(w)?w:'https://'+w)}" target="_blank" rel="noopener">${e(w.replace(/^https?:\/\//i,'').replace(/\/$/,''))}</a>`:'';};
+  const org=(role,pre)=>{
+    const co=y[pre];if(!co)return '';
+    const who=[y[pre+'_contact_first_name'],y[pre+'_contact_last_name']].filter(Boolean).join(' ');
+    const tel=y[pre+'_contact_phone_number'],mail=y[pre+'_contact_email'];
+    const where=[y[pre+'_address'],y[pre+'_city'],[y[pre+'_state'],y[pre+'_zip']].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const l1=[who?`<b>${e(who)}</b>`:'',tel?`<a href="tel:${String(tel).replace(/\D/g,'')}">${e(ph(tel))}</a>`:'',mail?`<a href="mailto:${e(mail)}">${e(mail)}</a>`:''].filter(Boolean).join('');
+    const l2=[where?`<span>${e(where)}</span>`:'',web(y[pre+'_website'])].filter(Boolean).join('');
+    return `<div class="yd-org"><div class="yd-role">${role}</div><div class="yd-name">${e(co)}</div>${l1?`<div class="yd-line">${l1}</div>`:''}${l2?`<div class="yd-line">${l2}</div>`:''}</div>`;
+  };
+  const body=org('Owner','owner')+org('Manager','manager')+org('Special servicer','special_servicer')+org('Trustee','trustee');
+  const site=y.phone_number?` · property phone <a href="tel:${String(y.phone_number).replace(/\D/g,'')}" style="color:#0f766e">${e(ph(y.phone_number))}</a>`:'';
+  if(!body&&!site)return '';
+  return `<div class="yd-block"><div class="yd-head"><span class="yd-badge">Yardi</span><span class="yd-sub">${e(yardiName(y.property_name))}${site}</span></div>${body}</div>`;
 }
 function buildSalesforceContacts(p){
   if(p._hasSF===undefined)decorateSF(p);
@@ -1944,6 +2173,7 @@ function detect(headers){
   if(h.indexOf("reonomy_id")>=0)return "reonomy";
   if(h.indexOf("Comp ID")>=0)return "costar";
   if(h.indexOf("Primary Contact: Full Name")>=0)return "salesforce";
+  if(h.indexOf("Impr. Rating")>=0&&h.indexOf("Property Special Status")>=0)return "yardi";   // Yardi Matrix Quick Search
   return null;
 }
 function parseFile(buf,fname){
@@ -1959,9 +2189,21 @@ function parseFile(buf,fname){
       if(rows[hr]&&rows[hr].some(function(c){return String(c||"").trim()==="Trepp Real ID";})){hdrRow=hr;src="trepp";break;}
     }
   }
-  if(!src)throw new Error(fname+": could not identify source (need Reonomy, CoStar, Trepp, or a Salesforce report)");
+  if(!src)throw new Error(fname+": could not identify source (need Reonomy, CoStar, Trepp, Yardi, or a Salesforce report)");
   var out=[];
-  if(src==="reonomy"){
+  if(src==="yardi"){
+    // Columns by NAME (snake_case of the header), stored cell values not display
+    // text; date columns become "YYYY-MM-DDT00:00:00". yardi_convert.py mirrors this.
+    var yh=rows[0].map(function(x){return x==null?null:String(x).trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/_+/g,"_").replace(/^_|_$/g,"");});
+    var yraw=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+    for(var iy=1;iy<yraw.length;iy++){var oy={},anyy=false,ry=yraw[iy]||[];
+      for(var jy=0;jy<yh.length;jy++){if(!yh[jy])continue;var vy=ry[jy];
+        if(typeof vy==="number"&&/date/.test(yh[jy])&&vy>0&&vy<80000){var dy=new Date(Math.round((vy-25569)*864e5));vy=isNaN(dy)?null:dy.toISOString().slice(0,10)+"T00:00:00";}
+        else if(vy instanceof Date)vy=vy.toISOString().slice(0,10)+"T00:00:00";
+        else if(typeof vy==="boolean")vy=String(vy);
+        oy[yh[jy]]=vy;if(!isBlank(vy))anyy=true;}
+      if(anyy)out.push(oy);}
+  }else if(src==="reonomy"){
     // Reonomy's xlsx formats money as "$18,550,000.00" and dates as "02/27/23",
     // so read the stored cell values instead of the displayed text: numbers stay
     // numbers, and date columns become "2023-02-27T00:00:00" like the rest of the data.
@@ -2012,6 +2254,23 @@ function keyPart(v){
   return t;
 }
 function keyReonomy(r){if(!isBlank(r.reonomy_id))return "r:"+keyPart(r.reonomy_id);if(!isBlank(r.apn))return "a:"+keyPart(r.apn);return null;}
+// Yardi Quick Search has no property id: name + street address. A Property ID
+// column, if a future export carries one, wins. Same rule in yardi_convert.py.
+function yKeyPart(v){return String(v==null?"":v).toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();}
+function keyYardi(r){var id=r.property_id!=null&&r.property_id!==""?r.property_id:r.yardi_property_id;
+  if(id!=null&&String(id).trim()!=="")return "y:id:"+String(id).trim();
+  var n=yKeyPart(r.property_name),a=yKeyPart(r.address);return (n||a)?"y:"+n+"|"+a:null;}
+// A Yardi export that starts carrying a Property ID: give the matching
+// name+address row that ID first, so the merge updates it instead of adding a twin.
+function yardiAdoptIds(cur,incoming){
+  var idOf=function(r){var v=r.property_id!=null&&r.property_id!==""?r.property_id:r.yardi_property_id;return v!=null&&String(v).trim()!==""?String(v).trim():"";};
+  var na=function(r){return yKeyPart(r.property_name)+"|"+yKeyPart(r.address);};
+  var have=new Set(),byNa=new Map();
+  cur.forEach(function(r){var id=idOf(r);if(id)have.add(id);else byNa.set(na(r),r);});
+  var n=0;
+  incoming.forEach(function(r){var id=idOf(r);if(!id||have.has(id))return;var ex=byNa.get(na(r));if(ex){ex.property_id=id;have.add(id);byNa.delete(na(r));n++;}});
+  return n;
+}
 function keyCostar(r){return isBlank(r.comp_id)?null:"c:"+keyPart(r.comp_id);}
 function keyTrepp(r){var a=isBlank(r.trepp_real_id)?"":keyPart(r.trepp_real_id);var b=isBlank(r.trustee_loan_id)?"":keyPart(r.trustee_loan_id);if(!a&&!b)return null;return "t:"+a+"|"+b;}
 
@@ -2130,10 +2389,10 @@ function sfMatchAll(datasets,csvRows){
     }
     return [null,null];
   }
-  var cfg={reonomy:{addr:"address_line_1",apn:"apn"},trepp:{addr:"address",apn:"assessor_parcel_num"},costar:{addr:"property_address",apn:null}};
+  var cfg={reonomy:{addr:"address_line_1",apn:"apn"},trepp:{addr:"address",apn:"assessor_parcel_num"},costar:{addr:"property_address",apn:null},yardi:{addr:"address",apn:null}};
   var counts={};
-  ["reonomy","trepp","costar"].forEach(function(ds){
-    var rows=datasets[ds],c=cfg[ds],matched=0;
+  ["reonomy","trepp","costar","yardi"].forEach(function(ds){
+    var rows=datasets[ds]||[],c=cfg[ds],matched=0;
     rows.forEach(function(row){
       SF_FIELDS.forEach(function(f){row[f]=null;});
       var res=match(row[c.addr],c.apn?row[c.apn]:null,row.latitude,row.longitude);
@@ -2357,7 +2616,7 @@ var css="#upModalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-ind
 "#upFiles .upf{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f6f6f6;border-radius:7px;margin-bottom:5px}"+
 "#upFiles .upf b{font-size:12.5px}"+
 ".up-src{font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:9px;color:#fff;background:#888}"+
-".up-src.reonomy{background:#4285f4}.up-src.costar{background:#188038}.up-src.trepp{background:#7b3ff2}.up-src.salesforce{background:#00A1E0}"+
+".up-src.reonomy{background:#4285f4}.up-src.costar{background:#188038}.up-src.trepp{background:#7b3ff2}.up-src.salesforce{background:#00A1E0}.up-src.yardi{background:#0f766e}"+
 "#upDetail{display:none;border:1px solid #e0e3e7;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12.5px;line-height:1.5;max-height:260px;overflow:auto}"+
 "#upDetail summary{cursor:pointer;font-weight:600;padding:3px 0}"+
 "#upDetail ul{margin:3px 0 6px 18px;padding:0}"+
@@ -2376,7 +2635,7 @@ var modal=document.createElement("div");
 modal.id="upModalOverlay";
 modal.innerHTML='<div id="upModal">'+
 '<h3>Update LoanID Data</h3>'+
-'<div class="up-sub">Drop any mix of Reonomy / CoStar / Trepp exports or a Salesforce report. Data merges by ID: new rows added, changed fields updated, blanks never overwrite. Partial exports are fine.</div>'+
+'<div class="up-sub">Drop any mix of Reonomy / CoStar / Trepp / Yardi exports or a Salesforce report. Data merges by ID: new rows added, changed fields updated, blanks never overwrite. Partial exports are fine.</div>'+
 '<div id="upDrop">Click or drag files here (.xlsx / .csv)</div>'+
 '<input type="file" id="upFileInput" multiple accept=".xlsx,.xls,.csv" style="display:none">'+
 '<div id="upFiles"></div>'+
@@ -2499,14 +2758,19 @@ async function analyze(){
   var datasets={
     reonomy:await fetchDataset("data_reonomy.json"),
     costar:await fetchDataset("data_costar.json"),
-    trepp:await fetchDataset("data_trepp.json")
+    trepp:await fetchDataset("data_trepp.json"),
+    // every market has a data_yardi.json (maybe []): a failed read aborts like
+    // the other three, rather than publishing this export as the whole file
+    yardi:await fetchDataset("data_yardi.json")
   };
+  if(!Array.isArray(datasets.yardi))datasets.yardi=[];
   var dirty=new Set(),lines=[],sfFile=null,allNew=[],previews=[];
   parsed.forEach(function(p){
     if(p.source==="salesforce"){sfFile=p;return;}
     var stt;
     if(p.source==="reonomy")stt=mergeInto(datasets.reonomy,p.rows,keyReonomy,[]);
     else if(p.source==="costar")stt=mergeInto(datasets.costar,p.rows,keyCostar,COSTAR_NUM);
+    else if(p.source==="yardi"){var nAdopt=yardiAdoptIds(datasets.yardi,p.rows);stt=mergeInto(datasets.yardi,p.rows,keyYardi,["units","sqft","latitude","longitude"]);if(nAdopt){stt.updated+=nAdopt;if(stt.unchanged>=nAdopt)stt.unchanged-=nAdopt;}}
     else stt=mergeInto(datasets.trepp,p.rows,keyTrepp,TREPP_NUM);
     if(stt.added||stt.updated)dirty.add(p.source);
     if(stt.newRows&&stt.newRows.length)stt.newRows.forEach(function(r){allNew.push({row:r,src:p.source});});
@@ -2531,13 +2795,14 @@ async function analyze(){
   if(sfFile){
     prog("Matching Salesforce contacts across all properties...");
     var counts=sfMatchAll(datasets,sfFile.rows);
-    dirty.add("reonomy");dirty.add("costar");dirty.add("trepp");
+    dirty.add("reonomy");dirty.add("costar");dirty.add("trepp");if(datasets.yardi.length)dirty.add("yardi");
     pending.sfMeta={uploaded_at:new Date().toISOString(),counts:counts};
-    lines.push(sfFile.fname+" (salesforce): matched "+counts.reonomy+" Reonomy, "+counts.costar+" CoStar, "+counts.trepp+" Trepp properties");
+    lines.push(sfFile.fname+" (salesforce): matched "+counts.reonomy+" Reonomy, "+counts.costar+" CoStar, "+counts.trepp+" Trepp"+(datasets.yardi.length?", "+counts.yardi+" Yardi":"")+" properties");
   }
   try{var asrLine=await enrichAssessorNew(datasets,dirty,prog);if(asrLine)lines.push(asrLine);}catch(e){lines.push("Assessor enrich skipped: "+e.message);}
   pending.datasets=datasets;pending.dirty=dirty;pending.analyzed=true;
-  var fileMap={reonomy:"data_reonomy.json",costar:"data_costar.json",trepp:"data_trepp.json"};
+  pending.srcs=new Set(parsed.map(function(x){return x.source;}));
+  var fileMap={reonomy:"data_reonomy.json",costar:"data_costar.json",trepp:"data_trepp.json",yardi:"data_yardi.json"};
   var toPush=[];dirty.forEach(function(d){toPush.push(fileMap[d]);});
   lines.push("");
   lines.push(toPush.length?("Will publish: "+toPush.join(", ")):"No changes detected. Nothing to publish.");
@@ -2551,7 +2816,7 @@ async function analyze(){
 }
 
 // "What will change": sample new rows and changed rows per file, before publishing.
-var PREVIEW_FIELDS=["current_balance","maturity_date","delinquency_status","spec_serv_status","loan_rate","occupancy_pct","dscr_noi",
+var PREVIEW_FIELDS=["units","owner","manager","property_special_status","impr_rating","current_balance","maturity_date","delinquency_status","spec_serv_status","loan_rate","occupancy_pct","dscr_noi",
   "sale_price","sale_date","sale_amount","sale_recorded_date","reported_owner_name","number_of_units","total_units","year_built"];
 function escP(v){return String(v==null?"":v).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 function fmtP(v){if(v==null||v==="")return "blank";if(typeof v==="number")return v.toLocaleString();var t=String(v);return t.length>34?t.slice(0,33)+"\u2026":t;}
@@ -2586,7 +2851,7 @@ $("upCommit").addEventListener("click",function(){
   });
 });
 async function doCommit(pw){
-  var fileMap={reonomy:"data_reonomy.json",costar:"data_costar.json",trepp:"data_trepp.json"};
+  var fileMap={reonomy:"data_reonomy.json",costar:"data_costar.json",trepp:"data_trepp.json",yardi:"data_yardi.json"};
   prog("Preparing upload...");
   pending.commits=[];
   var shas=await getShas();
@@ -2607,7 +2872,7 @@ async function doCommit(pw){
     if(!meta||typeof meta!=="object"||Array.isArray(meta))meta={};
     if(pending.sfMeta)Object.assign(meta,pending.sfMeta);
     meta.sources=Object.assign({},meta.sources||{});
-    list.forEach(function(ds){meta.sources[ds]=now;});
+    list.forEach(function(ds){if(!pending.srcs||pending.srcs.has(ds))meta.sources[ds]=now;});   // not files only touched by geocoding / Salesforce
     if(pending.sfMeta)meta.sources.salesforce=now;
     var mres=await commitFile("data_salesforce.json",JSON.stringify(meta),shas["data_salesforce.json"],pw);
     if(mres&&mres.commit)pending.commits.push(mres.commit);
@@ -2673,7 +2938,7 @@ btn.addEventListener("click",function(e){
   var h="<h4>Data current through</h4>";
   var labels={"Reonomy":"latest recorded sale","CoStar":"latest sale comp","Trepp":"latest loan date"};
   var up=window.__srcUploads||{};
-  if(data){for(var k in data){h+='<div class="sil"><b>'+k+"</b><span>"+(k==="Salesforce"?"uploaded "+fmt(data[k]):fmt(data[k])+(up[k]?' <em style="color:#888;font-style:normal">· uploaded '+fmt(up[k])+'</em>':''))+"</span></div>";}}
+  if(data){for(var k in data){h+='<div class="sil"><b>'+k+"</b><span>"+(k==="Salesforce"||k==="Yardi"?"uploaded "+fmt(data[k]):fmt(data[k])+(up[k]?' <em style="color:#888;font-style:normal">· uploaded '+fmt(up[k])+'</em>':''))+"</span></div>";}}
   else h+="<div>Still loading...</div>";
   h+='<div class="sinote">First date: the newest record inside each dataset (latest sale, latest loan). "Uploaded" is when that file was last sent to LoanID.</div>';
   if(window.__lidLoadSecs)h+='<div class="sinote">This market loaded in '+window.__lidLoadSecs.toFixed(1)+' s'+(window.__lidLoadSecs<1.5?' (from cache)':'')+'.</div>';
@@ -2835,11 +3100,17 @@ function isDistressed(p){
     if(t.reo_date&&t.reo_date!=="-")return true;
     if(DQ_BAD.test(String(t.delinquency_status||"").trim()))return true;
   }
+  if(yardiRows(p).some(yardiCritical))return true;   // Yardi: loan in arrears / notice of acceleration
   var f=String(p.preforeclosure_active_flag==null?"":p.preforeclosure_active_flag).toLowerCase();
   return f==="true"||f==="1"||f==="1.0";
 }
 window.isDistressed=isDistressed;
 var distressOn=false;
+// Yardi filters (More Filters): status groups match Yardi's "Property Special Status" list
+var YS_RE={aff:/affordable/i,mixed:/mixed income/i,age:/age restricted/i,student:/student|co-living|corporate housing/i,
+  secur:/cmbs|agency securitization/i,flag:/watch ?list|arrears|acceleration/i};
+var YS_LABEL={aff:"affordable",mixed:"mixed income",age:"age restricted",student:"student/corporate",secur:"CMBS/agency loan",flag:"loan flagged",any:"any Yardi"};
+function yardiPicks(sel){return [].slice.call(document.querySelectorAll(sel)).filter(function(c){return c.checked;}).map(function(c){return c.value;});}
 function quadBoxes(){return [].slice.call(document.querySelectorAll("#fb_quad_group input[type=checkbox]"));}
 function quadSel(){return quadBoxes().filter(function(c){return c.checked;}).map(function(c){return c.value;});}
 window.resetQuad=function(){quadBoxes().forEach(function(c){c.checked=false;});};
@@ -2886,6 +3157,10 @@ var FILTERS=[
  {more:true,label:"Sale price",val:function(){return rngText("price",fmtMoney);},clear:function(){clr("price");}},
  {more:true,label:"Price/unit",val:function(){return rngText("ppu",fmtMoney);},clear:function(){clr("ppu");}},
  {more:true,label:"Assessed",val:function(){return rngText("asr",fmtMoney);},clear:function(){clr("asr");}},
+ {more:true,label:"Yardi",val:function(){
+   var st=yardiPicks(".fb-ys").map(function(v){return YS_LABEL[v];}),rt=yardiPicks(".fb-yr");
+   return st.concat(rt.length?["rated "+rt.join("/")]:[]).join(", ");},
+  clear:function(){document.querySelectorAll(".fb-ys,.fb-yr").forEach(function(c){c.checked=false;});}},
  {el:"fp_bpu",label:"Balance/unit",val:function(){return rngText("bpu",fmtMoney);},clear:function(){clr("bpu");}},
  {el:"fp_asm",label:function(){return document.getElementById("fb_asm").checked?"Assumable":"Loan";},val:function(){
     var a=document.getElementById("fb_asm").checked,r=rngText("rate",fmtPct),f=document.getElementById("fb_rate_fixed").checked;
@@ -2984,6 +3259,10 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
     });
   }
   if(distressOn)data=data.filter(isDistressed);
+  var ysel=yardiPicks(".fb-ys"),yrat=yardiPicks(".fb-yr");
+  if(ysel.length)data=data.filter(function(p){var rows=yardiRows(p);if(!rows.length)return false;var st=rows.map(function(y){return String(y.property_special_status||"");}).join(", ");
+    return ysel.some(function(k){return k==="any"||YS_RE[k].test(st);});});
+  if(yrat.length)data=data.filter(function(p){return yardiRows(p).some(function(y){var r=String(y.impr_rating||"").trim().charAt(0).toUpperCase();return !!r&&yrat.indexOf(r)>=0;});});
   if(document.getElementById("fb_asm").checked)data=data.filter(isAssumable);
   if(document.getElementById("fb_rate_fixed").checked)data=data.filter(function(p){return !!p._trepp&&/^fixed/i.test(String(p._trepp.rate_type||""));});
   if(window.GEO)data=data.filter(window.geoContains);
