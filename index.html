@@ -512,7 +512,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v45</div>
+<div id="verBadge">v46</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -630,7 +630,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
         <label class="fp-chk"><input type="checkbox" class="fb-ys" value="age">Age restricted</label>
         <label class="fp-chk"><input type="checkbox" class="fb-ys" value="student">Student / corporate / co-living</label>
         <label class="fp-chk"><input type="checkbox" class="fb-ys" value="secur">CMBS or agency loan</label>
-        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="flag">Loan on watch list, in arrears or accelerated</label>
+        <label class="fp-chk"><input type="checkbox" class="fb-ys" value="flag">Loan on watch list, in arrears, accelerated or with a special servicer</label>
         <label class="fp-chk"><input type="checkbox" class="fb-ys" value="any">Any property Yardi covers</label></div>
       <div class="fp-sec" id="fb_yardi_rate_sec"><div class="fp-h">Yardi Improvement Rating</div><p class="fp-d">Yardi's grade for the building itself (A newest and best kept, C/D dated).</p>
         <div class="fp-row" style="gap:14px"><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="A">A</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="B">B</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="C">C</label><label class="fp-chk" style="margin:0"><input type="checkbox" class="fb-yr" value="D">D</label></div></div>
@@ -746,6 +746,14 @@ const IC={
   cloud:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;display:inline-block"><path d="M6.5 19a4.5 4.5 0 010-9 5.5 5.5 0 0110.6-1.5A4 4 0 1118 19H6.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
   building:`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="margin-bottom:8px"><rect x="3" y="3" width="18" height="18" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M9 21V9h6v12M3 9h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
 };
+// A basemap tile whose request fails stays a grey square until the view moves
+// (Leaflet never retries). Retry each failed tile up to 3 times, backing off.
+window.retryTiles=function(layer){
+  layer.on('tileerror',function(e){var t=e.tile,n=+(t.getAttribute('data-retry')||0);if(n>=3)return;
+    t.setAttribute('data-retry',n+1);
+    setTimeout(function(){var u=String(t.src).replace(/[?&]_r=\d+$/,'');t.src=u+(u.indexOf('?')<0?'?':'&')+'_r='+(n+1);},700*(n+1));});
+  return layer;
+};
 function parseD(v){if(!v||v==='-')return null;const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);const d=m?new Date(+m[1],m[2]-1,+m[3]):new Date(v);return isNaN(d)?null:d;}  // bare dates are local days, not UTC midnight
 function fmtMoney(v){const n=parseFloat(String(v||'').replace(/,/g,''));return isNaN(n)?null:'$'+Math.round(n).toLocaleString();}
 function fmtDate(v){const d=parseD(v);return d?d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):null;}
@@ -778,7 +786,7 @@ function dqLevel(v){var x=String(v||"").trim();
 const YARDI_FLAGS=[{re:/notice of acceleration/i,s:95,label:'Notice of acceleration on the loan'},
   {re:/loan in arrears/i,s:90,label:'CMBS loan in arrears'},{re:/watch ?list/i,s:65,label:'CMBS loan on the watch list'}];
 function yardiStatus(y){return String((y&&y.property_special_status)||'').split(',').map(x=>x.trim()).filter(Boolean);}
-function yardiCritical(y){return yardiStatus(y).some(x=>/notice of acceleration|loan in arrears/i.test(x));}
+function yardiCritical(y){return !!(y&&y.special_servicer)||yardiStatus(y).some(x=>/notice of acceleration|loan in arrears/i.test(x));}
 function yardiRows(p){return p._yardiAll||(p._yardi?[p._yardi]:[]);}
 function scoreProperty(p){
   const details=[];const t=p._trepp;const catScores={};
@@ -873,6 +881,7 @@ function scoreProperty(p){
   if(y){
     const ys=[];
     yardiRows(p).forEach(yy=>yardiStatus(yy).forEach(st=>{const f=YARDI_FLAGS.find(f=>f.re.test(st));if(f&&!ys.some(x=>x.s===f.s))ys.push({s:f.s,label:`Yardi: ${IC.alert}${f.label} (${st})`});}));
+    yardiRows(p).forEach(yy=>{if(yy.special_servicer&&!ys.some(x=>x.ss))ys.push({s:100,ss:1,label:`Yardi: ${IC.alert}Special servicer on the loan: ${yy.special_servicer}`});});
     if(ys.length){dSignals=dSignals.filter(d=>!(d.s===0&&/^No distress signals on record/.test(d.label)));dSignals.push(...ys);}
   }
   const maxDist=Math.max(...dSignals.map(d=>d.s));
@@ -894,7 +903,6 @@ function scoreProperty(p){
     else if(ir||lr)mSignals.push({s:0,label:`Yardi: improvement rating ${ir||'?'}, location ${lr||'?'}`});
     const info=yardiStatus(y).filter(x=>!YARDI_FLAGS.some(f=>f.re.test(x)));
     if(info.length)mSignals.push({s:0,label:`Yardi status: ${info.join(', ')}`});
-    if(y.special_servicer)mSignals.push({s:0,label:`Yardi: named special servicer ${y.special_servicer} (the deal's designated servicer, not a transfer)`});
   }
   const maxMkt=Math.max(...mSignals.map(m=>m.s),0);
   mSignals.forEach(m=>details.push({cat:'Market',label:m.label,trepp:!!m.trepp}));
@@ -1554,14 +1562,20 @@ function propCard(p){
   const city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(', ');
   const subtype=p.property_subtype||p._trepp?.trepp_subtype||'';
   const units=p.total_units||p._trepp?.number_of_units||null;
-  const srcLabel=p._source==='trepp'?'Trepp only':p._source==='costar'?'CoStar only':p._source==='yardi'?'Yardi only':p._trepp?'Reonomy + Trepp':'Reonomy';
+  const hasY=!!p._yardi&&p._source!=='yardi';
+  const srcLabel=p._source==='trepp'?(hasY?'Trepp':'Trepp only'):p._source==='costar'?(hasY?'CoStar':'CoStar only'):p._source==='yardi'?'Yardi only':p._trepp?'Reonomy + Trepp':'Reonomy';
   const srcCls=p._source==='trepp'?'trepp':p._source==='costar'?'costar':p._source==='yardi'?'yardi':p._trepp?'both':'reonomy';
   const chips=buildChips(p);
-  return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${name||addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${name?`<span>${addr}${city?', '+city:''}</span>`:city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${searchHitLine(p)}${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
+  return `<div class="prop-card${p.id===selectedId?' selected':''}" data-id="${p.id}" onclick="selectProperty('${p.id}')"><div class="pc-top"><div style="flex:1;min-width:0"><div class="pc-address">${name||addr}${units?` <span style="font-weight:400;color:var(--text2);font-size:12px;">· ${Math.round(units)} units</span>`:''}</div><div class="pc-sub">${name?`<span>${addr}${city?', '+city:''}</span>`:city?`<span>${city}</span>`:''}${subtype?`<span>· ${subtype}</span>`:''}<span class="pc-src-badge ${srcCls}">${srcLabel}</span>${hasY?'<span class="pc-src-badge yardi">Yardi</span>':''}${p._hasSF?`<span class="pc-sf-flag">${IC.cloud}SF</span>`:''}</div></div><div class="score-badge ${p._tier}">${p._score}</div></div>${searchHitLine(p)}${chips.length?`<div class="pc-chips">${chips.map(c=>`<span class="pc-chip ${c.cls}">${c.label}</span>`).join('')}</div>`:''}</div>`;
 }
 function buildChips(p){
   const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
   if(t){if((t.spec_serv_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Special Servicer'});if((t.reo_date||'')!=='-'&&t.reo_date)chips.push({cls:'trepp-distress',label:'REO'});if(dqLevel(t.delinquency_status))chips.push({cls:'trepp-distress',label:`${t.delinquency_status}`});if((t.watchlist_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Watchlist'});const dscr=parseFloat(t.dscr_noi);if(!isNaN(dscr)&&dscr>0&&dscr<1.25)chips.push({cls:'trepp-distress',label:`DSCR ${dscr.toFixed(2)}`});}
+  {const yr=yardiRows(p),st=yr.map(y=>String(y.property_special_status||'')).join(', '),has=l=>chips.some(c=>c.label===l);
+   if(yr.some(y=>y.special_servicer)&&!has('Special Servicer'))chips.push({cls:'trepp-distress',label:'Special Servicer'});
+   if(/notice of acceleration/i.test(st))chips.push({cls:'trepp-distress',label:'Loan Accelerated'});
+   if(/loan in arrears/i.test(st))chips.push({cls:'trepp-distress',label:'Loan in Arrears'});
+   if(/watch ?list/i.test(st)&&!has('Watchlist'))chips.push({cls:'trepp-distress',label:'Watchlist'});}
   if(p.preforeclosure_active_flag===true||p.preforeclosure_active_flag==='true'||p.preforeclosure_active_flag==='True')chips.push({cls:'distress',label:'Preforeclosure'});
   // same date the Loan Maturity filter uses (⬡ = Trepp, plain = Reonomy mortgage)
   const lm=window.loanMat?loanMat(p):null;
@@ -1781,8 +1795,8 @@ function initMap(){
   // `let map` at the top of this script is NOT window.map, so the landing
   // handoff could never see it. Publish it explicitly.
   window.map=map;
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{attribution:'Esri',maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true}).addTo(map);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{attribution:'',maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true,pane:'shadowPane'}).addTo(map);
+  retryTiles(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{attribution:'Esri',maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true})).addTo(map);
+  retryTiles(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{attribution:'',maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true,pane:'shadowPane'})).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
   markersLayer=L.layerGroup().addTo(map);
   L.DomEvent.disableScrollPropagation(document.getElementById('detailDrawer'));
@@ -3108,7 +3122,7 @@ window.isDistressed=isDistressed;
 var distressOn=false;
 // Yardi filters (More Filters): status groups match Yardi's "Property Special Status" list
 var YS_RE={aff:/affordable/i,mixed:/mixed income/i,age:/age restricted/i,student:/student|co-living|corporate housing/i,
-  secur:/cmbs|agency securitization/i,flag:/watch ?list|arrears|acceleration/i};
+  secur:/cmbs|agency securitization/i,flag:/watch ?list|arrears|acceleration|special servicer/i};
 var YS_LABEL={aff:"affordable",mixed:"mixed income",age:"age restricted",student:"student/corporate",secur:"CMBS/agency loan",flag:"loan flagged",any:"any Yardi"};
 function yardiPicks(sel){return [].slice.call(document.querySelectorAll(sel)).filter(function(c){return c.checked;}).map(function(c){return c.value;});}
 function quadBoxes(){return [].slice.call(document.querySelectorAll("#fb_quad_group input[type=checkbox]"));}
@@ -3260,7 +3274,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
   }
   if(distressOn)data=data.filter(isDistressed);
   var ysel=yardiPicks(".fb-ys"),yrat=yardiPicks(".fb-yr");
-  if(ysel.length)data=data.filter(function(p){var rows=yardiRows(p);if(!rows.length)return false;var st=rows.map(function(y){return String(y.property_special_status||"");}).join(", ");
+  if(ysel.length)data=data.filter(function(p){var rows=yardiRows(p);if(!rows.length)return false;var st=rows.map(function(y){return String(y.property_special_status||"")+(y.special_servicer?", special servicer":"");}).join(", ");
     return ysel.some(function(k){return k==="any"||YS_RE[k].test(st);});});
   if(yrat.length)data=data.filter(function(p){return yardiRows(p).some(function(y){var r=String(y.impr_rating||"").trim().charAt(0).toUpperCase();return !!r&&yrat.indexOf(r)>=0;});});
   if(document.getElementById("fb_asm").checked)data=data.filter(isAssumable);
@@ -3548,7 +3562,7 @@ function init(){
     minZoom:5,maxZoom:16,zoomSnap:1,zoomDelta:1})
     .setView([37.9,-76.85],7);
   L.control.zoom({position:"bottomright"}).addTo(lmap);
-  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true}).addTo(lmap);
+  (window.retryTiles||function(l){return l;})(L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true})).addTo(lmap);
   window.__lmapLabels=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,detectRetina:false,keepBuffer:3,updateWhenZooming:false,crossOrigin:true,opacity:0}).addTo(lmap);
 
   fetch("regions.geojson?t="+Date.now())
