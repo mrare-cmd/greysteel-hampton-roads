@@ -192,6 +192,19 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .pc-src-badge.both{background:#f3e8ff;color:#6d28d9}
 .pc-src-badge.costar{background:#ffedd5;color:#c2410c}
 .pc-src-badge.yardi{background:#ccfbf1;color:#0f766e}
+.lid-share{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--blue);background:var(--blue-light);border-radius:14px;padding:5px 10px;margin-right:8px;white-space:nowrap;align-self:flex-start;cursor:pointer}
+.lid-share:hover{background:#d2e3fc}
+#lidShareView{font-size:12px;font-weight:500;color:var(--blue);padding:4px 10px;border-radius:14px;white-space:nowrap;cursor:pointer;margin-left:4px}
+#lidShareView:hover{background:var(--blue-light)}
+#lidToast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:#202124;color:#fff;font-size:13px;padding:10px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:all .25s;z-index:4000}
+#lidToast.show{opacity:1;transform:translate(-50%,0)}
+#lidShareBanner{position:fixed;top:70px;left:50%;transform:translate(-50%,-12px);background:#fff;border:1px solid var(--border);border-left:4px solid var(--blue);box-shadow:0 6px 24px rgba(0,0,0,.14);border-radius:10px;padding:10px 40px 10px 14px;max-width:min(560px,calc(100vw - 32px));opacity:0;transition:all .3s;z-index:3500;font-size:13px}
+#lidShareBanner.show{opacity:1;transform:translate(-50%,0)}
+#lidShareBanner .lsb-t{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--blue)}
+#lidShareBanner .lsb-p{margin-top:3px;color:var(--text)}
+#lidShareBanner .lsb-p span{color:var(--text2);margin-left:4px}
+#lidShareBanner .lsb-f{margin-top:3px;color:var(--text2);font-size:12px}
+#lidShareBanner button{position:absolute;top:8px;right:10px;color:var(--text2);font-size:14px;cursor:pointer}
 .score-badge{flex-shrink:0;min-width:44px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Google Sans',sans-serif;font-size:13px;font-weight:600;}
 .score-badge.hot{background:var(--red-light);color:var(--red)}
 .score-badge.warm{background:var(--orange-light);color:var(--orange)}
@@ -512,7 +525,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v48</div>
+<div id="verBadge">v49</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1424,6 +1437,7 @@ async function loadData(){
   setTimeout(function(){healMissingCoords().catch(function(){});},800);
   {const qg=document.getElementById('fb_quad_group'),isDC=window.GS_REGION==='dc';if(qg){qg.style.display=isDC?'':'none';if(!isDC&&window.resetQuad)resetQuad();}if(window.syncFilterBar)syncFilterBar();}
   applyFilters();
+  try{window.dispatchEvent(new Event('lid:loaded'));}catch(e){}   // shared links wait for this
   // geocodeTreppOnly();  // disabled — coordinates now baked into data_trepp.json
 }
 async function geocodeTreppOnly(){
@@ -1614,7 +1628,7 @@ function buildChips(p){
   function hideGate(){gate.classList.add("hidden");setTimeout(function(){gate.classList.add("gone");},400);}
   function signIn(){
     var b=document.getElementById("agBtn");b.disabled=true;msg("Redirecting to Microsoft\u2026",true);
-    location.href=AUTH_API+"/login?return="+encodeURIComponent(location.origin+location.pathname);
+    location.href=AUTH_API+"/login?return="+encodeURIComponent(location.origin+location.pathname+location.search);   // keeps a shared link's ?m=&p=&f=
   }
   function signOut(){tokenSet(null);location.href=location.origin+location.pathname;}
   function captureTokenFromHash(){
@@ -1854,6 +1868,16 @@ function clearGeo(refresh){
   if(had&&refresh!==false&&allData.length)applyFilters();
 }
 window.clearGeo=clearGeo;
+// rebuild a drawn circle / area from a shared link: {k:'c',a,o,r} or {k:'p',ring}
+window.restoreGeo=function(g){
+  if(!g||!map)return;
+  let layer=null;
+  if(g.k==='c'&&isFinite(g.a)&&isFinite(g.o)&&g.r>0)layer=L.circle([g.a,g.o],{radius:g.r*1609.344});
+  else if(g.k==='p'&&Array.isArray(g.ring)&&g.ring.length>=3)layer=L.polygon(g.ring);
+  if(!layer)return;
+  try{(GEO_LAYERS||map).addLayer(layer);}catch(e){}
+  captureGeo(layer);
+};
 function syncGeoBox(){
   const G=window.GEO,box=document.getElementById('geoBox');if(!box)return;
   document.getElementById('geoHint').style.display=G||!map||!map.pm?'none':'block';
@@ -3127,6 +3151,8 @@ function isDistressed(p){
 }
 window.isDistressed=isDistressed;
 var distressOn=false;
+// shared links read and restore this script's private filter state
+window.__lidFS={get:function(){return {d:distressOn,mq:[...matQ]};},set:function(d,mq){distressOn=!!d;matQ.clear();(mq||[]).forEach(function(k){matQ.add(k);});}};
 // Yardi filters (More Filters): status groups match Yardi's "Property Special Status" list
 var YS_RE={aff:/affordable/i,mixed:/mixed income/i,age:/age restricted/i,student:/student|co-living|corporate housing/i,
   secur:/cmbs|agency securitization/i,flag:/watch ?list|arrears|acceleration/i};
@@ -3544,6 +3570,7 @@ function enter(id){
     },170);
   },2620);
 }
+window.lidEnter=function(id){var r=regionById(id);if(r&&r.ready)enter(id);};   // shared links (?m=)
 function showLanding(){
   entered=false;
   document.title="Greysteel LoanID";
@@ -3638,5 +3665,164 @@ else init();
   setInterval(checkIn, 15000);
   document.addEventListener("visibilitychange", checkIn);
   setTimeout(checkIn, 4000);
+})();
+</script>
+<script>
+// ─── Shareable links ───
+// The address bar always describes what you are looking at:
+//   ?m=<market>  &p=<property id>&a=<address, a fallback if the id changes>
+//   &f=<filters, base64url JSON>
+// so copying it, or the Copy link buttons, gives a link that reopens the same
+// market, property and filters for any signed-in colleague.
+(function(){
+  var MK={hampton:"Hampton Roads",dc:"Washington DC",montgomery:"Montgomery",princegeorges:"Prince George's"};
+  function b64e(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+  function b64d(s){s=String(s).replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";return decodeURIComponent(escape(atob(s)));}
+  function esc(v){return String(v==null?"":v).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  var r5=function(x){return Math.round(x*1e5)/1e5;};
+
+  // ── filter state <-> plain object (only what differs from the defaults)
+  function boxKey(el){if(el.id)return el.id;var a=el.closest("[id]");return (a?a.id:"")+"|"+el.value;}
+  function readFilters(){
+    var f={},bar=document.getElementById("filterBar");
+    if(bar){
+      var tx={},ck=[];
+      bar.querySelectorAll("input").forEach(function(el){
+        if(el.type==="checkbox"){if(el.checked)ck.push(boxKey(el));}
+        else if(el.id&&String(el.value).trim()!=="")tx[el.id]=el.value;
+      });
+      if(Object.keys(tx).length)f.i=tx;if(ck.length)f.c=ck;
+    }
+    try{if(activeTiers.size)f.t=[...activeTiers];}catch(e){}
+    try{if(activeSrc&&activeSrc!=="all")f.s=activeSrc;}catch(e){}
+    try{if(String(searchQ||"").trim())f.q=String(searchQ).trim();}catch(e){}
+    if(window.__lidFS){var fs=window.__lidFS.get();if(fs.d)f.d=1;if(fs.mq.length)f.mq=fs.mq;}
+    var ls=document.getElementById("loanSrcSelect");if(ls&&ls.value!=="all")f.l=ls.value;
+    var so=document.getElementById("sortSelect");if(so&&so.value!=="score")f.o=so.value;
+    var G=window.GEO;
+    if(G)f.g=G.kind==="circle"?{k:"c",a:r5(G.lat),o:r5(G.lng),r:Math.round(G.radMi*1000)/1000}:{k:"p",ring:G.ring.map(function(q){return [r5(q[0]),r5(q[1])];})};
+    return Object.keys(f).length?f:null;
+  }
+  function writeFilters(f){
+    var bar=document.getElementById("filterBar");if(!bar||!f)return;
+    var tx=f.i||{},ck=new Set(f.c||[]);
+    bar.querySelectorAll("input").forEach(function(el){
+      if(el.type==="checkbox")el.checked=ck.has(boxKey(el));
+      else if(el.id)el.value=tx[el.id]!=null?tx[el.id]:"";
+    });
+    try{activeTiers.clear();(f.t||[]).forEach(function(t){activeTiers.add(t);});
+      document.querySelectorAll(".tier-btn").forEach(function(b){b.classList.toggle("active",b.dataset.tier==="all"?!activeTiers.size:activeTiers.has(b.dataset.tier));});}catch(e){}
+    try{activeSrc=f.s||"all";document.querySelectorAll(".src-btn").forEach(function(b){b.classList.toggle("active",b.dataset.src===activeSrc);});}catch(e){}
+    try{searchQ=f.q||"";var si=document.getElementById("searchInput");if(si)si.value=searchQ;}catch(e){}
+    if(window.__lidFS)window.__lidFS.set(f.d,f.mq);
+    var ls=document.getElementById("loanSrcSelect");if(ls)ls.value=f.l||"all";
+    var so=document.getElementById("sortSelect");if(so)so.value=f.o||"score";
+    try{if(window.clearGeo)clearGeo(false);if(f.g&&window.restoreGeo)restoreGeo(f.g);}catch(e){}
+  }
+
+  // ── links
+  function propOf(id){try{return allData.find(function(x){return String(x.id)===String(id);});}catch(e){return null;}}
+  function addrOf(p){return p?(p.address_line_1||p.address||(p._trepp&&p._trepp.address)||""):"";}
+  function linkFor(opts){
+    var u=new URLSearchParams(),m=window.GS_REGION;
+    if(!m)return location.origin+location.pathname;
+    u.set("m",m);
+    if(opts.property){var p=propOf(opts.property);u.set("p",opts.property);var a=addrOf(p);if(a)u.set("a",a);}
+    if(opts.filters){var f=readFilters();if(f)u.set("f",b64e(JSON.stringify(f)));}
+    return location.origin+location.pathname+"?"+u.toString();
+  }
+  var restoring=false,syncT=null;
+  function syncUrl(){
+    if(restoring)return;
+    clearTimeout(syncT);
+    syncT=setTimeout(function(){
+      var sel=null;try{sel=selectedId;}catch(e){}
+      var url=window.GS_REGION?linkFor({property:sel,filters:true}):location.origin+location.pathname;
+      try{if(url!==location.href)history.replaceState(null,"",url.replace(location.origin,""));}catch(e){}
+    },250);
+  }
+  window.lidShareLink=linkFor;
+
+  // keep the address bar current: wrap the global entry points
+  ["applyFilters","selectProperty","closeDrawer"].forEach(function(n){
+    var orig=window[n];if(typeof orig!=="function")return;
+    window[n]=function(){var r=orig.apply(this,arguments);syncUrl();return r;};
+  });
+  var origClear=window.clearMarketData;
+  if(typeof origClear==="function")window.clearMarketData=function(){var r=origClear.apply(this,arguments);try{history.replaceState(null,"",location.pathname);}catch(e){}return r;};
+
+  // ── copy + toast
+  function toast(msg){
+    var t=document.getElementById("lidToast");
+    if(!t){t=document.createElement("div");t.id="lidToast";document.body.appendChild(t);}
+    t.textContent=msg;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show");},2200);
+  }
+  function copy(text,what){
+    var done=function(){toast(what+" copied. Paste it into Teams or an email.");};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(done,function(){fallback();});
+    else fallback();
+    function fallback(){var ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done();}catch(e){prompt("Copy this link:",text);}ta.remove();}
+  }
+  // drawer: a Copy link button in the header, re-added whenever the drawer redraws
+  var dc=document.getElementById("drawerContent");
+  if(dc)new MutationObserver(function(){
+    var h=dc.querySelector(".dd-header");if(!h||h.querySelector(".lid-share"))return;
+    var b=document.createElement("button");b.type="button";b.className="lid-share";b.title="Copy a link to this property";
+    b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 14a5 5 0 007.07 0l3.54-3.54a5 5 0 00-7.07-7.07L12 4.93M14 10a5 5 0 00-7.07 0L3.39 13.5a5 5 0 007.07 7.07L12 19.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Copy link';
+    b.addEventListener("click",function(e){e.stopPropagation();var id=null;try{id=selectedId;}catch(x){}if(id!=null)copy(linkFor({property:id}),"Property link");});
+    var close=h.querySelector("button");if(close&&close.parentNode===h)h.insertBefore(b,close);else h.appendChild(b);
+  }).observe(dc,{childList:true});
+  // toolbar: copy a link to the current filtered view
+  var clr=document.getElementById("fbClear");
+  if(clr){
+    var vb=document.createElement("button");vb.type="button";vb.id="lidShareView";vb.title="Copy a link to this view (market and every filter)";
+    vb.textContent="Copy link to view";
+    vb.addEventListener("click",function(){if(!window.GS_REGION)return;copy(linkFor({filters:true}),"View link");});
+    clr.parentNode.insertBefore(vb,clr.nextSibling);
+  }
+
+  // ── arriving on a shared link
+  var q=new URLSearchParams(location.search),inc=null;
+  if(q.get("m")&&MK[q.get("m")]){
+    inc={m:q.get("m"),p:q.get("p"),a:q.get("a"),f:null};
+    if(q.get("f")){try{inc.f=JSON.parse(b64d(q.get("f")));}catch(e){inc.f=null;}}
+    try{sessionStorage.setItem("lidShareIn",JSON.stringify(inc));}catch(e){}
+  }else{try{inc=JSON.parse(sessionStorage.getItem("lidShareIn")||"null");}catch(e){inc=null;}}
+  try{sessionStorage.removeItem("lidShareIn");}catch(e){}
+  if(!inc)return;
+  restoring=true;
+  var t0=Date.now(),go=setInterval(function(){
+    if(Date.now()-t0>60000){clearInterval(go);restoring=false;return;}
+    if(!window.GS_USER||typeof window.lidEnter!=="function")return;   // wait for sign-in
+    clearInterval(go);
+    if(window.GS_REGION===inc.m&&window.__lidLoaded===inc.m)arrive();
+    else window.lidEnter(inc.m);
+  },200);
+  window.addEventListener("lid:loaded",function(){window.__lidLoaded=window.GS_REGION;if(inc&&window.GS_REGION===inc.m)arrive();});
+  function norm(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
+  function arrive(){
+    var i=inc;inc=null;if(!i)return;
+    if(i.f){writeFilters(i.f);try{applyFilters();}catch(e){}}
+    var p=i.p!=null?propOf(i.p):null;
+    if(!p&&i.a){var want=norm(i.a);try{p=allData.find(function(x){return norm(addrOf(x))===want||norm(window.bldgName&&bldgName(x))===want;});}catch(e){}}
+    restoring=false;
+    if(p){try{selectProperty(String(p.id));}catch(e){}}
+    var who="";
+    if(p)who='<b>'+esc((window.bldgName&&bldgName(p))||addrOf(p))+'</b>'+((window.bldgName&&bldgName(p))?' <span>'+esc(addrOf(p))+'</span>':'');
+    else if(i.p||i.a)who='A property that is no longer in this market\u2019s data'+(i.a?' (<b>'+esc(i.a)+'</b>)':'');
+    var chips=(document.getElementById("fChips")||{}).innerText||"";
+    var TN={hot:"Hot",warm:"Warm",watch:"Watch",cold:"Cold"},extra=[];
+    if(i.f&&i.f.t&&i.f.t.length)extra.push("Priority "+i.f.t.map(function(t){return TN[t]||t;}).join(" + "));
+    if(i.f&&i.f.s)extra.push(i.f.s==="trepp"?"Has Trepp":"Trepp only");
+    var ftxt=[chips.replace(/\u2715/g,"").replace(/\s+/g," ").trim()].concat(extra).filter(Boolean).join(" \u00b7 ");
+    var fl=i.f?'<div class="lsb-f">Filters: '+esc(ftxt||"applied")+'</div>':'';
+    var bar=document.createElement("div");bar.id="lidShareBanner";
+    bar.innerHTML='<div class="lsb-t">Shared with you'+(who?'':' \u00b7 '+esc(MK[i.m]))+'</div>'+(who?'<div class="lsb-p">'+who+'</div>':'')+fl+'<button type="button" aria-label="Dismiss">\u2715</button>';
+    bar.querySelector("button").addEventListener("click",function(){bar.remove();});
+    document.body.appendChild(bar);
+    setTimeout(function(){bar.classList.add("show");},30);
+    setTimeout(function(){bar.classList.remove("show");setTimeout(function(){bar.remove();},400);},14000);
+    syncUrl();
+  }
 })();
 </script>
