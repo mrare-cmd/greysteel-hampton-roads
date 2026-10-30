@@ -512,7 +512,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v47</div>
+<div id="verBadge">v48</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -788,8 +788,32 @@ const YARDI_FLAGS=[{re:/notice of acceleration/i,s:95,label:'Notice of accelerat
 function yardiStatus(y){return String((y&&y.property_special_status)||'').split(',').map(x=>x.trim()).filter(Boolean);}
 function yardiCritical(y){return yardiStatus(y).some(x=>/notice of acceleration|loan in arrears/i.test(x));}
 function yardiRows(p){return p._yardiAll||(p._yardi?[p._yardi]:[]);}
+// Distress filings fade with age (Mason, v48): full weight within 6 months,
+// 60% within a year, 25% within 2 years, nothing after (shown as history).
+// The Distressed filter uses a 3-year window instead. Current-status flags
+// (delinquent now, in special servicing now, on the watchlist now) never fade.
+const YR_MS=365.25*864e5;
+function filingAge(v){const d=parseD(v);return d?(Date.now()-d.getTime())/YR_MS:null;}
+function filingWeight(v){const a=filingAge(v);if(a===null)return null;return a<=0.5?1:a<=1?0.6:a<=2?0.25:0;}
+function withinYears(v,n){const a=filingAge(v);return a!==null&&a<=n;}
 function scoreProperty(p){
   const details=[];const t=p._trepp;const catScores={};
+  // The current loan is the Maturity filter's: Trepp first, else the latest
+  // Reonomy recorded mortgage. While it runs, hold milestones do not score (a
+  // 10-yr loan makes the 5-yr hold moot); see LOAN MATURITY for the curve.
+  // More than 12 months past maturity it counts as unknown (likely refinanced
+  // or extended), and hold milestones score again.
+  const periodsPast=t?parseFloat(t.periods_past_maturity)||0:0;
+  const remainTerm=t?parseFloat(t.remaining_term)||null:null;
+  const lm=window.loanMat?loanMat(p):null;
+  let matDate=lm?new Date(lm.ms):null,matOverrideNote=null;
+  const matSrc=lm?lm.src:null;
+  if(matSrc==='trepp'&&remainTerm!==null){
+    const dm=daysUntil(matDate),dr=remainTerm*30.44;
+    if(dm>365&&dr<180){matDate=new Date(Date.now()+dr*86400000);matOverrideNote=`Trepp: Servicer remaining term (${remainTerm}mo) conflicts with maturity date — using remaining term`;}
+  }
+  const effectiveMat=matDate,matDays=matDate?daysUntil(matDate):null;
+  const loanRunning=(periodsPast>0&&!!t)||(matDays!==null&&matDays>=-365);
   // HOLD PERIOD
   const sd1=parseD(p.sale_recorded_date||p.sale_date),sd2=parseD(p.sale2_recorded_date);
   const saleDate=(sd1&&sd2)?(sd1>sd2?sd1:sd2):(sd1||sd2);
@@ -803,77 +827,60 @@ function scoreProperty(p){
       else{const mp=-monthsTo;if(mp<=6){s=Math.round(100-20*(mp/6));lbl=`Just hit ${m}-yr hold milestone (sold ${saleDateStr})`;}else if(mp<=12){s=Math.round(80-20*((mp-6)/6));lbl=`${Math.round(mp)} months past ${m}-yr hold (sold ${saleDateStr})`;}else if(mp<=24){s=Math.round(60-30*((mp-12)/12));lbl=`${yrs.toFixed(1)} yrs since sale — past ${m}-yr milestone (sold ${saleDateStr})`;}}
       if(s>best){best=s;bestLabel=lbl;}
     }
-    catScores.holdPeriod=best;
-    if(best>0&&bestLabel)details.push({cat:'Hold Period',label:bestLabel});
+    if(loanRunning){details.push({cat:'Hold Period',label:`${yrs.toFixed(1)} yrs since last sale (sold ${saleDateStr}) — hold milestones not scored while the current loan runs${matDate?' (matures '+fmtDate(matDate)+')':''}`});}
+    else if((catScores.holdPeriod=best)>0&&bestLabel)details.push({cat:'Hold Period',label:bestLabel});
     else{const next=[...holdPeriods].sort((a,b)=>a-b).find(m=>m>yrs);const mo=next?Math.round((next-yrs)*12):null;details.push({cat:'Hold Period',label:mo?`${yrs.toFixed(1)} yrs since last sale — ${mo}mo until ${next}-yr milestone (sold ${saleDateStr})`:`${yrs.toFixed(1)} yrs since last sale (sold ${saleDateStr})`});}
   }
-  // LOAN MATURITY
-  const periodsPast=t?parseFloat(t.periods_past_maturity)||0:0;
-  const remainTerm=t?parseFloat(t.remaining_term)||null:null;
-  const tMatDate=t?parseD(t.maturity_date):null;
-  let effectiveMat=tMatDate,matOverrideNote=null;
-  if(tMatDate&&remainTerm!==null){
-    const daysFromMat=daysUntil(tMatDate),daysFromRemain=remainTerm*30.44;
-    if(daysFromMat>365&&daysFromRemain<180){effectiveMat=new Date(Date.now()+daysFromRemain*86400000);matOverrideNote=`Trepp: Servicer remaining term (${remainTerm}mo) conflicts with maturity date — using remaining term`;}
-  }
+  // LOAN MATURITY: nothing more than 3 yrs out; from 3 yrs out the score
+  // climbs to its peak (95) at 1 yr out and holds it until 12 months after
+  // maturity. Later than that the loan is unknown: a modest 30.
   let matScore=0;
-  if(t&&(effectiveMat||periodsPast>0)){
-    const lender=t.originator||t.source||'';const bal=fmtMoney(t.current_balance);
-    const lStr=lender?` (${lender}${bal?', '+bal:''})`:bal?` (${bal})`:'';
-    if(periodsPast>0){matScore=95;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: ${Math.round(periodsPast)} period${periodsPast!==1?'s':''} past original maturity${lStr} — matured ${fmtDate(tMatDate)}`,trepp:true});}
-    else if(effectiveMat){
-      const days=daysUntil(effectiveMat),ds=fmtDate(effectiveMat);
-      if(days<0){const dp=Math.abs(days);if(dp<=180){matScore=90;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Loan matured ${Math.round(dp)} days ago${lStr} — ${ds}`,trepp:true});}else if(dp<=365){matScore=70;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Loan matured ${Math.round(dp/30)} months ago${lStr} — ${ds}`,trepp:true});}else{matScore=30;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Loan matured >1yr ago${lStr} — ${ds}`,trepp:true});}}
-      else if(days<=90){matScore=95;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures in ${Math.round(days)} days — ${ds}${lStr}`,trepp:true});}
-      else if(days<=180){matScore=85;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures in ${Math.round(days/30)} months — ${ds}${lStr}`,trepp:true});}
-      else if(days<=365){matScore=70;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures within 1 year — ${ds}${lStr}`,trepp:true});}
-      else if(days<=730){matScore=45;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures in ~${Math.round(days/365)} yrs — ${ds}${lStr}`,trepp:true});}
-      else if(days<=1095){matScore=20;details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Matures in ~${Math.round(days/365)} yrs — ${ds}${lStr}`,trepp:true});}
-      else{details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: Maturity ${ds}${lStr} (>3 yrs away)`,trepp:true});}
-    }
+  if(matDate||(periodsPast>0&&t)){
+    const tr=matSrc==='trepp'||(!matDate&&!!t);
+    const lender=tr?(t.originator||t.source||''):(p.mortgage_standardized_name||p.mortgage_recorded_name||'');
+    const amt=tr?fmtMoney(t.current_balance):fmtMoney(p.mortgage_amount);
+    const lStr=lender?` (${lender}${amt?', '+amt:''})`:amt?` (${amt})`:'';
+    const pre=tr?`${IC.trepp}Trepp: `:'Recorded mortgage: ',ds=matDate?fmtDate(matDate):'';
+    let lbl='';
+    if(tr&&periodsPast>0){matScore=95;lbl=`${Math.round(periodsPast)} period${periodsPast!==1?'s':''} past original maturity${lStr}${ds?' — matured '+ds:''}`;}
+    else if(matDays>1095)lbl=`Matures ${ds}${lStr} (more than 3 yrs out)`;
+    else if(matDays>365){matScore=Math.round(15+80*(1095-matDays)/730);lbl=`Matures in ~${(matDays/365).toFixed(1)} yrs — ${ds}${lStr}`;}
+    else if(matDays>=0){matScore=95;lbl=`Matures within 1 year — ${ds}${lStr}`;}
+    else if(matDays>=-365){matScore=95;lbl=`Matured ${Math.round(-matDays)} days ago — ${ds}${lStr}; no newer loan on record yet`;}
+    else{matScore=30;lbl=`Matured more than a year ago — ${ds}${lStr}; likely refinanced or extended, current loan unknown`;}
+    details.push({cat:'Loan Maturity',label:pre+lbl,trepp:tr});
     if(matOverrideNote)details.push({cat:'Loan Maturity',label:`${IC.trepp}${matOverrideNote}`,trepp:true});
-    if(remainTerm!==null&&!matOverrideNote)details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: ${remainTerm} months remaining term`,trepp:true});
+    if(tr&&remainTerm!==null&&!matOverrideNote)details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: ${remainTerm} months remaining term`,trepp:true});
     if(matScore>0)catScores.loanMaturity=matScore;
-  } else if(!t){
-    const STALE=-365;
-    const mats=[{date:parseD(p.mortgage_maturity_date),amt:parseFloat(p.mortgage_amount)||0,lender:p.mortgage_standardized_name||p.mortgage_recorded_name,name:'Primary loan'},{date:parseD(p.mortgage2_maturity_date),amt:parseFloat(p.mortgage2_amount)||0,lender:p.mortgage2_standardized_name||p.mortgage2_recorded_name,name:'Second loan'}].filter(m=>m.date&&daysUntil(m.date)>STALE);
-    const fut=mats.filter(m=>daysUntil(m.date)>0).sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
-    const pas=mats.filter(m=>daysUntil(m.date)<=0).sort((a,b)=>daysUntil(b.date)-daysUntil(a.date));
-    const act=fut.length?fut:pas;
-    if(act.length){for(const {date,name,lender,amt} of act.slice(0,1)){
-      const days=daysUntil(date),ls=lender?` (${lender}${amt?' — '+fmtMoney(amt):''})`:'',ds=fmtDate(date);let s=0,lbl='';
-      if(days<0){const dp=Math.abs(days);if(dp<=180){s=90;lbl=`${name}${ls} matured ${Math.round(dp)} days ago — ${ds}`;}else if(dp<=365){s=70;lbl=`${name}${ls} matured ${Math.round(dp/30)} months ago — ${ds}`;}else{s=30;lbl=`${name}${ls} matured >1yr ago — ${ds}`;}}
-      else if(days<=90){s=95;lbl=`${name}${ls} matures in ${Math.round(days)} days — ${ds}`;}
-      else if(days<=180){s=85;lbl=`${name}${ls} matures in ${Math.round(days/30)} months — ${ds}`;}
-      else if(days<=365){s=70;lbl=`${name}${ls} matures within 1 year — ${ds}`;}
-      else if(days<=730){s=45;lbl=`${name}${ls} matures in ~${Math.round(days/365)} yrs — ${ds}`;}
-      else if(days<=1095){s=20;lbl=`${name}${ls} matures in ~${Math.round(days/365)} yrs — ${ds}`;}
-      if(s>0)catScores.loanMaturity=s;if(lbl)details.push({cat:'Loan Maturity',label:lbl});
-    }}
   }
   // DISTRESS
   let dSignals=[];
   const prefoActive=p.preforeclosure_active_flag===true||p.preforeclosure_active_flag==='true'||p.preforeclosure_active_flag==='True';
-  if(prefoActive){const rd=fmtDate(p.preforeclosure_recording_date),pl=p.preforeclosure_plaintiff_1?` — Filed by: ${p.preforeclosure_plaintiff_1}`:'';const dt=p.preforeclosure_doc_type?` (${p.preforeclosure_doc_type})`:'',dc=p.preforeclosure_deed_category?` — ${p.preforeclosure_deed_category}`:'';dSignals.push({s:100,label:`${IC.alert}Active preforeclosure${dt}${dc}${rd?', recorded '+rd:''}${pl}`});}
+  // filings: score x age weight; past 2 yrs listed as history at 0 (no date = full weight if Reonomy calls it active)
+  const fw=(v,dflt)=>{const w=filingWeight(v);return w===null?dflt:w;};
+  const aged=(base,w,label)=>dSignals.push(w>0?{s:Math.round(base*w),label:label+(w<1?` (weighted ${Math.round(w*100)}% for age)`:'')}:{s:0,label:label+' (over 2 yrs old: history only, not scored)'});
+  const pfW=fw(p.preforeclosure_recording_date,prefoActive?1:0);
+  if(prefoActive){const rd=fmtDate(p.preforeclosure_recording_date),pl=p.preforeclosure_plaintiff_1?` — Filed by: ${p.preforeclosure_plaintiff_1}`:'';const dt=p.preforeclosure_doc_type?` (${p.preforeclosure_doc_type})`:'',dc=p.preforeclosure_deed_category?` — ${p.preforeclosure_deed_category}`:'';aged(100,pfW,`${IC.alert}Active preforeclosure${dt}${dc}${rd?', recorded '+rd:''}${pl}`);}
   const auction=parseD(p.preforeclosure_auction_date);
-  if(auction){const d=daysUntil(auction);const tm=p.preforeclosure_auction_time?` at ${p.preforeclosure_auction_time}`:'';const loc=p.preforeclosure_street_address_of_auction_call?` — ${p.preforeclosure_street_address_of_auction_call}`:'';const tr=p.preforeclosure_trustee_name?` — Trustee: ${p.preforeclosure_trustee_name}`:'';if(d>0&&d<180)dSignals.push({s:90,label:`Foreclosure auction in ${Math.round(d)} days (${fmtDate(auction)}${tm})${loc}${tr}`});else if(d>0)dSignals.push({s:50,label:`Foreclosure auction scheduled: ${fmtDate(auction)}${tm}${loc}`});else dSignals.push({s:60,label:`Foreclosure auction date passed (${fmtDate(auction)})${tr}`});}
-  if(p.preforeclosure_final_judgement_amount&&parseFloat(p.preforeclosure_final_judgement_amount)>0)dSignals.push({s:70,label:`Final judgement: ${fmtMoney(p.preforeclosure_final_judgement_amount)}${p.preforeclosure_plaintiff_1?' — Plaintiff: '+p.preforeclosure_plaintiff_1:''}`});
-  if(p.preforeclosure_recording_date&&!prefoActive&&!auction&&!(parseFloat(p.preforeclosure_final_judgement_amount)>0))dSignals.push({s:40,label:`Preforeclosure filing on record${p.preforeclosure_doc_type?' ('+p.preforeclosure_doc_type+')':''} — ${fmtDate(p.preforeclosure_recording_date)}`});
+  if(auction){const d=daysUntil(auction);const tm=p.preforeclosure_auction_time?` at ${p.preforeclosure_auction_time}`:'';const loc=p.preforeclosure_street_address_of_auction_call?` — ${p.preforeclosure_street_address_of_auction_call}`:'';const tr=p.preforeclosure_trustee_name?` — Trustee: ${p.preforeclosure_trustee_name}`:'';if(d>0&&d<180)dSignals.push({s:90,label:`Foreclosure auction in ${Math.round(d)} days (${fmtDate(auction)}${tm})${loc}${tr}`});else if(d>0)dSignals.push({s:50,label:`Foreclosure auction scheduled: ${fmtDate(auction)}${tm}${loc}`});else aged(60,fw(p.preforeclosure_auction_date,0),`Foreclosure auction date passed (${fmtDate(auction)})${tr}`);}
+  if(p.preforeclosure_final_judgement_amount&&parseFloat(p.preforeclosure_final_judgement_amount)>0)aged(70,pfW,`Final judgement: ${fmtMoney(p.preforeclosure_final_judgement_amount)}${p.preforeclosure_plaintiff_1?' — Plaintiff: '+p.preforeclosure_plaintiff_1:''}${p.preforeclosure_recording_date?' (filed '+fmtDate(p.preforeclosure_recording_date)+')':''}`);
+  if(p.preforeclosure_recording_date&&!prefoActive&&!auction&&!(parseFloat(p.preforeclosure_final_judgement_amount)>0))aged(70,pfW,`Preforeclosure filing${p.preforeclosure_doc_type?' ('+p.preforeclosure_doc_type+')':''} — ${fmtDate(p.preforeclosure_recording_date)}`);
   if(t){
     const delinq=(t.delinquency_status||'').toLowerCase(),watchlist=(t.watchlist_status||'').toLowerCase(),specServ=(t.spec_serv_status||'').toLowerCase(),dq=dqLevel(t.delinquency_status);
     const dscr=parseFloat(t.dscr_noi)||null,ltv=parseFloat(t.ltv)||null,modLoan=(t.modified_loan||'').toLowerCase();
     const timesDelinq=parseFloat(t.num_times_known_delinquent_last_12_months)||0;
     const reoDate=t.reo_date&&t.reo_date!=='-',bankrupt=t.bankruptcy_date&&t.bankruptcy_date!=='-';
     if(specServ==='yes'){const reason=t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?` — Reason: ${t.special_servicer_transfer_reason}`:'';const ss=t.special_servicer&&t.special_servicer!=='-'?` (${t.special_servicer})`:'';dSignals.push({s:100,label:`${IC.trepp}Trepp: ${IC.alert}In special servicing${ss}${reason}`,trepp:true});}
-    if(reoDate)dSignals.push({s:100,label:`${IC.trepp}Trepp: REO — became real estate owned ${fmtDate(t.reo_date)}`,trepp:true});
-    if(bankrupt)dSignals.push({s:95,label:`${IC.trepp}Trepp: Bankruptcy filed ${fmtDate(t.bankruptcy_date)}`,trepp:true});
+    const tAged=(base,v,label)=>{const w=fw(v,1);dSignals.push(w>0?{s:Math.round(base*w),label:label+(w<1?` (weighted ${Math.round(w*100)}% for age)`:''),trepp:true}:{s:0,label:label+' (over 2 yrs old: history only, not scored)',trepp:true});};
+    if(reoDate)tAged(100,t.reo_date,`${IC.trepp}Trepp: REO — became real estate owned ${fmtDate(t.reo_date)}`);
+    if(bankrupt)tAged(95,t.bankruptcy_date,`${IC.trepp}Trepp: Bankruptcy filed ${fmtDate(t.bankruptcy_date)}`);
     if(dq===2)dSignals.push({s:90,label:`${IC.trepp}Trepp: Loan delinquent — status: ${t.delinquency_status}`,trepp:true});
     else if(dq===1)dSignals.push({s:45,label:`${IC.trepp}Trepp: Payment under 30 days late`,trepp:true});
     if(timesDelinq>0)dSignals.push({s:Math.min(75,50+timesDelinq*10),label:`${IC.trepp}Trepp: Delinquent ${timesDelinq}x in last 12 months`,trepp:true});
     if(watchlist==='yes'){const wd=t.watchlist_date&&t.watchlist_date!=='-'?` since ${fmtDate(t.watchlist_date)}`:'';dSignals.push({s:65,label:`${IC.trepp}Trepp: On watchlist${wd}`,trepp:true});}
     if(dscr!==null&&dscr>0){if(dscr<1.0)dSignals.push({s:80,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — loan not covering debt service`,trepp:true});else if(dscr<1.25)dSignals.push({s:50,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — stressed (below 1.25)`,trepp:true});else dSignals.push({s:0,label:`${IC.trepp}Trepp: DSCR ${dscr.toFixed(2)} — healthy`,trepp:true});}
     if(ltv!==null&&ltv>0){if(ltv>90)dSignals.push({s:60,label:`${IC.trepp}Trepp: LTV ${ltv.toFixed(1)}% — critically overleveraged`,trepp:true});else if(ltv>80)dSignals.push({s:35,label:`${IC.trepp}Trepp: LTV ${ltv.toFixed(1)}% — overleveraged`,trepp:true});else dSignals.push({s:0,label:`${IC.trepp}Trepp: LTV ${ltv.toFixed(1)}%`,trepp:true});}
-    if(modLoan==='yes'){const mt=t.modification_type_servicer&&t.modification_type_servicer!=='-'?` (${t.modification_type_servicer})`:'';dSignals.push({s:40,label:`${IC.trepp}Trepp: Loan has been modified${mt}`,trepp:true});}
+    if(modLoan==='yes'){const mt=t.modification_type_servicer&&t.modification_type_servicer!=='-'?` (${t.modification_type_servicer})`:'';const md=t.modification_execution_date&&t.modification_execution_date!=='-'?t.modification_execution_date:null;tAged(40,md,`${IC.trepp}Trepp: Loan has been modified${mt}${md?' ('+fmtDate(md)+')':''}`);}
     if(periodsPast>0&&!effectiveMat)dSignals.push({s:85,label:`${IC.trepp}Trepp: ${Math.round(periodsPast)} period${periodsPast!==1?'s':''} past maturity`,trepp:true});
     if(dSignals.length===0)dSignals.push({s:0,label:`${IC.trepp}Trepp: Loan current — no distress signals`,trepp:true});
   } else if(dSignals.length===0){dSignals.push({s:0,label:'No distress signals on record (no Trepp data)'});}
@@ -913,7 +920,7 @@ function scoreProperty(p){
   const w=getWeights();
   const weightMap={holdPeriod:w.holdPeriod,loanMaturity:w.loanMaturity,distress:w.distress,marketSignals:w.marketSignals};
   const distressScore=catScores.distress??0,maturityScore=catScores.loanMaturity??0,holdScore=catScores.holdPeriod??0,marketScore=catScores.marketSignals??0;
-  const tCritical=(t&&((t.spec_serv_status||'').toLowerCase()==='yes'||(t.reo_date&&t.reo_date!=='-')||(t.bankruptcy_date&&t.bankruptcy_date!=='-')||dqLevel(t.delinquency_status)===2))||yardiRows(p).some(yardiCritical);
+  const tCritical=(t&&((t.spec_serv_status||'').toLowerCase()==='yes'||(t.reo_date&&t.reo_date!=='-'&&filingWeight(t.reo_date)!==0)||(t.bankruptcy_date&&t.bankruptcy_date!=='-'&&filingWeight(t.bankruptcy_date)!==0)||dqLevel(t.delinquency_status)===2))||yardiRows(p).some(yardiCritical);
   const pressureExists=distressScore>0||maturityScore>0||tCritical;
   let finalScore,scoringMode;
   if(pressureExists){let weightedSum=0,wAvailable=0;for(const [cat,score] of Object.entries(catScores)){weightedSum+=score*weightMap[cat];wAvailable+=weightMap[cat];}finalScore=wAvailable>0?Math.round(weightedSum/wAvailable):0;scoringMode='pressure';}
@@ -1570,12 +1577,12 @@ function propCard(p){
 }
 function buildChips(p){
   const chips=[];const STALE=-365*24*3600*1000,now=new Date();const t=p._trepp;
-  if(t){if((t.spec_serv_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Special Servicer'});if((t.reo_date||'')!=='-'&&t.reo_date)chips.push({cls:'trepp-distress',label:'REO'});if(dqLevel(t.delinquency_status))chips.push({cls:'trepp-distress',label:`${t.delinquency_status}`});if((t.watchlist_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Watchlist'});const dscr=parseFloat(t.dscr_noi);if(!isNaN(dscr)&&dscr>0&&dscr<1.25)chips.push({cls:'trepp-distress',label:`DSCR ${dscr.toFixed(2)}`});}
+  if(t){if((t.spec_serv_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Special Servicer'});if((t.reo_date||'')!=='-'&&t.reo_date&&(filingAge(t.reo_date)===null||withinYears(t.reo_date,3)))chips.push({cls:'trepp-distress',label:'REO'});if(dqLevel(t.delinquency_status))chips.push({cls:'trepp-distress',label:`${t.delinquency_status}`});if((t.watchlist_status||'').toLowerCase()==='yes')chips.push({cls:'trepp-distress',label:'Watchlist'});const dscr=parseFloat(t.dscr_noi);if(!isNaN(dscr)&&dscr>0&&dscr<1.25)chips.push({cls:'trepp-distress',label:`DSCR ${dscr.toFixed(2)}`});}
   {const yr=yardiRows(p),st=yr.map(y=>String(y.property_special_status||'')).join(', '),has=l=>chips.some(c=>c.label===l);
    if(/notice of acceleration/i.test(st))chips.push({cls:'trepp-distress',label:'Loan Accelerated'});
    if(/loan in arrears/i.test(st))chips.push({cls:'trepp-distress',label:'Loan in Arrears'});
    if(/watch ?list/i.test(st)&&!has('Watchlist'))chips.push({cls:'trepp-distress',label:'Watchlist'});}
-  if(p.preforeclosure_active_flag===true||p.preforeclosure_active_flag==='true'||p.preforeclosure_active_flag==='True')chips.push({cls:'distress',label:'Preforeclosure'});
+  if((p.preforeclosure_active_flag===true||p.preforeclosure_active_flag==='true'||p.preforeclosure_active_flag==='True')&&(filingAge(p.preforeclosure_recording_date)===null||withinYears(p.preforeclosure_recording_date,3)))chips.push({cls:'distress',label:'Preforeclosure'});
   // same date the Loan Maturity filter uses (⬡ = Trepp, plain = Reonomy mortgage)
   const lm=window.loanMat?loanMat(p):null;
   if(lm&&(lm.ms-now)>STALE){const bestMat=new Date(lm.ms);const d=daysUntil(bestMat);chips.push({cls:'maturity',label:`${lm.src==='trepp'?'⬡ ':''}Mat. ${fmtDate(bestMat)}${d<0?' (past)':''}`});}
@@ -3110,12 +3117,13 @@ function isDistressed(p){
   var t=p._trepp;
   if(t){
     if(String(t.spec_serv_status||"").toLowerCase()==="yes")return true;
-    if(t.reo_date&&t.reo_date!=="-")return true;
+    if(t.reo_date&&t.reo_date!=="-"&&(filingAge(t.reo_date)===null||withinYears(t.reo_date,3)))return true;
     if(DQ_BAD.test(String(t.delinquency_status||"").trim()))return true;
   }
   if(yardiRows(p).some(yardiCritical))return true;   // Yardi: loan in arrears / notice of acceleration
+  // an active preforeclosure counts while its filing is under 3 yrs old (or undated)
   var f=String(p.preforeclosure_active_flag==null?"":p.preforeclosure_active_flag).toLowerCase();
-  return f==="true"||f==="1"||f==="1.0";
+  return (f==="true"||f==="1"||f==="1.0")&&(filingAge(p.preforeclosure_recording_date)===null||withinYears(p.preforeclosure_recording_date,3));
 }
 window.isDistressed=isDistressed;
 var distressOn=false;
