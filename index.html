@@ -192,12 +192,27 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .pc-src-badge.both{background:#f3e8ff;color:#6d28d9}
 .pc-src-badge.costar{background:#ffedd5;color:#c2410c}
 .pc-src-badge.yardi{background:#ccfbf1;color:#0f766e}
-.lid-share{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--blue);background:var(--blue-light);border-radius:14px;padding:5px 10px;margin-right:8px;white-space:nowrap;align-self:flex-start;cursor:pointer}
-.lid-share:hover{background:#d2e3fc}
-#lidShareView{font-size:12px;font-weight:500;color:var(--blue);padding:4px 10px;border-radius:14px;white-space:nowrap;cursor:pointer;margin-left:4px}
-#lidShareView:hover{background:var(--blue-light)}
-#lidToast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:#202124;color:#fff;font-size:13px;padding:10px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:all .25s;z-index:4000}
-#lidToast.show{opacity:1;transform:translate(-50%,0)}
+/* share buttons: blue outline at rest, green with a drawn check once copied */
+.lid-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);background:var(--white);color:var(--blue);font-weight:600;cursor:pointer;overflow:hidden;transition:background .28s,border-color .28s,color .28s,box-shadow .2s,transform .12s;white-space:nowrap}
+.lid-btn:hover{background:var(--blue-light);border-color:#c6dafc}
+.lid-btn:active{transform:scale(.98)}
+.lid-btn .lb-idle,.lid-btn .lb-done{display:inline-flex;align-items:center;gap:7px;transition:transform .32s cubic-bezier(.2,.8,.3,1.2),opacity .2s}
+.lid-btn .lb-done{position:absolute;inset:0;justify-content:center;opacity:0;transform:translateY(110%)}
+.lid-btn .lb-done svg path{stroke-dasharray:24;stroke-dashoffset:24}
+.lid-btn.copied{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 0 0 4px rgba(24,128,56,.18)}
+.lid-btn.copied .lb-idle{opacity:0;transform:translateY(-110%)}
+.lid-btn.copied .lb-done{opacity:1;transform:translateY(0)}
+.lid-btn.copied .lb-done svg{animation:lbPop .45s cubic-bezier(.2,.8,.3,1.4)}
+.lid-btn.copied .lb-done svg path{animation:lbDraw .38s .08s ease-out forwards}
+.lid-btn::after{content:"";position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:rgba(255,255,255,.55);opacity:0;pointer-events:none}
+.lid-btn.copied::after{animation:lbRipple .6s ease-out}
+@keyframes lbDraw{to{stroke-dashoffset:0}}
+@keyframes lbPop{0%{transform:scale(.4) rotate(-20deg)}70%{transform:scale(1.18) rotate(4deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes lbRipple{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(40)}}
+.lid-sharebar{width:100%;height:42px;flex:0 0 42px;border-radius:10px;font-size:13.5px;box-shadow:0 1px 2px rgba(60,64,67,.08)}
+.lid-sharebar:hover{box-shadow:0 2px 8px rgba(26,115,232,.16)}
+#lidShareView{height:28px;padding:0 13px;border-radius:14px;font-size:12.5px;flex-shrink:0;margin-right:auto}
+.toolbar #fbClear{margin-right:0}
 #lidShareBanner{position:fixed;top:70px;left:50%;transform:translate(-50%,-12px);background:#fff;border:1px solid var(--border);border-left:4px solid var(--blue);box-shadow:0 6px 24px rgba(0,0,0,.14);border-radius:10px;padding:10px 40px 10px 14px;max-width:min(560px,calc(100vw - 32px));opacity:0;transition:all .3s;z-index:3500;font-size:13px}
 #lidShareBanner.show{opacity:1;transform:translate(-50%,0)}
 #lidShareBanner .lsb-t{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--blue)}
@@ -525,7 +540,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v49</div>
+<div id="verBadge">v50</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -3751,33 +3766,36 @@ else init();
   var origClear=window.clearMarketData;
   if(typeof origClear==="function")window.clearMarketData=function(){var r=origClear.apply(this,arguments);try{history.replaceState(null,"",location.pathname);}catch(e){}return r;};
 
-  // ── copy + toast
-  function toast(msg){
-    var t=document.getElementById("lidToast");
-    if(!t){t=document.createElement("div");t.id="lidToast";document.body.appendChild(t);}
-    t.textContent=msg;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show");},2200);
+  // ── copy, with the button itself as the confirmation
+  var LINK_SVG='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 14a5 5 0 007.07 0l3.54-3.54a5 5 0 00-7.07-7.07L12 4.93M14 10a5 5 0 00-7.07 0L3.39 13.5a5 5 0 007.07 7.07L12 19.07" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>';
+  var CHECK_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function makeBtn(cls,label,doneLabel,title){
+    var b=document.createElement("button");b.type="button";b.className="lid-btn "+cls;b.title=title;
+    b.innerHTML='<span class="lb-idle">'+LINK_SVG+label+'</span><span class="lb-done">'+CHECK_SVG+doneLabel+'</span>';
+    return b;
   }
-  function copy(text,what){
-    var done=function(){toast(what+" copied. Paste it into Teams or an email.");};
-    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(done,function(){fallback();});
-    else fallback();
-    function fallback(){var ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done();}catch(e){prompt("Copy this link:",text);}ta.remove();}
+  function flash(btn){btn.classList.remove("copied");void btn.offsetWidth;btn.classList.add("copied");clearTimeout(btn._h);btn._h=setTimeout(function(){btn.classList.remove("copied");},1900);}
+  function copy(text,btn){
+    var ok=function(){flash(btn);};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(ok,fallback);else fallback();
+    function fallback(){var ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();
+      try{if(document.execCommand("copy"))ok();else throw 0;}catch(e){prompt("Copy this link:",text);}ta.remove();}
   }
-  // drawer: a Copy link button in the header, re-added whenever the drawer redraws
+  // drawer: a full-width bar right above Score Breakdown, re-added whenever the drawer redraws
   var dc=document.getElementById("drawerContent");
   if(dc)new MutationObserver(function(){
-    var h=dc.querySelector(".dd-header");if(!h||h.querySelector(".lid-share"))return;
-    var b=document.createElement("button");b.type="button";b.className="lid-share";b.title="Copy a link to this property";
-    b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 14a5 5 0 007.07 0l3.54-3.54a5 5 0 00-7.07-7.07L12 4.93M14 10a5 5 0 00-7.07 0L3.39 13.5a5 5 0 007.07 7.07L12 19.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Copy link';
-    b.addEventListener("click",function(e){e.stopPropagation();var id=null;try{id=selectedId;}catch(x){}if(id!=null)copy(linkFor({property:id}),"Property link");});
-    var close=h.querySelector("button");if(close&&close.parentNode===h)h.insertBefore(b,close);else h.appendChild(b);
+    if(dc.querySelector(".lid-sharebar"))return;
+    var body=dc.querySelector(".dd-body");if(!body)return;
+    var b=makeBtn("lid-sharebar","Copy link to this property","Link copied","Copy a link that opens this property for a colleague");
+    b.addEventListener("click",function(e){e.stopPropagation();var id=null;try{id=selectedId;}catch(x){}if(id!=null)copy(linkFor({property:id}),b);});
+    var sb=[].slice.call(body.querySelectorAll(".dd-section")).find(function(sec){var t=sec.querySelector(".dd-section-title");return t&&/score breakdown/i.test(t.textContent);});
+    if(sb)body.insertBefore(b,sb);else body.insertBefore(b,body.firstChild);
   }).observe(dc,{childList:true});
-  // toolbar: copy a link to the current filtered view
+  // toolbar: copy a link to the current filters
   var clr=document.getElementById("fbClear");
   if(clr){
-    var vb=document.createElement("button");vb.type="button";vb.id="lidShareView";vb.title="Copy a link to this view (market and every filter)";
-    vb.textContent="Copy link to view";
-    vb.addEventListener("click",function(){if(!window.GS_REGION)return;copy(linkFor({filters:true}),"View link");});
+    var vb=makeBtn("","Copy link to current filters","Link copied","Copy a link that reopens this market with every filter you have set");vb.id="lidShareView";
+    vb.addEventListener("click",function(){if(!window.GS_REGION)return;copy(linkFor({filters:true}),vb);});
     clr.parentNode.insertBefore(vb,clr.nextSibling);
   }
 
