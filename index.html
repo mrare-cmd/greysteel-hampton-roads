@@ -540,7 +540,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v51</div>
+<div id="verBadge">v52</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -3928,7 +3928,6 @@ else init();
       var b=await fetch(api+"/loanid/snapshot/begin",{method:"POST",headers:H,body:JSON.stringify({region:reg,v:SNAP_VER,n:rows.length})}).then(function(r){return r.json();});
       if(!b||!b.gen)return;   // skip (already current) or busy (someone else is uploading)
       for(var i=0;i<rows.length;i+=60){   // small batches: the Worker parses each in a few ms
-        if(window.GS_REGION!==reg)return;                         // left the market: next visit retries
         var r=await fetch(api+"/loanid/snapshot/rows",{method:"POST",headers:H,body:JSON.stringify({region:reg,gen:b.gen,rows:rows.slice(i,i+60)})});
         if(!r.ok)return;
         await new Promise(function(res){setTimeout(res,60);});    // stay out of the way of the map
@@ -3936,7 +3935,11 @@ else init();
       var c=await fetch(api+"/loanid/snapshot/commit",{method:"POST",headers:H,body:JSON.stringify({region:reg,gen:b.gen})}).then(function(r){return r.json();});
       if(c&&c.ok)console.info("[LoanID] Claude connector snapshot updated: "+c.n+" properties ("+reg+")");
     }catch(e){console.warn("[LoanID] connector snapshot skipped:",e&&e.message);}
-    finally{busy=false;}
+    finally{
+      busy=false;
+      // an upload keeps going after a market switch; then the new market gets its turn
+      if(window.GS_REGION&&window.GS_REGION!==reg)setTimeout(sync,1500);
+    }
   }
   window.lidSnapshotBuildRow=buildRow;   // for testing
   window.addEventListener("lid:loaded",function(){setTimeout(sync,5000);});
