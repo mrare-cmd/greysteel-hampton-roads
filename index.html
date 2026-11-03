@@ -540,7 +540,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v50</div>
+<div id="verBadge">v51</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -3842,5 +3842,103 @@ else init();
     setTimeout(function(){bar.classList.remove("show");setTimeout(function(){bar.remove();},400);},14000);
     syncUrl();
   }
+})();
+</script>
+<script>
+// ─── Claude connector snapshot ───
+// The LoanID connector for Claude answers from a per-market snapshot that this
+// page builds with its own matching and scoring, so Claude says what LoanID
+// shows. After a market loads, the page asks the Worker whether today's
+// snapshot for these exact data files exists; if not, it uploads one in the
+// background (60 properties per request). The Worker decides whether it is
+// current (data-file versions + today + SNAP_VER) and makes the links itself.
+// Only default scoring settings are
+// uploaded, so one person's custom weights never leak into everyone's answers.
+(function(){
+  var SNAP_VER="v51";
+  function isDefaultScoring(){
+    try{
+      var ok=["wHold","wMat","wDist","wMkt"].every(function(id){var e=document.getElementById(id);return e&&String(e.value)===String(e.defaultValue);});
+      return ok&&JSON.stringify((holdPeriods||[]).slice().sort(function(a,b){return a-b;}))==="[3,5,7,10]";
+    }catch(e){return false;}
+  }
+  function strip(v){return String(v==null?"":v).replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/\s+/g," ").trim();}
+  function num(v){var n=parseFloat(String(v==null?"":v).replace(/[,$%]/g,""));return isNaN(n)?null:n;}
+  function day(v){if(v==null||v===""||v==="-")return null;var d=window.parseD?parseD(v):new Date(v);return d&&!isNaN(d)?d.toISOString().slice(0,10):null;}
+  function clean(o){ // drop empty values so stored records stay small
+    if(Array.isArray(o)){var a=o.map(clean).filter(function(x){return x!=null&&!(typeof x==="object"&&!Array.isArray(x)&&!Object.keys(x).length);});return a.length?a:null;}
+    if(o&&typeof o==="object"){var r={};Object.keys(o).forEach(function(k){var v=clean(o[k]);if(v!=null&&v!==""&&!(typeof v==="object"&&!Array.isArray(v)&&!Object.keys(v).length))r[k]=v;});return r;}
+    return o===""||o===undefined?null:o;
+  }
+  function addrOf(p){return p.address_line_1||p.address||(p._trepp&&p._trepp.address)||"";}
+  function buildRow(p,reg,base){
+    var t=p._trepp,c=p._costar,ys=window.yardiRows?yardiRows(p):[],lm=window.loanMat?loanMat(p):null,name=window.bldgName?bldgName(p):null;
+    var addr=addrOf(p),city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(", ");
+    var link=base+"?m="+reg+"&p="+encodeURIComponent(p.id)+(addr?"&a="+encodeURIComponent(addr):"");
+    var units=num(p.total_units)||num(t&&t.number_of_units)||num(c&&c.number_of_units);
+    var lender=t?(t.originator||t.source):(p.mortgage_standardized_name||p.mortgage_recorded_name);
+    var yOwner=ys.length?ys[0].owner:null,sfEnt=p.sf_ownership_entity||null;
+    var detail=clean({
+      id:String(p.id),market:reg,name:name||null,address:addr,city:city,zip:p.address_postal_code||(t&&t.zip)||null,
+      units:units,year_built:num(p.year_built)||num(t&&t.year_built),building_sf:num(p.gross_building_area),submarket:p.submarket_name||(t&&t.trepp_submarket)||null,
+      sources:{reonomy:p._source==="reonomy"||p._source==="both",trepp:!!t,costar:!!c,yardi:ys.length>0,salesforce:!!p._hasSF},
+      score:{total:p._score,tier:p._tier,categories:p._cats,reasons:(p._details||[]).map(function(d){return d.cat+": "+strip(d.label);})},
+      distressed:window.isDistressed?isDistressed(p):null,
+      loan_maturity:lm?{date:new Date(lm.ms).toISOString().slice(0,10),source:lm.src==="trepp"?"Trepp":"Recorded mortgage (Reonomy)"}:null,
+      trepp_loan:t?{loan_name:t.loan_name,property_name:t.property_name,source:t.source,originator:t.originator,current_balance:num(t.current_balance),original_balance:num(t.original_balance),
+        rate_pct:num(t.loan_rate),rate_type:t.rate_type,amortization:t.amortization_type,originated:day(t.origination_date),matures:day(t.maturity_date),
+        dscr:num(t.dscr_noi),ltv_pct:num(t.ltv),occupancy_pct:num(t.occupancy_pct),delinquency:t.delinquency_status,in_special_servicing:t.spec_serv_status,
+        special_servicer:t.special_servicer,watchlist:t.watchlist_status,assumable:window.isAssumable?isAssumable(p):null}:null,
+      recorded_mortgage:(p.mortgage_amount||p.mortgage_maturity_date)?{lender:p.mortgage_standardized_name||p.mortgage_recorded_name,amount:num(p.mortgage_amount),recorded:day(p.mortgage_recorded_date),matures:day(p.mortgage_maturity_date)}:null,
+      last_sale:{date:day(p.sale_recorded_date),price:num(p.sale_amount),price_per_unit:num(p.price_per_unit),buyer:p.buyer_true_company,seller:p.seller_true_company,source:p._hasCostar?"CoStar":"Reonomy"},
+      deed_owner:{name:p.reported_owner_name,mailing_address:p.reported_mailing_address_full||null},
+      reonomy_contacts:[1,2,3].map(function(i){var k=i===1?"contact_":"contact_"+i+"_";return {name:p[k+"name"],company:p[k+"company_name"],title:p[k+"title"],phone:p[k+"phone_1"],email:p[k+"email_1"]};}),
+      salesforce:p._hasSF?{ownership_entity:sfEnt,contacts:(p._sfContacts||[]).map(function(x){return {name:x.name,phones:x.phones,emails:x.emails};})}:null,
+      yardi:ys.map(function(y){var w=function(pre){return {company:y[pre],contact:[y[pre+"_contact_first_name"],y[pre+"_contact_last_name"]].filter(Boolean).join(" "),phone:y[pre+"_contact_phone_number"],email:y[pre+"_contact_email"],website:y[pre+"_website"]};};
+        return {name:window.yardiName?yardiName(y.property_name):y.property_name,status:y.property_special_status,improvement_rating:y.impr_rating,location_rating:y.loc_rating,
+          property_phone:y.phone_number,owner:w("owner"),manager:w("manager"),special_servicer:y.special_servicer||null};}),
+      assessed_value:window.asrOf?asrOf(p):null,
+      link:link
+    })||{};
+    var summary=clean({id:String(p.id),name:name||null,address:addr,units:units,score:p._score,tier:p._tier,distressed:detail.distressed||false,
+      loan_maturity:detail.loan_maturity?detail.loan_maturity.date:null,lender:lender||null,balance:t?num(t.current_balance):num(p.mortgage_amount),
+      owner:yOwner||sfEnt||p.reported_owner_name||null,link:link});
+    // the dashboard's own search-everything index, so Claude finds what the search bar finds
+    var search=window.searchIndex?searchIndex(p).all:[name,addr,city,p.address_postal_code,p.submarket_name,p.reported_owner_name,sfEnt,lender,t&&t.loan_name,t&&t.property_name,t&&t.special_servicer,t&&t.source,
+      c&&c.property_name,c&&c.buyer_true_company,c&&c.seller_true_company,
+      ys.map(function(y){return [y.property_name,y.owner,y.manager,y.special_servicer,y.owner_contact_first_name,y.owner_contact_last_name,y.manager_contact_first_name,y.manager_contact_last_name,y.property_special_status].join(" ");}).join(" "),
+      (p._sfContacts||[]).map(function(x){return x.name;}).join(" "),p.contact_name,p.contact_company_name].filter(Boolean).join(" ").toLowerCase();
+    search=String(search).replace(/\s+/g," ");
+    var ds=JSON.stringify(detail);if(ds.length>23500){delete detail.score.reasons;ds=JSON.stringify(detail);}
+    return {id:String(p.id),name:name||addr,addr:addr,units:units,score:p._score,tier:p._tier,mat_ms:lm?lm.ms:null,
+      distressed:!!detail.distressed,has_trepp:!!t,has_yardi:ys.length>0,src:p._source,summary:JSON.stringify(summary),detail:ds,search:search.slice(0,16000)};
+  }
+  var busy=false;
+  async function sync(){
+    var reg=window.GS_REGION;
+    if(busy||!reg||!window.GS_USER||typeof allData==="undefined"||!allData.length||!isDefaultScoring())return;
+    busy=true;
+    try{
+      var api=window.LID_API,H=Object.assign({"Content-Type":"application/json"},window.lidAuth());
+      var st=await fetch(api+"/loanid/snapshot/status?region="+reg+"&v="+SNAP_VER,{headers:H,cache:"no-store"}).then(function(r){return r.ok?r.json():null;});
+      if(!st||st.current||window.GS_REGION!==reg)return;
+      var base=location.origin+location.pathname,seen={};
+      var rows=allData.map(function(p){try{return buildRow(p,reg,base);}catch(e){return null;}})
+        .filter(function(r){if(!r||seen[r.id])return false;seen[r.id]=1;return true;});   // one row per id
+      var b=await fetch(api+"/loanid/snapshot/begin",{method:"POST",headers:H,body:JSON.stringify({region:reg,v:SNAP_VER,n:rows.length})}).then(function(r){return r.json();});
+      if(!b||!b.gen)return;   // skip (already current) or busy (someone else is uploading)
+      for(var i=0;i<rows.length;i+=60){   // small batches: the Worker parses each in a few ms
+        if(window.GS_REGION!==reg)return;                         // left the market: next visit retries
+        var r=await fetch(api+"/loanid/snapshot/rows",{method:"POST",headers:H,body:JSON.stringify({region:reg,gen:b.gen,rows:rows.slice(i,i+60)})});
+        if(!r.ok)return;
+        await new Promise(function(res){setTimeout(res,60);});    // stay out of the way of the map
+      }
+      var c=await fetch(api+"/loanid/snapshot/commit",{method:"POST",headers:H,body:JSON.stringify({region:reg,gen:b.gen})}).then(function(r){return r.json();});
+      if(c&&c.ok)console.info("[LoanID] Claude connector snapshot updated: "+c.n+" properties ("+reg+")");
+    }catch(e){console.warn("[LoanID] connector snapshot skipped:",e&&e.message);}
+    finally{busy=false;}
+  }
+  window.lidSnapshotBuildRow=buildRow;   // for testing
+  window.addEventListener("lid:loaded",function(){setTimeout(sync,5000);});
 })();
 </script>
