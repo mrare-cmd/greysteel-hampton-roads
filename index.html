@@ -540,7 +540,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v52</div>
+<div id="verBadge">v53</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -3855,7 +3855,7 @@ else init();
 // Only default scoring settings are
 // uploaded, so one person's custom weights never leak into everyone's answers.
 (function(){
-  var SNAP_VER="v51";
+  var SNAP_VER="v53";
   function isDefaultScoring(){
     try{
       var ok=["wHold","wMat","wDist","wMkt"].every(function(id){var e=document.getElementById(id);return e&&String(e.value)===String(e.defaultValue);});
@@ -3864,6 +3864,9 @@ else init();
   }
   function strip(v){return String(v==null?"":v).replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/\s+/g," ").trim();}
   function num(v){var n=parseFloat(String(v==null?"":v).replace(/[,$%]/g,""));return isNaN(n)?null:n;}
+  // a loan amount of 0 or blank means unknown (Trepp property records carry no balance), never a $0 loan
+  function amt(v){var n=num(v);return n!=null&&n>0?n:null;}
+  function known(v){v=v==null?"":String(v).trim();return v&&!/^(unknown|n\/?a|none|-)$/i.test(v)?v:null;}
   function day(v){if(v==null||v===""||v==="-")return null;var d=window.parseD?parseD(v):new Date(v);return d&&!isNaN(d)?d.toISOString().slice(0,10):null;}
   function clean(o){ // drop empty values so stored records stay small
     if(Array.isArray(o)){var a=o.map(clean).filter(function(x){return x!=null&&!(typeof x==="object"&&!Array.isArray(x)&&!Object.keys(x).length);});return a.length?a:null;}
@@ -3876,7 +3879,7 @@ else init();
     var addr=addrOf(p),city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(", ");
     var link=base+"?m="+reg+"&p="+encodeURIComponent(p.id)+(addr?"&a="+encodeURIComponent(addr):"");
     var units=num(p.total_units)||num(t&&t.number_of_units)||num(c&&c.number_of_units);
-    var lender=t?(t.originator||t.source):(p.mortgage_standardized_name||p.mortgage_recorded_name);
+    var lender=t?(known(t.originator)||known(t.source)):(known(p.mortgage_standardized_name)||known(p.mortgage_recorded_name));
     var yOwner=ys.length?ys[0].owner:null,sfEnt=p.sf_ownership_entity||null;
     var detail=clean({
       id:String(p.id),market:reg,name:name||null,address:addr,city:city,zip:p.address_postal_code||(t&&t.zip)||null,
@@ -3885,11 +3888,11 @@ else init();
       score:{total:p._score,tier:p._tier,categories:p._cats,reasons:(p._details||[]).map(function(d){return d.cat+": "+strip(d.label);})},
       distressed:window.isDistressed?isDistressed(p):null,
       loan_maturity:lm?{date:new Date(lm.ms).toISOString().slice(0,10),source:lm.src==="trepp"?"Trepp":"Recorded mortgage (Reonomy)"}:null,
-      trepp_loan:t?{loan_name:t.loan_name,property_name:t.property_name,source:t.source,originator:t.originator,current_balance:num(t.current_balance),original_balance:num(t.original_balance),
+      trepp_loan:t?{loan_name:t.loan_name,property_name:t.property_name,source:t.source,originator:t.originator,current_balance:amt(t.current_balance),original_balance:amt(t.original_balance),
         rate_pct:num(t.loan_rate),rate_type:t.rate_type,amortization:t.amortization_type,originated:day(t.origination_date),matures:day(t.maturity_date),
         dscr:num(t.dscr_noi),ltv_pct:num(t.ltv),occupancy_pct:num(t.occupancy_pct),delinquency:t.delinquency_status,in_special_servicing:t.spec_serv_status,
         special_servicer:t.special_servicer,watchlist:t.watchlist_status,assumable:window.isAssumable?isAssumable(p):null}:null,
-      recorded_mortgage:(p.mortgage_amount||p.mortgage_maturity_date)?{lender:p.mortgage_standardized_name||p.mortgage_recorded_name,amount:num(p.mortgage_amount),recorded:day(p.mortgage_recorded_date),matures:day(p.mortgage_maturity_date)}:null,
+      recorded_mortgage:(p.mortgage_amount||p.mortgage_maturity_date)?{lender:known(p.mortgage_standardized_name)||known(p.mortgage_recorded_name),amount:amt(p.mortgage_amount),recorded:day(p.mortgage_recorded_date),matures:day(p.mortgage_maturity_date)}:null,
       last_sale:{date:day(p.sale_recorded_date),price:num(p.sale_amount),price_per_unit:num(p.price_per_unit),buyer:p.buyer_true_company,seller:p.seller_true_company,source:p._hasCostar?"CoStar":"Reonomy"},
       deed_owner:{name:p.reported_owner_name,mailing_address:p.reported_mailing_address_full||null},
       reonomy_contacts:[1,2,3].map(function(i){var k=i===1?"contact_":"contact_"+i+"_";return {name:p[k+"name"],company:p[k+"company_name"],title:p[k+"title"],phone:p[k+"phone_1"],email:p[k+"email_1"]};}),
@@ -3901,7 +3904,7 @@ else init();
       link:link
     })||{};
     var summary=clean({id:String(p.id),name:name||null,address:addr,units:units,score:p._score,tier:p._tier,distressed:detail.distressed||false,
-      loan_maturity:detail.loan_maturity?detail.loan_maturity.date:null,lender:lender||null,balance:t?num(t.current_balance):num(p.mortgage_amount),
+      loan_maturity:detail.loan_maturity?detail.loan_maturity.date:null,lender:lender||null,balance:t?amt(t.current_balance):amt(p.mortgage_amount),
       owner:yOwner||sfEnt||p.reported_owner_name||null,link:link});
     // the dashboard's own search-everything index, so Claude finds what the search bar finds
     var search=window.searchIndex?searchIndex(p).all:[name,addr,city,p.address_postal_code,p.submarket_name,p.reported_owner_name,sfEnt,lender,t&&t.loan_name,t&&t.property_name,t&&t.special_servicer,t&&t.source,
