@@ -420,6 +420,11 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 #fb_distress .fb-box{width:13px;height:13px;border:1.5px solid currentColor;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;line-height:1}
 #fb_distress.on{border-color:var(--red);background:rgba(217,48,37,.08);color:var(--red)}
 #fb_distress.on .fb-box::after{content:"\2713";font-weight:700}
+#fb_rod{cursor:text;gap:6px;padding:0 11px}
+#fb_rod input{width:44px;height:24px;border:1px solid var(--border);border-radius:12px;padding:0 6px;font:inherit;text-align:center;background:var(--white);color:var(--text);outline:none}
+#fb_rod input:focus{border-color:var(--blue)}
+#fb_rod.on{border-color:var(--red);background:rgba(217,48,37,.08);color:var(--red)}
+#fb_rod.on input{border-color:var(--red)}
 .fb-cnt{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center;box-sizing:border-box}
 .fp.on .fb-cnt{display:inline-flex}
 #fbClear{height:28px;margin-right:auto;padding:0 14px;border-radius:14px;border:1px solid var(--border);background:var(--white);color:var(--text3);font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background .35s,border-color .35s,color .35s}
@@ -548,7 +553,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v55</div>
+<div id="verBadge">v56</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -655,9 +660,9 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <button type="button" class="fp-btn" id="fb_distress" aria-pressed="false" title="Trepp loan 30+ days late, in foreclosure, REO, a non-performing matured balloon, or with the special servicer; or a Reonomy preforeclosure filing; or a DC substitute trustee appointment in the last 3 years."><span class="fb-box"></span>Distressed</button>
+  <label class="fp-btn" id="fb_rod" style="display:none" title="DC Recorder of Deeds: an appointment of substitute trustee (the step before a foreclosure sale) recorded within this many days">Sub. Trustee within<input id="fb_rod_days" placeholder="#" autocomplete="off" inputmode="numeric">days</label>
   <div class="fp" id="fp_more"><button type="button" class="fp-btn" aria-expanded="false">More Filters<span class="fb-cnt" id="fbMoreCnt"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
     <div class="fp-pop" style="width:300px">
-      <div class="fp-sec" id="fb_rod_sec" style="display:none"><div class="fp-h">Substitute Trustee</div><p class="fp-d">DC Recorder of Deeds: an appointment of substitute trustee (the step before a foreclosure sale) recorded within the past</p><div class="fp-row"><input id="fb_rod_days" placeholder="#" autocomplete="off"><span class="fbunit">days</span></div></div>
       <div class="fp-sec"><div class="fp-h">Sale Price</div><p class="fp-d">Most recent sale: the CoStar comp when one matched, otherwise the Reonomy recorded sale.</p><div class="fp-row"><input id="fb_price_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_price_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Price / Unit</div><p class="fp-d">Sale price divided by units. Portfolio sales are left out because the per-parcel math is unreliable.</p><div class="fp-row"><input id="fb_ppu_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_ppu_max" placeholder="Max" autocomplete="off"></div></div>
       <div class="fp-sec"><div class="fp-h">Assessed Value</div><p class="fp-d">Total assessed value (land + improvements) from the city or county assessor.</p><div class="fp-row"><input id="fb_asr_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_asr_max" placeholder="Max" autocomplete="off"></div></div>
@@ -1071,7 +1076,7 @@ async function loadData(){
   yardiArr.forEach(y=>{for(const k in y)if(typeof y[k]==='string')y[k]=y[k].replace(/[<>"`]/g,'');});
   // Yardi filters only where this market has Yardi data
   // Substitute Trustee filter only where this market has recorder filings
-  {const has=rodArr.length>0,e=document.getElementById('fb_rod_sec');if(e)e.style.display=has?'':'none';if(!has){const i=document.getElementById('fb_rod_days');if(i)i.value='';}}
+  {const has=rodArr.length>0,e=document.getElementById('fb_rod');if(e)e.style.display=has?'':'none';if(!has){const i=document.getElementById('fb_rod_days');if(i)i.value='';}}
   {const has=yardiArr.length>0;['fb_yardi_sec','fb_yardi_rate_sec'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=has?'':'none';});
    if(!has)document.querySelectorAll('.fb-ys,.fb-yr').forEach(c=>{c.checked=false;});}
   window.__lidLoadSecs=(performance.now()-_t0)/1000;
@@ -3288,8 +3293,8 @@ var FILTERS=[
    var rel=a!==null&&b!==null?"in "+a+"\u2013"+yr(b):b!==null?"within "+yr(b):a!==null?"more than "+yr(a)+" out":"";
    return [dateText("mat"),rel].filter(Boolean).join(" \u00b7 ");},clear:function(){clr("mat");setv("fb_due_yrs");setv("fb_due_min");}},
  {el:"fp_orig",label:"Originated",val:function(){var d=parseNumInput("fb_orig_yrs");return [dateText("orig"),d===null?"":"past "+d+" yr"+(d===1?"":"s")].filter(Boolean).join(" \u00b7 ");},clear:function(){clr("orig");setv("fb_orig_yrs");}},
+ {el:"fb_rod",label:"Sub. Trustee",val:function(){var d=parseNumInput("fb_rod_days");return d===null?"":"within "+d+" day"+(d===1?"":"s");},clear:function(){setv("fb_rod_days");},red:true},
  {el:"fb_distress",label:"Distressed",val:function(){return distressOn?"only":"";},clear:function(){distressOn=false;},red:true},
- {more:true,label:"Sub. trustee",val:function(){var d=parseNumInput("fb_rod_days");return d===null?"":"past "+d+" day"+(d===1?"":"s");},clear:function(){setv("fb_rod_days");}},
  {more:true,label:"Sale price",val:function(){return rngText("price",fmtMoney);},clear:function(){clr("price");}},
  {more:true,label:"Price/unit",val:function(){return rngText("ppu",fmtMoney);},clear:function(){clr("ppu");}},
  {more:true,label:"Assessed",val:function(){return rngText("asr",fmtMoney);},clear:function(){clr("asr");}},
