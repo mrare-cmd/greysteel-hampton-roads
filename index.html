@@ -573,7 +573,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v59</div>
+<div id="verBadge">v60</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -1008,6 +1008,9 @@ function scoreProperty(p){
   let finalScore,scoringMode;
   if(pressureExists){let weightedSum=0,wAvailable=0;for(const [cat,score] of Object.entries(catScores)){weightedSum+=score*weightMap[cat];wAvailable+=weightMap[cat];}finalScore=wAvailable>0?Math.round(weightedSum/wAvailable):0;scoringMode='pressure';}
   else{const holdContrib=Math.min(holdScore*0.40,40);const marketContrib=Math.min(marketScore*0.09,9);finalScore=Math.round(holdContrib+marketContrib);scoringMode='no-pressure';}
+  // a foreclosure sale on the calendar (DC recorder) always ranks Hot, near the top (Mason, 2026-11-10)
+  const saleAhead=(p._rod||[]).filter(f=>!ROD_RESOLVED[f.lotStatus]).map(f=>f.saleDate).filter(d=>d&&d>=new Date().toISOString().slice(0,10)).sort()[0];
+  if(saleAhead&&finalScore<90){finalScore=90;details.push({cat:'Score',label:`Foreclosure sale scheduled ${fmtDate(saleAhead)}: always ranked Hot (score set to 90)`});}
   const tier=finalScore>=70?'hot':finalScore>=50?'warm':finalScore>=30?'watch':'cold';
   const cats={holdPeriod:holdScore,loanMaturity:maturityScore,distress:distressScore,marketSignals:marketScore};
   if(scoringMode==='no-pressure')details.push({cat:'Score',label:'No active pressure signals — score capped at Watch (max 49). Hold period and market signals shown for context only.'});
