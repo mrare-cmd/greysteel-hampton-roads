@@ -432,6 +432,8 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .rod-sum-h{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#991b1b;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px}
 .rod-sum-h span{font-weight:500;color:var(--text3);text-transform:none;letter-spacing:0}
 .rod-ch-h{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#991b1b;margin:8px 0 4px}
+.rod-chain-box>summary{cursor:pointer;user-select:none}
+.rod-chain-box[open]>summary{margin-bottom:6px}
 .rod-chain{width:100%;border-collapse:collapse;font-size:11.5px;background:#fff;border:1px solid #fee2e2}
 .rod-chain th{text-align:left;font-size:10px;font-weight:600;color:var(--text3);padding:5px 7px;border-bottom:1px solid #fee2e2}
 .rod-chain td{padding:5px 7px;border-bottom:1px solid #f8eeee;vertical-align:top;color:var(--text)}
@@ -571,7 +573,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v58</div>
+<div id="verBadge">v59</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -2237,8 +2239,8 @@ function buildRodBlock(p){
     const [sq,lot]=String(L.key||'').split('-');
     const more=(L.chain_total||0)>ch.length?` · ${L.chain_total-ch.length} pre-2000 records at the recorder`:'';
     return `<div class="rod-block"><div class="yd-head"><span class="yd-badge">Recorder of Deeds</span><span class="yd-sub">${e(sslLabel({_rodKey:L.key}))}${lots.length>1&&L.address?' · '+e(L.address):''}</span></div>${sm}`+
-      `<div class="rod-ch-h">Chain of title, last deed forward</div>${table(recent)}`+
-      (older.length?`<details class="rod-older"><summary>Earlier records on this lot (${older.length})</summary>${table(older)}</details>`:'')+
+      `<details class="rod-chain-box"><summary class="rod-ch-h">Chain of title, last deed forward (${recent.length} record${recent.length===1?'':'s'})</summary>${table(recent)}`+
+      (older.length?`<details class="rod-older"><summary>Earlier records on this lot (${older.length})</summary>${table(older)}</details>`:'')+'</details>'+
       `<div class="rod-foot">Document links open the recorder's viewer (recorder sign-in)${more}. Every record on the lot: Advanced Search → Square ${e(sq)}, Lot ${e(lot||'')}.</div></div>`;
   }).join('');
 }
