@@ -294,6 +294,9 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 .rod-block .yd-line span{color:var(--text)}
 .dg-section-head.sale{color:var(--orange)}
 .dg-section-head.mortgage{color:var(--text2)}
+.mg-tag{display:inline-block;margin-left:4px;padding:0 6px;border-radius:8px;font-size:10px;font-weight:600;line-height:16px;background:rgba(217,119,6,.14);color:#b45309}
+.mg-tag.senior{background:rgba(37,99,235,.12);color:#1d4ed8}
+.dg-val.mg-note{font-size:11px;font-weight:400;color:var(--text2)}
 .dg-item{padding:8px 10px;background:var(--bg);border-radius:6px;}
 .dg-item.full{grid-column:1/-1}
 .dg-label{font-size:11px;color:var(--text3);margin-bottom:2px}
@@ -553,7 +556,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v56</div>
+<div id="verBadge">v57</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -630,13 +633,13 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <div class="fp" id="fp_mat"><button type="button" class="fp-btn" aria-expanded="false">Maturity<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-    <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Maturity</div><p class="fp-d">When the current loan comes due: the Trepp loan when there is one, otherwise the latest mortgage recorded in Reonomy.</p>
+    <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Maturity</div><p class="fp-d">When the current loan comes due: the Trepp loan when there is one, otherwise the recorded mortgage in Reonomy (the earlier one when the newest looks like a junior loan).</p>
       <div class="fp-drow"><label class="fp-dl"><span>From</span><span class="fp-date"><input id="fb_mat_min" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label><label class="fp-dl"><span>To</span><span class="fp-date"><input id="fb_mat_max" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label></div><div class="fp-hint">Inclusive. Type 9/1/2026, 09/01/2026 or just 2026, or use the calendar.</div>
       <div class="fp-or">or</div><div class="fp-sub">Matures between</div><div class="fp-row"><input id="fb_due_min" placeholder="Min" autocomplete="off"><span class="fbdash">&ndash;</span><input id="fb_due_yrs" placeholder="Max" autocomplete="off"><span class="fbunit">years from today</span></div><div class="fp-hint">Max only = within that many years. Min only = more than that many years out.</div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
   </div>
   <div class="fp" id="fp_orig"><button type="button" class="fp-btn" aria-expanded="false">Originated<span class="fp-val"></span><span class="fp-car"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-    <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Originated</div><p class="fp-d">When the current loan closed: the Trepp origination date, otherwise the date the latest Reonomy mortgage was recorded.</p>
+    <div class="fp-pop" style="width:300px"><div class="fp-h">Loan Originated</div><p class="fp-d">When the current loan closed: the Trepp origination date, otherwise the date that Reonomy mortgage was recorded.</p>
       <div class="fp-drow"><label class="fp-dl"><span>From</span><span class="fp-date"><input id="fb_orig_min" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label><label class="fp-dl"><span>To</span><span class="fp-date"><input id="fb_orig_max" placeholder="mm/dd/yyyy" autocomplete="off"><button type="button" class="fp-cal" title="Pick a date" aria-label="Pick a date"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><input type="date" class="fp-dnat" tabindex="-1" aria-hidden="true"></span></label></div><div class="fp-hint">Inclusive. Type 9/1/2026, 09/01/2026 or just 2026, or use the calendar.</div>
       <div class="fp-or">or</div><div class="fp-sub">Originated within the past</div><div class="fp-row"><input id="fb_orig_yrs" placeholder="#" autocomplete="off"><span class="fbunit">years</span></div>
       <div class="fp-foot"><button type="button" class="fp-link fp-clear">Clear</button><button type="button" class="fp-done">Done</button></div></div>
@@ -879,10 +882,11 @@ function scoreProperty(p){
   let matScore=0;
   if(matDate||(periodsPast>0&&t)){
     const tr=matSrc==='trepp'||(!matDate&&!!t);
-    const lender=tr?(t.originator||t.source||''):(p.mortgage_standardized_name||p.mortgage_recorded_name||'');
-    const amt=tr?fmtMoney(t.current_balance):fmtMoney(p.mortgage_amount);
+    const rm=tr||!window.recMorts?null:recMorts(p),sm=rm&&rm.senior;
+    const lender=tr?(t.originator||t.source||''):(sm?sm.lender:'');
+    const amt=tr?fmtMoney(t.current_balance):(sm?fmtMoney(sm.amount):null);
     const lStr=lender?` (${lender}${amt?', '+amt:''})`:amt?` (${amt})`:'';
-    const pre=tr?`${IC.trepp}Trepp: `:'Recorded mortgage: ',ds=matDate?fmtDate(matDate):'';
+    const pre=tr?`${IC.trepp}Trepp: `:rm&&rm.junior?'Recorded mortgage (earlier loan, probable senior): ':'Recorded mortgage: ',ds=matDate?fmtDate(matDate):'';
     let lbl='';
     if(tr&&periodsPast>0){matScore=95;lbl=`${Math.round(periodsPast)} period${periodsPast!==1?'s':''} past original maturity${lStr}${ds?' — matured '+ds:''}`;}
     else if(matDays>1095)lbl=`Matures ${ds}${lStr} (more than 3 yrs out)`;
@@ -894,6 +898,10 @@ function scoreProperty(p){
     if(matOverrideNote)details.push({cat:'Loan Maturity',label:`${IC.trepp}${matOverrideNote}`,trepp:true});
     if(tr&&remainTerm!==null&&!matOverrideNote)details.push({cat:'Loan Maturity',label:`${IC.trepp}Trepp: ${remainTerm} months remaining term`,trepp:true});
     if(matScore>0)catScores.loanMaturity=matScore;
+  }
+  if(matSrc!=='trepp'&&window.recMorts){
+    const rm=recMorts(p),l=rm.latest;
+    if(rm.junior)details.push({cat:'Loan Maturity',label:`Newer recorded mortgage looks junior (${rm.why}): ${l.lender||'lender unknown'}${l.amount?', '+fmtMoney(l.amount):''}${l.recRaw?', recorded '+fmtDate(l.recRaw):''} — not used for maturity${rm.earlier.mat?'':'; the earlier loan has no maturity on record'}`});
   }
   // DISTRESS
   let dSignals=[];
@@ -2065,15 +2073,21 @@ function openDrawer(p){
 }
 function buildDetailGrid(p){
   const t=p._trepp,c=p._costar;const now=new Date(),STALE=-365*24*3600*1000;
-  const mat1=parseD(p.mortgage_maturity_date),mat2=parseD(p.mortgage2_maturity_date);
-  const mat1V=mat1&&(mat1-now)>STALE,mat2V=mat2&&(mat2-now)>STALE;
   const sec=(title,cls,rows)=>{const f=rows.filter(r=>r&&r[1]!=null&&r[1]!==''&&r[1]!==undefined);if(!f.length)return '';return `<div class="dg-section-head ${cls}">${title}</div>`+f.map(([lbl,val,full,valCls])=>`<div class="dg-item${full?' full':''}"><div class="dg-label">${lbl}</div><div class="dg-val${valCls?' '+valCls:''}">${val}</div></div>`).join('');};
   const dscr=t?parseFloat(t.dscr_noi):null,ltv=t?parseFloat(t.ltv):null;
   const dscrCls=dscr?dscr<1.0?'warn':dscr<1.25?'caution':'ok':null;const ltvCls=ltv?ltv>90?'warn':ltv>80?'caution':'ok':null;
   const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',p._units_from?`${p.total_units} (Yardi; ${p._units_from.wasSrc}: ${p._units_from.was||'?'})`:(p.total_units||t?.number_of_units)&&p._reonomy_units!==undefined&&String(p._reonomy_units)!==String(p.total_units)?`${p.total_units} (Trepp; Reonomy parcel: ${p._reonomy_units||'?'})`:p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
   sec('Sale Data','sale',[['Sale Price',fmtMoney(p.sale_amount)],['Sale Date',fmtDate(p.sale_recorded_date)],['Price/SF',p.sales_price_per_sf?`$${parseFloat(p.sales_price_per_sf).toFixed(2)}`:null],['Price/Unit',fmtMoney(p.price_per_unit)],['Source',p._hasCostar?`CoStar (${p._matchMethod})`:'Reonomy'],p._hasCostar?['Prior Sale (Reo)',fmtMoney(p._reonomy_sale_amount)]:null])+
   (t?sec('Trepp Loan Data','trepp',[['Property Name',t.property_name,true],['Loan Name',t.loan_name,true],['Source',t.source],['Matched by',p._treppMatch],['Assumable',window.isAssumable&&isAssumable(p)?'Yes, '+t.source+' loan (lender approval required)':null],['Originator',t.originator],['Origination Date',fmtDate(t.origination_date)],['Current Balance',fmtMoney(t.current_balance)],['Original Balance',fmtMoney(t.original_balance)],['Loan Rate',t.loan_rate?t.loan_rate+'%':null],['Rate Type',t.rate_type],['Amortization',t.amortization_type],['Loan Purpose',t.loan_purpose],['Maturity Date',fmtDate(t.maturity_date)],['UW Maturity',fmtDate(t.uw_maturity_date)],['Remaining Term',t.remaining_term?t.remaining_term+' months':null],['Periods Past Mat.',t.periods_past_maturity>0?t.periods_past_maturity:null],['DSCR (NOI)',dscr?dscr.toFixed(2):null,false,dscrCls],['DSCR (NCF)',t.dscr_ncf?parseFloat(t.dscr_ncf).toFixed(2):null],['LTV',ltv?ltv.toFixed(1)+'%':null,false,ltvCls],['Debt Yield (NOI)',t.debt_yield_noi?parseFloat(t.debt_yield_noi).toFixed(2)+'%':null],['Occupancy',t.occupancy_pct?parseFloat(t.occupancy_pct).toFixed(1)+'%':null],['Delinquency',t.delinquency_status&&t.delinquency_status!=='-'?t.delinquency_status:null,false,t&&dqLevel(t.delinquency_status)?'warn':null],['Watchlist',t.watchlist_status&&t.watchlist_status!=='-'?t.watchlist_status:null,false,t?.watchlist_status?.toLowerCase()==='yes'?'caution':null],['Special Servicer',t.spec_serv_status&&t.spec_serv_status!=='-'?t.spec_serv_status:null,false,t?.spec_serv_status?.toLowerCase()==='yes'?'warn':null],['Spec. Serv. Name',t.special_servicer&&t.special_servicer!=='-'?t.special_servicer:null,true],['Transfer Reason',t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?t.special_servicer_transfer_reason:null,true],['Modified',t.modified_loan&&t.modified_loan!=='-'?t.modified_loan:null],['Mod. Type',t.modification_type_servicer&&t.modification_type_servicer!=='-'?t.modification_type_servicer:null,true],['Extension Type',t.extension_type&&t.extension_type!=='-'?t.extension_type:null],['Rem. Extension Periods',t.remaining_extension_option_periods>0?t.remaining_extension_option_periods:null],['NOI',fmtMoney(t.noi)],['NCF',fmtMoney(t.ncf)],['Revenues',fmtMoney(t.revenues)],['Property Appraisal',fmtMoney(t.property_appraisal_value)],['Owner 1',t.owner_1_name&&t.owner_1_name!=='-'?t.owner_1_name:null,true],['Owner 1 Phone',t.owner_1_phone&&t.owner_1_phone!=='-'?t.owner_1_phone:null],['Owner 1 Email',t.owner_1_email&&t.owner_1_email!=='-'?t.owner_1_email:null,true],['Bankruptcy Date',t.bankruptcy_date&&t.bankruptcy_date!=='-'?fmtDate(t.bankruptcy_date):null,false,'warn'],['REO Date',t.reo_date&&t.reo_date!=='-'?fmtDate(t.reo_date):null,false,'warn']]):'<div style="padding:10px 0;font-size:12px;color:var(--text2)">⬡ No Trepp loan data matched for this property</div>')+
-  (mat1V||mat2V?sec('Reonomy Mortgage','mortgage',[mat1V?['Lender',p.mortgage_standardized_name||p.mortgage_recorded_name,true]:null,mat1V?['Amount',fmtMoney(p.mortgage_amount)]:null,mat1V?['Maturity',fmtDate(p.mortgage_maturity_date)]:null,mat2V?['Lender 2',p.mortgage2_standardized_name||p.mortgage2_recorded_name,true]:null,mat2V?['Amount 2',fmtMoney(p.mortgage2_amount)]:null,mat2V?['Maturity 2',fmtDate(p.mortgage2_maturity_date)]:null]):'')+
+  (()=>{const rm=window.recMorts?recMorts(p):null;if(!rm||!rm.latest)return '';
+    const e=v=>String(v==null?'':v).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+    const line=m=>[e(m.lender)||'Lender unknown',m.amount?fmtMoney(m.amount):null,m.recRaw?'recorded '+fmtDate(m.recRaw):null,
+      m.mat?(m.mat<Date.now()?'matured ':'matures ')+fmtDate(m.matRaw):'no maturity on record'].filter(Boolean).join(' · ');
+    return sec('Recorded Mortgages (Reonomy)','mortgage',[
+      ['Latest recorded',line(rm.latest)+(rm.junior?' <span class="mg-tag">likely junior</span>':''),true],
+      rm.earlier?['Earlier recorded',line(rm.earlier)+(rm.junior?' <span class="mg-tag senior">probable senior</span>':''),true]:null,
+      ['Note',(rm.junior?'The newer loan looks junior ('+rm.why+'), so LoanID scores the earlier one. ':'')+
+        'Deed records show neither lien priority nor payoffs: an earlier loan may already be paid off, a newer one may be junior, and a recent refinance may be missing. Confirm the senior lender in land records.',true,'mg-note']]);})()+
   (c?sec('CoStar Market Data','costar',[['County',c.property_county],['Submarket',c.submarket_name],['Building Class',c.building_class],['Vacancy',c.vacancy?parseFloat(c.vacancy).toFixed(1)+'%':null],['Cap Rate',c.actual_cap_rate?parseFloat(c.actual_cap_rate).toFixed(2)+'%':null],['Buyer',c.buyer_true_company,true],['Seller',c.seller_true_company,true],['Match',p._matchMethod]]):'')+
   yardiRows(p).map(y=>(()=>{const e=v=>String(v==null?'':v).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));const yb=String(y.completion_date||'').slice(0,4);
     return sec('Yardi Matrix','yardi',[['Property Name',e(yardiName(y.property_name)),true],['Submarket',e(y.submarket)],['Units',y.units],['Year Built',yb||null],['Rentable SF',parseFloat(y.sqft)>0?Math.round(y.sqft).toLocaleString()+' SF':null],
@@ -3142,19 +3156,46 @@ function parseDay(v,isEnd){
   return NaN;
 }
 function okDay(t){return typeof t==="number"&&!isNaN(t);}
+// Reonomy keeps a parcel's two most recent recorded mortgages, with no lien
+// priority and no payoffs. The newer one usually replaced the older (a
+// refinance), so it is the current loan -- unless it looks junior: while the
+// earlier loan has not run out (no maturity on record, or matured within the
+// past 12 months, and no sale in between), the newer one is under half the earlier amount, or comes
+// from a public / subsidy lender (housing departments, DC government, Amazon's
+// housing fund). Housing finance agencies make senior bond loans, so only the
+// amount test applies to them. A likely-junior newer loan leaves the earlier
+// one as the probable senior loan: its lender, amount and maturity are used.
+var SUBSIDY_LENDER=/district\s*(of|\/)\s*columbia|\bdept\b|department\s*of|\bdhcd\b|amazon|housing\s*production|redevelop|\bcity\s*of\b|\bcounty\s*of\b|^commonwealth\b|\bstate\s*of\b|cmnty\s*dev\s*(admin|corp)|community\s*development\s*(admin|corp)|h(ou)?s(i)?ng\s*authori/i;
+var HFA_LENDER=/h(ou)?s(i)?ng\s*fin|housing\s*finance|\bvhda\b|virginia\s*housing|\bhfa\b/i;
+function recMorts(p){
+  var m=["mortgage_","mortgage2_"].map(function(k){
+    var amt=parseFloat(String(p[k+"amount"]==null?"":p[k+"amount"]).replace(/[,$]/g,"")),rec=parseDay(p[k+"recorded_date"],false),mat=parseDay(p[k+"maturity_date"],false);
+    return {lender:String(p[k+"standardized_name"]||p[k+"recorded_name"]||"").trim(),amount:amt>0?amt:null,
+            rec:okDay(rec)?rec:null,mat:okDay(mat)?mat:null,recRaw:p[k+"recorded_date"]||null,matRaw:p[k+"maturity_date"]||null};
+  }).filter(function(x){return x.lender||x.amount||x.rec||x.mat;});
+  if(m.length===2&&m[0].rec&&m[1].rec&&m[1].rec>m[0].rec)m.reverse();   // newest first
+  var r={latest:m[0]||null,earlier:m[1]||null,junior:false,why:null};
+  if(r.latest&&r.earlier){
+    var l=r.latest,e=r.earlier,live=!e.mat||e.mat>=Date.now()-365*864e5;
+    // a sale between the two loans paid the earlier one off: the newer loan is the buyer's financing
+    if(e.rec&&l.rec&&[p.sale_recorded_date||p.sale_date,p.sale2_recorded_date].some(function(v){var sd=parseDay(v,false);return okDay(sd)&&sd>e.rec+7*864e5&&sd<=l.rec+7*864e5;}))live=false;
+    var small=!!(l.amount&&e.amount&&l.amount<0.5*e.amount),subsidy=SUBSIDY_LENDER.test(l.lender)&&!HFA_LENDER.test(l.lender);
+    if(live&&(small||subsidy)){r.junior=true;r.why=subsidy?"public or subsidy lender":"under half the earlier loan";}
+  }
+  r.senior=r.junior?r.earlier:r.latest;
+  return r;
+}
 // The property's current loan dates: Trepp when it has one, otherwise the
-// latest mortgage recorded in Reonomy (deed records). Reonomy's second, older
-// mortgage is ignored: deed records never mark a lien as paid off, so it is
-// often a loan that was already refinanced away.
+// probable senior recorded mortgage (recMorts above).
 function loanDate(p,tk,rk){
   var t=p._trepp,d=t?parseDay(t[tk],false):null;
   if(okDay(d))return {ms:d,src:"trepp"};
-  d=parseDay(p[rk],false);
+  var sm=recMorts(p).senior;d=sm?sm[rk]:null;
   return okDay(d)?{ms:d,src:"reonomy"}:null;
 }
-function loanMat(p){return loanDate(p,"maturity_date","mortgage_maturity_date");}
-function loanOrig(p){return loanDate(p,"origination_date","mortgage_recorded_date");}
-window.loanMat=loanMat;window.loanOrig=loanOrig;
+function loanMat(p){return loanDate(p,"maturity_date","mat");}
+function loanOrig(p){return loanDate(p,"origination_date","rec");}
+window.loanMat=loanMat;window.loanOrig=loanOrig;window.recMorts=recMorts;
 // Assumable: securitized agency or CMBS loan that has not matured. Assumption
 // needs lender approval; CRE CLO bridge debt and TreppCRE property records
 // (no loan) are left out.
@@ -3940,7 +3981,7 @@ else init();
 // Only default scoring settings are
 // uploaded, so one person's custom weights never leak into everyone's answers.
 (function(){
-  var SNAP_VER="v54";
+  var SNAP_VER="v57";
   function isDefaultScoring(){
     try{
       var ok=["wHold","wMat","wDist","wMkt"].every(function(id){var e=document.getElementById(id);return e&&String(e.value)===String(e.defaultValue);});
@@ -3964,7 +4005,9 @@ else init();
     var addr=addrOf(p),city=[p.address_city||p.city,p.address_state||p.state].filter(Boolean).join(", ");
     var link=base+"?m="+reg+"&p="+encodeURIComponent(p.id)+(addr?"&a="+encodeURIComponent(addr):"");
     var units=num(p.total_units)||num(t&&t.number_of_units)||num(c&&c.number_of_units);
-    var lender=t?(known(t.originator)||known(t.source)):(known(p.mortgage_standardized_name)||known(p.mortgage_recorded_name));
+    var rm=window.recMorts?recMorts(p):{latest:null},sm=rm.senior;
+    var mo=function(m){return {lender:known(m.lender),amount:amt(m.amount),recorded:day(m.recRaw),matures:day(m.matRaw)};};
+    var lender=t?(known(t.originator)||known(t.source)):(sm?known(sm.lender):null);
     var yOwner=ys.length?ys[0].owner:null,sfEnt=p.sf_ownership_entity||null;
     var detail=clean({
       id:String(p.id),market:reg,name:name||null,address:addr,city:city,zip:p.address_postal_code||(t&&t.zip)||null,
@@ -3972,12 +4015,13 @@ else init();
       sources:{reonomy:p._source==="reonomy"||p._source==="both",trepp:!!t,costar:!!c,yardi:ys.length>0,salesforce:!!p._hasSF,recorder:!!(p._rod&&p._rod.length)},
       score:{total:p._score,tier:p._tier,categories:p._cats,reasons:(p._details||[]).map(function(d){return d.cat+": "+strip(d.label);})},
       distressed:window.isDistressed?isDistressed(p):null,
-      loan_maturity:lm?{date:new Date(lm.ms).toISOString().slice(0,10),source:lm.src==="trepp"?"Trepp":"Recorded mortgage (Reonomy)"}:null,
+      loan_maturity:lm?{date:new Date(lm.ms).toISOString().slice(0,10),source:lm.src==="trepp"?"Trepp":(rm.junior?"Recorded mortgage (Reonomy), the earlier loan: the newer one looks junior":"Recorded mortgage (Reonomy)")}:null,
       trepp_loan:t?{loan_name:t.loan_name,property_name:t.property_name,source:t.source,originator:t.originator,current_balance:amt(t.current_balance),original_balance:amt(t.original_balance),
         rate_pct:num(t.loan_rate),rate_type:t.rate_type,amortization:t.amortization_type,originated:day(t.origination_date),matures:day(t.maturity_date),
         dscr:num(t.dscr_noi),ltv_pct:num(t.ltv),occupancy_pct:num(t.occupancy_pct),delinquency:t.delinquency_status,in_special_servicing:t.spec_serv_status,
         special_servicer:t.special_servicer,watchlist:t.watchlist_status,assumable:window.isAssumable?isAssumable(p):null}:null,
-      recorded_mortgage:(p.mortgage_amount||p.mortgage_maturity_date)?{lender:known(p.mortgage_standardized_name)||known(p.mortgage_recorded_name),amount:amt(p.mortgage_amount),recorded:day(p.mortgage_recorded_date),matures:day(p.mortgage_maturity_date)}:null,
+      recorded_mortgages:rm.latest?{latest:mo(rm.latest),earlier:rm.earlier?mo(rm.earlier):null,newer_loan_likely_junior:rm.junior||null,why:rm.why,
+        note:"Reonomy deed records: the two most recent recorded mortgages, with no lien priority or payoffs. "+(rm.junior?"The newer loan looks junior, so LoanID treats the earlier one as the probable senior loan. ":"")+"Confirm the senior lender in land records."}:null,
       last_sale:{date:day(p.sale_recorded_date),price:num(p.sale_amount),price_per_unit:num(p.price_per_unit),buyer:p.buyer_true_company,seller:p.seller_true_company,source:p._hasCostar?"CoStar":"Reonomy"},
       deed_owner:{name:p.reported_owner_name,mailing_address:p.reported_mailing_address_full||null},
       reonomy_contacts:[1,2,3].map(function(i){var k=i===1?"contact_":"contact_"+i+"_";return {name:p[k+"name"],company:p[k+"company_name"],title:p[k+"title"],phone:p[k+"phone_1"],email:p[k+"email_1"]};}),
@@ -3990,7 +4034,7 @@ else init();
       link:link
     })||{};
     var summary=clean({id:String(p.id),name:name||null,address:addr,units:units,score:p._score,tier:p._tier,distressed:detail.distressed||false,
-      loan_maturity:detail.loan_maturity?detail.loan_maturity.date:null,lender:lender||null,balance:t?amt(t.current_balance):amt(p.mortgage_amount),
+      loan_maturity:detail.loan_maturity?detail.loan_maturity.date:null,lender:lender||null,balance:t?amt(t.current_balance):(sm?amt(sm.amount):null),
       owner:yOwner||sfEnt||p.reported_owner_name||null,link:link});
     // the dashboard's own search-everything index, so Claude finds what the search bar finds
     var search=window.searchIndex?searchIndex(p).all:[name,addr,city,p.address_postal_code,p.submarket_name,p.reported_owner_name,sfEnt,lender,t&&t.loan_name,t&&t.property_name,t&&t.special_servicer,t&&t.source,
