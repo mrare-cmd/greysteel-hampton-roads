@@ -428,6 +428,21 @@ header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(-
 #fb_rod input:focus{border-color:var(--blue)}
 #fb_rod.on{border-color:var(--red);background:rgba(217,48,37,.08);color:var(--red)}
 #fb_rod.on input{border-color:var(--red)}
+.rod-sum{background:#fff;border:1px solid #fecaca;border-left:3px solid #991b1b;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;line-height:1.5;color:var(--text)}
+.rod-sum-h{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#991b1b;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px}
+.rod-sum-h span{font-weight:500;color:var(--text3);text-transform:none;letter-spacing:0}
+.rod-ch-h{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#991b1b;margin:8px 0 4px}
+.rod-chain{width:100%;border-collapse:collapse;font-size:11.5px;background:#fff;border:1px solid #fee2e2}
+.rod-chain th{text-align:left;font-size:10px;font-weight:600;color:var(--text3);padding:5px 7px;border-bottom:1px solid #fee2e2}
+.rod-chain td{padding:5px 7px;border-bottom:1px solid #f8eeee;vertical-align:top;color:var(--text)}
+.rod-chain td:first-child{white-space:nowrap;color:var(--text2)}
+.rod-chain a{color:#991b1b;text-decoration:none;font-weight:600}
+.rod-chain tr.rod-trig td{background:#fef2f2}
+.rod-older{margin-top:6px;font-size:12px}
+.rod-older summary{cursor:pointer;color:#991b1b;font-weight:600;margin-bottom:4px}
+.rod-foot{font-size:11px;color:var(--text3);margin-top:8px}
+.rod-st{display:table;font-size:11px;font-weight:700;color:#991b1b;background:#fee2e2;border-radius:10px;padding:2px 9px;margin-bottom:6px}
+.rod-st.ok{color:#166534;background:#dcfce7}
 .fb-cnt{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center;box-sizing:border-box}
 .fp.on .fb-cnt{display:inline-flex}
 #fbClear{height:28px;margin-right:auto;padding:0 14px;border-radius:14px;border:1px solid var(--border);background:var(--white);color:var(--text3);font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background .35s,border-color .35s,color .35s}
@@ -556,7 +571,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v57</div>
+<div id="verBadge">v58</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -838,6 +853,8 @@ function yardiRows(p){return p._yardiAll||(p._yardi?[p._yardi]:[]);}
 // The Distressed filter uses a 3-year window instead. Current-status flags
 // (delinquent now, in special servicing now, on the watchlist now) never fade.
 const YR_MS=365.25*864e5;
+// lot statuses (rod/status.json, read from the land records) that end a foreclosure: shown, not scored
+const ROD_RESOLVED={paid_off:'loan later paid off',cancelled:'foreclosure cancelled',not_foreclosure:'not a foreclosure'};
 function filingAge(v){const d=parseD(v);return d?(Date.now()-d.getTime())/YR_MS:null;}
 function filingWeight(v){const a=filingAge(v);if(a===null)return null;return a<=0.5?1:a<=1?0.6:a<=2?0.25:0;}
 function withinYears(v,n){const a=filingAge(v);return a!==null&&a<=n;}
@@ -915,10 +932,20 @@ function scoreProperty(p){
   if(auction){const d=daysUntil(auction);const tm=p.preforeclosure_auction_time?` at ${p.preforeclosure_auction_time}`:'';const loc=p.preforeclosure_street_address_of_auction_call?` — ${p.preforeclosure_street_address_of_auction_call}`:'';const tr=p.preforeclosure_trustee_name?` — Trustee: ${p.preforeclosure_trustee_name}`:'';if(d>0&&d<180)dSignals.push({s:90,label:`Foreclosure auction in ${Math.round(d)} days (${fmtDate(auction)}${tm})${loc}${tr}`});else if(d>0)dSignals.push({s:50,label:`Foreclosure auction scheduled: ${fmtDate(auction)}${tm}${loc}`});else aged(60,fw(p.preforeclosure_auction_date,0),`Foreclosure auction date passed (${fmtDate(auction)})${tr}`);}
   if(p.preforeclosure_final_judgement_amount&&parseFloat(p.preforeclosure_final_judgement_amount)>0)aged(70,pfW,`Final judgement: ${fmtMoney(p.preforeclosure_final_judgement_amount)}${p.preforeclosure_plaintiff_1?' — Plaintiff: '+p.preforeclosure_plaintiff_1:''}${p.preforeclosure_recording_date?' (filed '+fmtDate(p.preforeclosure_recording_date)+')':''}`);
   if(p.preforeclosure_recording_date&&!prefoActive&&!auction&&!(parseFloat(p.preforeclosure_final_judgement_amount)>0))aged(70,pfW,`Preforeclosure filing${p.preforeclosure_doc_type?' ('+p.preforeclosure_doc_type+')':''} — ${fmtDate(p.preforeclosure_recording_date)}`);
-  // DC Recorder of Deeds: a substitute trustee appointed on the deed of trust (the step before a
-  // foreclosure sale). Scores like an active preforeclosure and fades with age like every filing.
-  (p._rod||[]).forEach(f=>{const ld=f.lenders||[],tr=f.trustees||[];
-    aged(100,fw(f.recorded,1),`${IC.alert}Substitute trustee appointed${ld.length?' by '+ld.slice(0,2).join(', ')+(ld.length>2?` +${ld.length-2} more`:''):''} — recorded ${fmtDate(f.recorded)}${tr.length?` — Trustee${tr.length>1?'s':''}: `+tr.slice(0,3).join('; ')+(tr.length>3?` +${tr.length-3} more`:''):''}`);});
+  // DC Recorder of Deeds: foreclosure-type filings on the lot. A substitute trustee, a foreclosure
+  // notice or a trustee's deed scores like an active preforeclosure and fades with age like every
+  // filing; a filing older than a recorded cancellation counts half.
+  {const rf=p._rod||[],cancel=rf.filter(f=>f.code==='NOTF').map(f=>String(f.recorded)).sort().pop()||'';
+   const BASE={APPT:100,FOR:100,FORE:100,FORA:90,FORM:70,TSTD:100};
+   const sale=rf.map(f=>f.saleDate).filter(d=>d&&d>=new Date().toISOString().slice(0,10)).sort()[0];
+   if(sale)dSignals.push({s:100,label:`${IC.alert}Foreclosure sale scheduled ${fmtDate(sale)} (DC Recorder of Deeds)`});
+   rf.forEach(f=>{
+     if(f.code==='NOTF'){dSignals.push({s:0,label:`Foreclosure cancelled: notice of cancellation recorded ${fmtDate(f.recorded)}`});return;}
+     if(ROD_RESOLVED[f.lotStatus]){dSignals.push({s:0,label:`${f.type||'Foreclosure filing'} — recorded ${fmtDate(f.recorded)} (${ROD_RESOLVED[f.lotStatus]}: not scored)`});return;}
+     const ld=f.lenders||[],tr=f.trustees||[],half=cancel&&String(f.recorded)<cancel;
+     const lbl=f.code==='APPT'?`${IC.alert}Substitute trustee appointed${ld.length?' by '+ld.slice(0,2).join(', ')+(ld.length>2?` +${ld.length-2} more`:''):''} — recorded ${fmtDate(f.recorded)}${tr.length?` — Trustee${tr.length>1?'s':''}: `+tr.slice(0,3).join('; ')+(tr.length>3?` +${tr.length-3} more`:''):''}`
+       :`${IC.alert}${f.type||'Foreclosure filing'} — recorded ${fmtDate(f.recorded)}`;
+     aged(half?Math.round((BASE[f.code]||80)/2):(BASE[f.code]||80),fw(f.recorded,1),lbl+(half?' (a later notice cancelled the foreclosure)':''));});}
   if(t){
     const delinq=(t.delinquency_status||'').toLowerCase(),watchlist=(t.watchlist_status||'').toLowerCase(),specServ=(t.spec_serv_status||'').toLowerCase(),dq=dqLevel(t.delinquency_status);
     const dscr=parseFloat(t.dscr_noi)||null,ltv=parseFloat(t.ltv)||null,modLoan=(t.modified_loan||'').toLowerCase();
@@ -1074,10 +1101,11 @@ async function loadData(){
     dataFetch('data_trepp.json').then(r=>r.json()),
     dataFetch('data_costar.json').then(r=>r.json()),
     dataFetch('data_yardi.json').then(r=>r.json()).catch(()=>[]),   // optional: no file = no Yardi for this market
-    dataFetch('data_rod.json').then(r=>r.json()).catch(()=>[]),     // optional: DC Recorder of Deeds filings (rod/ pipeline)
+    dataFetch('data_rod_lots.json').then(r=>r.json()).catch(()=>null),   // optional: DC Recorder of Deeds lots (rod/ pipeline)
   ]);
   if(!Array.isArray(yardiArr))yardiArr=[];
-  if(!Array.isArray(rodArr))rodArr=[];
+  // one record per multifamily lot: its foreclosure-type filings, chain of title and AI summary
+  rodArr=rodArr&&Array.isArray(rodArr.lots)?rodArr.lots:[];
   // recorder names reach cards and score lines as HTML too
   {const clean=v=>typeof v==='string'?v.replace(/[<>"`]/g,''):Array.isArray(v)?v.map(clean):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,clean(x)])):v;rodArr=rodArr.map(clean);}
   // Yardi text reaches cards, tooltips and score lines as HTML: drop < > " `
@@ -1449,11 +1477,12 @@ async function loadData(){
       allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
     });
   }
-  // DC Recorder of Deeds: appointments of substitute trustee on multifamily lots
-  // (rod/ pipeline, weekly; multifamily already picked by DC use code). Joined on
-  // square/suffix/lot: Reonomy's apn "5729-W000-0006" and the recorder's key
-  // "5729W-0006" are the same lot. A lot LoanID lacks is matched on street address,
-  // else it becomes a "Recorder only" property.
+  // DC Recorder of Deeds: multifamily lots with a foreclosure-type filing (substitute
+  // trustee, foreclosure notices, trustee's deed; rod/ pipeline, weekly; multifamily
+  // picked by DC use code). Joined on square/suffix/lot: Reonomy's apn "5729-W000-0006"
+  // and the recorder's key "5729W-0006" are the same lot. A lot LoanID lacks is matched
+  // on street address, else it becomes a "Recorder only" property. p._rodLots = the lots,
+  // p._rod = their filings (newest first).
   let rodMatchCount=0,rodOnlyCount=0;
   if(rodArr.length){
     const apnKey=a=>{const m=/^\s*(PAR|\d{4})-([A-Z0-9]{4})-(\d{4})\s*$/.exec(String(a||'').toUpperCase());if(!m)return null;
@@ -1462,24 +1491,26 @@ async function loadData(){
     const byKey=new Map(),byAddr=new Map();
     allData.forEach(p=>{const k=apnKey(p.apn);if(k){let l=byKey.get(k);if(!l)byKey.set(k,l=[]);l.push(p);}
       [p.address_line_1,p._trepp&&p._trepp.address,p._costar&&p._costar.property_address].forEach(a=>{const n=normalizeAddr(street(a));if(n&&!byAddr.has(n))byAddr.set(n,p);});});
-    const touched=new Set(),orphans=new Map();
-    rodArr.forEach(f=>(f.parcels||[]).filter(x=>x.multifamily).forEach(x=>{
-      const a=byAddr.get(normalizeAddr(street(x.address)));
-      const hits=byKey.get(x.key)||(a?[a]:null);
-      if(hits)hits.forEach(p=>{if(!(p._rod=p._rod||[]).includes(f))p._rod.push(f);touched.add(p);});
-      else{let o=orphans.get(x.key);if(!o)orphans.set(x.key,o={x,filings:[]});if(!o.filings.includes(f))o.filings.push(f);}
-    }));
-    const newest=l=>l.sort((a,b)=>String(b.recorded).localeCompare(String(a.recorded)));
-    touched.forEach(p=>{newest(p._rod);delete p._bname;delete p._sx;const r=scoreProperty(p);p._score=r.score;p._tier=r.tier;p._details=r.details;p._cats=r.cats;});
+    const touched=new Set(),orphans=[];
+    rodArr.forEach(L=>{
+      const a=byAddr.get(normalizeAddr(street(L.address)));
+      const hits=byKey.get(L.key)||(a?[a]:null);
+      if(hits)hits.forEach(p=>{if(!(p._rodLots=p._rodLots||[]).includes(L))p._rodLots.push(L);touched.add(p);});
+      else orphans.push(L);
+    });
+    const rodFilings=p=>{const m=new Map();(p._rodLots||[]).forEach(L=>(L.triggers||[]).forEach(t=>{if(!m.has(t.doc))m.set(t.doc,Object.assign({},t,{lotStatus:L.status||null,saleDate:L.sale_date||null}));}));
+      p._rod=[...m.values()].sort((a,b)=>String(b.recorded).localeCompare(String(a.recorded)));return p;};
+    touched.forEach(p=>{rodFilings(p);delete p._bname;delete p._sx;const r=scoreProperty(p);p._score=r.score;p._tier=r.tier;p._details=r.details;p._cats=r.cats;});
     rodMatchCount=touched.size;
     const tc=v=>String(v||'').toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()).replace(/\b(Nw|Ne|Sw|Se)\b/g,m=>m.toUpperCase());
-    orphans.forEach(({x,filings},k)=>{
-      const st=tc(street(x.address))||`Square ${k}`,zip=(/(\d{5})(-\d{4})?\s*$/.exec(x.address||'')||[])[1]||null;
+    orphans.forEach(x=>{
+      const k=x.key,st=tc(street(x.address))||`Square ${k}`,zip=(/(\d{5})(-\d{4})?\s*$/.exec(x.address||'')||[])[1]||null;
       const pseudo={id:`rod_${k}`,address_line_1:st,address_city:'Washington',address_state:'DC',address_postal_code:zip,
         address_full:[st,'Washington','DC'].join(', '),property_type:'Multifamily',property_subtype:x.use||null,
         total_units:x.units||null,year_built:x.year_built||null,reported_owner_name:x.owner||null,
         latitude:x.lat==null?null:x.lat,longitude:x.lon==null?null:x.lon,
-        _trepp:null,_costar:null,_hasCostar:false,_matchMethod:null,_source:'rod',_rodKey:k,_rod:newest(filings)};
+        _trepp:null,_costar:null,_hasCostar:false,_matchMethod:null,_source:'rod',_rodKey:k,_rodLots:[x]};
+      rodFilings(pseudo);
       rodOnlyCount++;
       const {score,tier,details,cats}=scoreProperty(pseudo);
       allData.push(decorateSF({...pseudo,_score:score,_tier:tier,_details:details,_cats:cats}));
@@ -1509,7 +1540,7 @@ async function loadData(){
   });
   document.getElementById('matchInfo').textContent=`${total} props · ${teppMatchCount} Trepp · ${costarMatchCount} CoStar · ${treppOnly.length} Trepp-only · ${costarOnlyCount} CoStar-only${yardiArr.length?` · ${yardiMatchCount} Yardi · ${yardiOnlyCount} Yardi-only`:''}${rodArr.length?` · ${rodMatchCount} Recorder · ${rodOnlyCount} Recorder-only`:''}`;
   window.__srcUploads={};
-  if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};if(rodArr.length){const mx=rodArr.map(f=>String(f.recorded||'')).filter(v=>/^\d{4}-\d{2}-\d{2}$/.test(v)).sort().pop();if(mx)__sd['Recorder']=new Date(+mx.slice(0,4),+mx.slice(5,7)-1,+mx.slice(8,10));}window.__renderSrcInfo(__sd);dataFetch('data_salesforce.json').then(function(r){return r.ok?r.json():null;}).then(function(j){var up={},src=(j&&j.sources)||{};
+  if(window.__renderSrcInfo){var __sd={'Reonomy':window.__maxD(props,['sale_recorded_date','sale_date','sale2_recorded_date']),'CoStar':window.__maxD(costarArr,['sale_date']),'Trepp':window.__maxD(trepps,['origination_date','securitization_date','first_payment_date','last_paid_thru_date','maturity_date_at_securitization'])};if(rodArr.length){const mx=rodArr.flatMap(L=>(L.triggers||[]).map(f=>String(f.recorded||''))).filter(v=>/^\d{4}-\d{2}-\d{2}$/.test(v)).sort().pop();if(mx)__sd['Recorder']=new Date(+mx.slice(0,4),+mx.slice(5,7)-1,+mx.slice(8,10));}window.__renderSrcInfo(__sd);dataFetch('data_salesforce.json').then(function(r){return r.ok?r.json():null;}).then(function(j){var up={},src=(j&&j.sources)||{};
       [['reonomy','Reonomy'],['costar','CoStar'],['trepp','Trepp'],['yardi','Yardi']].forEach(function(x){if(src[x[0]])up[x[1]]=new Date(src[x[0]]);});
       if(yardiArr.length&&up['Yardi'])__sd['Yardi']=up['Yardi'];
       if(j&&j.uploaded_at){__sd['Salesforce']=new Date(j.uploaded_at);up['Salesforce']=new Date(j.uploaded_at);}
@@ -1646,7 +1677,8 @@ function searchIndex(p){
   (p._trepp&&p._trepp._loanHistory||[]).forEach(l=>add('Trepp (older loan)',l));
   add('CoStar',p._costar);
   yardiRows(p).forEach(yy=>add('Yardi',yy));
-  (p._rod||[]).forEach(f=>add('Recorder',{'substitute trustee':(f.trustees||[]).join('; '),lender:(f.lenders||[]).join('; '),borrower:(f.borrowers||[]).join('; ')}));
+  (p._rod||[]).forEach(f=>add('Recorder',{filing:f.type,'substitute trustee':(f.trustees||[]).join('; '),lender:(f.lenders||[]).join('; '),borrower:(f.borrowers||[]).join('; '),parties:(f.grantors||[]).concat(f.grantees||[]).join('; ')}));
+  (p._rodLots||[]).forEach(L=>{if(L.summary&&L.summary.text)add('Recorder',{summary:L.summary.text});});
   (p._sfContacts||[]).forEach(c=>{if(c.name)fields.push(['Salesforce','contact',c.name]);(c.emails||[]).forEach(e=>fields.push(['Salesforce','email',e]));(c.phones||[]).forEach(f=>fields.push(['Salesforce','phone',f]));});
   return p._sx={fields,all:fields.map(f=>f[2].toLowerCase()).join('\n')};
 }
@@ -1681,7 +1713,12 @@ function buildChips(p){
    if(/loan in arrears/i.test(st))chips.push({cls:'trepp-distress',label:'Loan in Arrears'});
    if(/watch ?list/i.test(st)&&!has('Watchlist'))chips.push({cls:'trepp-distress',label:'Watchlist'});}
   if((p.preforeclosure_active_flag===true||p.preforeclosure_active_flag==='true'||p.preforeclosure_active_flag==='True')&&(filingAge(p.preforeclosure_recording_date)===null||withinYears(p.preforeclosure_recording_date,3)))chips.push({cls:'distress',label:'Preforeclosure'});
-  if((p._rod||[]).some(f=>withinYears(f.recorded,3)))chips.push({cls:'distress',label:'Substitute Trustee'});
+  {const r3=(p._rod||[]).filter(f=>withinYears(f.recorded,3)&&!ROD_RESOLVED[f.lotStatus]),has=c=>r3.some(f=>c.includes(f.code));
+   const sale=(p._rod||[]).map(f=>f.saleDate).filter(d=>d&&d>=new Date().toISOString().slice(0,10)).sort()[0];
+   if(sale){const d=parseD(sale);chips.push({cls:'distress',label:'Sale '+(d?d.toLocaleDateString(undefined,{month:'short',day:'numeric'}):sale)});}
+   if(has(['TSTD']))chips.push({cls:'distress',label:'Foreclosure Sale'});
+   if(has(['FOR','FORE','FORA','FORM']))chips.push({cls:'distress',label:'Foreclosure Notice'});
+   if(has(['APPT']))chips.push({cls:'distress',label:'Substitute Trustee'});}
   // same date the Loan Maturity filter uses (⬡ = Trepp, plain = Reonomy mortgage)
   const lm=window.loanMat?loanMat(p):null;
   if(lm&&(lm.ms-now)>STALE){const bestMat=new Date(lm.ms);const d=daysUntil(bestMat);chips.push({cls:'maturity',label:`${lm.src==='trepp'?'⬡ ':''}Mat. ${fmtDate(bestMat)}${d<0?' (past)':''}`});}
@@ -2076,7 +2113,7 @@ function buildDetailGrid(p){
   const sec=(title,cls,rows)=>{const f=rows.filter(r=>r&&r[1]!=null&&r[1]!==''&&r[1]!==undefined);if(!f.length)return '';return `<div class="dg-section-head ${cls}">${title}</div>`+f.map(([lbl,val,full,valCls])=>`<div class="dg-item${full?' full':''}"><div class="dg-label">${lbl}</div><div class="dg-val${valCls?' '+valCls:''}">${val}</div></div>`).join('');};
   const dscr=t?parseFloat(t.dscr_noi):null,ltv=t?parseFloat(t.ltv):null;
   const dscrCls=dscr?dscr<1.0?'warn':dscr<1.25?'caution':'ok':null;const ltvCls=ltv?ltv>90?'warn':ltv>80?'caution':'ok':null;
-  const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',p._units_from?`${p.total_units} (Yardi; ${p._units_from.wasSrc}: ${p._units_from.was||'?'})`:(p.total_units||t?.number_of_units)&&p._reonomy_units!==undefined&&String(p._reonomy_units)!==String(p.total_units)?`${p.total_units} (Trepp; Reonomy parcel: ${p._reonomy_units||'?'})`:p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
+  const grid=sec('Property','reonomy',[['Address',p.address_full||p.address_line_1,true],['Type',p.property_type],['Subtype',p.property_subtype],['Year Built',p.year_built?Math.round(p.year_built):null],['Year Renovated',p.year_renovated?Math.round(p.year_renovated):null],['Units',p._units_from?`${p.total_units} (Yardi; ${p._units_from.wasSrc}: ${p._units_from.was||'?'})`:(p.total_units||t?.number_of_units)&&p._reonomy_units!==undefined&&String(p._reonomy_units)!==String(p.total_units)?`${p.total_units} (Trepp; Reonomy parcel: ${p._reonomy_units||'?'})`:p.total_units||t?.number_of_units],['Bldg SF',p.gross_building_area?Math.round(p.gross_building_area).toLocaleString()+' SF':null],window.GS_REGION==='dc'?['Tax parcel (SSL)',sslLabel(p)]:['APN',p.apn],['Owner',p.reported_owner_name,true],['Owner Mailing',p.reported_mailing_address_full,true]])+
   sec('Sale Data','sale',[['Sale Price',fmtMoney(p.sale_amount)],['Sale Date',fmtDate(p.sale_recorded_date)],['Price/SF',p.sales_price_per_sf?`$${parseFloat(p.sales_price_per_sf).toFixed(2)}`:null],['Price/Unit',fmtMoney(p.price_per_unit)],['Source',p._hasCostar?`CoStar (${p._matchMethod})`:'Reonomy'],p._hasCostar?['Prior Sale (Reo)',fmtMoney(p._reonomy_sale_amount)]:null])+
   (t?sec('Trepp Loan Data','trepp',[['Property Name',t.property_name,true],['Loan Name',t.loan_name,true],['Source',t.source],['Matched by',p._treppMatch],['Assumable',window.isAssumable&&isAssumable(p)?'Yes, '+t.source+' loan (lender approval required)':null],['Originator',t.originator],['Origination Date',fmtDate(t.origination_date)],['Current Balance',fmtMoney(t.current_balance)],['Original Balance',fmtMoney(t.original_balance)],['Loan Rate',t.loan_rate?t.loan_rate+'%':null],['Rate Type',t.rate_type],['Amortization',t.amortization_type],['Loan Purpose',t.loan_purpose],['Maturity Date',fmtDate(t.maturity_date)],['UW Maturity',fmtDate(t.uw_maturity_date)],['Remaining Term',t.remaining_term?t.remaining_term+' months':null],['Periods Past Mat.',t.periods_past_maturity>0?t.periods_past_maturity:null],['DSCR (NOI)',dscr?dscr.toFixed(2):null,false,dscrCls],['DSCR (NCF)',t.dscr_ncf?parseFloat(t.dscr_ncf).toFixed(2):null],['LTV',ltv?ltv.toFixed(1)+'%':null,false,ltvCls],['Debt Yield (NOI)',t.debt_yield_noi?parseFloat(t.debt_yield_noi).toFixed(2)+'%':null],['Occupancy',t.occupancy_pct?parseFloat(t.occupancy_pct).toFixed(1)+'%':null],['Delinquency',t.delinquency_status&&t.delinquency_status!=='-'?t.delinquency_status:null,false,t&&dqLevel(t.delinquency_status)?'warn':null],['Watchlist',t.watchlist_status&&t.watchlist_status!=='-'?t.watchlist_status:null,false,t?.watchlist_status?.toLowerCase()==='yes'?'caution':null],['Special Servicer',t.spec_serv_status&&t.spec_serv_status!=='-'?t.spec_serv_status:null,false,t?.spec_serv_status?.toLowerCase()==='yes'?'warn':null],['Spec. Serv. Name',t.special_servicer&&t.special_servicer!=='-'?t.special_servicer:null,true],['Transfer Reason',t.special_servicer_transfer_reason&&t.special_servicer_transfer_reason!=='-'?t.special_servicer_transfer_reason:null,true],['Modified',t.modified_loan&&t.modified_loan!=='-'?t.modified_loan:null],['Mod. Type',t.modification_type_servicer&&t.modification_type_servicer!=='-'?t.modification_type_servicer:null,true],['Extension Type',t.extension_type&&t.extension_type!=='-'?t.extension_type:null],['Rem. Extension Periods',t.remaining_extension_option_periods>0?t.remaining_extension_option_periods:null],['NOI',fmtMoney(t.noi)],['NCF',fmtMoney(t.ncf)],['Revenues',fmtMoney(t.revenues)],['Property Appraisal',fmtMoney(t.property_appraisal_value)],['Owner 1',t.owner_1_name&&t.owner_1_name!=='-'?t.owner_1_name:null,true],['Owner 1 Phone',t.owner_1_phone&&t.owner_1_phone!=='-'?t.owner_1_phone:null],['Owner 1 Email',t.owner_1_email&&t.owner_1_email!=='-'?t.owner_1_email:null,true],['Bankruptcy Date',t.bankruptcy_date&&t.bankruptcy_date!=='-'?fmtDate(t.bankruptcy_date):null,false,'warn'],['REO Date',t.reo_date&&t.reo_date!=='-'?fmtDate(t.reo_date):null,false,'warn']]):'<div style="padding:10px 0;font-size:12px;color:var(--text2)">⬡ No Trepp loan data matched for this property</div>')+
   (()=>{const rm=window.recMorts?recMorts(p):null;if(!rm||!rm.latest)return '';
@@ -2168,20 +2205,42 @@ function yardiBlock(y){
   if(!body&&!site)return '';
   return `<div class="yd-block"><div class="yd-head"><span class="yd-badge">Yardi</span><span class="yd-sub">${e(yardiName(y.property_name))}${site}</span></div>${body}</div>`;
 }
-// DC Recorder of Deeds: appointments of substitute trustee on this property's deed
-// of trust (rod/ pipeline). The substitute trustees are the people who run the sale.
+// DC tax parcel for the details grid: Reonomy's apn, else the recorder lot ("Square 2612, Lot 0651")
+function sslLabel(p){
+  const m=/^\s*(PAR|\d{4})-([A-Z0-9]{4})-(\d{4})\s*$/.exec(String(p.apn||'').toUpperCase());
+  const k=m?(m[1]==='PAR'?`PAR${m[2]}-${m[3]}`:`${m[1]}${/^[A-Z]/.test(m[2])?m[2].replace(/0+$/,''):''}-${m[3]}`):(p._rodKey||((p._rodLots||[])[0]||{}).key||'');
+  if(!k)return p.apn||null;
+  const [sq,lot]=k.split('-');
+  return /^PAR/.test(sq)?`Parcel ${sq.slice(3)}, Lot ${lot}`:`Square ${sq}, Lot ${lot}`;
+}
+// DC Recorder of Deeds, per lot: the AI summary written from the land records, then the chain of
+// title from the last deed before the first foreclosure filing forward, each document linked to the
+// recorder's viewer (rod/ pipeline). Older records on the lot fold away below.
 function buildRodBlock(p){
-  const fl=p._rod||[];if(!fl.length)return '';
+  const lots=p._rodLots||[];if(!lots.length)return '';
   const e=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const line=(lbl,arr)=>arr&&arr.length?`<div class="yd-line"><b>${lbl}</b><span>${arr.map(e).join('; ')}</span></div>`:'';
-  const rows=fl.map(f=>{
-    const tr=f.trustees||[],dot=(f.related||[]).filter(r=>/trust|mortgage/i.test(r.type||'')).map(r=>r.doc);
-    const lots=p._source==='rod'?'':(f.parcels||[]).filter(x=>x.multifamily).map(x=>x.key).join(', ');
-    return `<div class="yd-org"><div class="yd-role">Recorded ${e(fmtDate(f.recorded))} · Doc ${e(f.doc)}${lots?' · Lot '+e(lots):''}</div>`+
-      line('Lender',f.lenders)+line(tr.length>1?'Substitute trustees':'Substitute trustee',tr)+line('Borrower',f.borrowers)+line('Deed of trust',dot)+
-      (f.link?`<div class="yd-line"><a href="${e(f.link)}" target="_blank" rel="noopener">Open the filing at the Recorder of Deeds</a><span style="color:var(--text3)">(recorder sign-in)</span></div>`:'')+'</div>';
+  const DOC='https://washington.dc.publicsearch.us/doc/',TRIG=new Set(['APPT','FOR','FORE','FORA','FORM','NOTF','TSTD']);
+  const who=a=>(a||[]).slice(0,3).map(e).join('; ')+((a||[]).length>3?` +${a.length-3} more`:'');
+  const row=d=>`<tr class="${TRIG.has(d.code)?'rod-trig':''}"><td>${e(fmtDate(d.recorded))}</td><td>${d.id?`<a href="${DOC}${encodeURIComponent(d.id)}" target="_blank" rel="noopener">${e(d.type)}</a>`:e(d.type)}</td><td>${who(d.grantor)}</td><td>${who(d.grantee)}</td></tr>`;
+  const table=rows=>`<table class="rod-chain"><thead><tr><th>Recorded</th><th>Document</th><th>From (grantor)</th><th>To (grantee)</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table>`;
+  return lots.map(L=>{
+    let ch=L.chain||[];
+    if(!ch.length)ch=(L.triggers||[]).map(t=>({recorded:t.recorded,id:t.doc_id,code:t.code,type:t.type,grantor:t.grantors,grantee:t.grantees}));
+    const first=(L.triggers||[]).map(t=>String(t.recorded)).sort()[0]||'';
+    let start=ch.findIndex(d=>/^(DEED|TSTD)$/.test(d.code)&&String(d.recorded)<=first);
+    if(start<0)start=ch.length-1;
+    start=Math.min(start,39);
+    const recent=ch.slice(0,start+1),older=ch.slice(start+1);
+    const ST={active:'Foreclosure under way',sold:'Sold at foreclosure',deed_in_lieu:'Deeded to the lender',paid_off:'Loan paid off, no foreclosure sale',cancelled:'Foreclosure cancelled',not_foreclosure:'Not a foreclosure'};
+    const st=ST[L.status]?`<div class="rod-st ${ROD_RESOLVED[L.status]?'ok':''}">${e(ST[L.status])}${L.sale_date&&L.status==='active'?' · sale scheduled '+e(fmtDate(L.sale_date)):''}</div>`:'';
+    const sm=L.summary&&L.summary.text?`<div class="rod-sum"><div class="rod-sum-h">AI summary from the land records<span>${e(fmtDate(L.summary.written))}</span></div>${st}${e(L.summary.text)}</div>`:'';
+    const [sq,lot]=String(L.key||'').split('-');
+    const more=(L.chain_total||0)>ch.length?` · ${L.chain_total-ch.length} pre-2000 records at the recorder`:'';
+    return `<div class="rod-block"><div class="yd-head"><span class="yd-badge">Recorder of Deeds</span><span class="yd-sub">${e(sslLabel({_rodKey:L.key}))}${lots.length>1&&L.address?' · '+e(L.address):''}</span></div>${sm}`+
+      `<div class="rod-ch-h">Chain of title, last deed forward</div>${table(recent)}`+
+      (older.length?`<details class="rod-older"><summary>Earlier records on this lot (${older.length})</summary>${table(older)}</details>`:'')+
+      `<div class="rod-foot">Document links open the recorder's viewer (recorder sign-in)${more}. Every record on the lot: Advanced Search → Square ${e(sq)}, Lot ${e(lot||'')}.</div></div>`;
   }).join('');
-  return `<div class="rod-block"><div class="yd-head"><span class="yd-badge">Recorder of Deeds</span><span class="yd-sub">Appointment of substitute trustee${fl.length>1?' ('+fl.length+' filings)':''}</span></div>${rows}</div>`;
 }
 function buildSalesforceContacts(p){
   if(p._hasSF===undefined)decorateSF(p);
@@ -3278,7 +3337,7 @@ function isDistressed(p){
     if(DQ_BAD.test(String(t.delinquency_status||"").trim()))return true;
   }
   if(yardiRows(p).some(yardiCritical))return true;   // Yardi: loan in arrears / notice of acceleration
-  if((p._rod||[]).some(function(f){return withinYears(f.recorded,3);}))return true;   // DC recorder: substitute trustee appointed
+  if((p._rod||[]).some(function(f){return f.code!=="NOTF"&&!ROD_RESOLVED[f.lotStatus]&&withinYears(f.recorded,3);}))return true;   // DC recorder: substitute trustee, foreclosure notice or sale
   // an active preforeclosure counts while its filing is under 3 yrs old (or undated)
   var f=String(p.preforeclosure_active_flag==null?"":p.preforeclosure_active_flag).toLowerCase();
   return (f==="true"||f==="1"||f==="1.0")&&(filingAge(p.preforeclosure_recording_date)===null||withinYears(p.preforeclosure_recording_date,3));
@@ -3444,7 +3503,7 @@ window.syncFilterUI=syncFilterUI;window.applyRangeFilters=function(data){
   var rd=parseNumInput("fb_rod_days");
   if(rd!==null){
     var rfrom=Date.now()-rd*864e5;
-    data=data.filter(function(p){return (p._rod||[]).some(function(f){var d=parseD(f.recorded);return !!d&&d.getTime()>=rfrom;});});
+    data=data.filter(function(p){return (p._rod||[]).some(function(f){var d=parseD(f.recorded);return f.code==="APPT"&&!!d&&d.getTime()>=rfrom;});});
   }
   if(distressOn)data=data.filter(isDistressed);
   var ysel=yardiPicks(".fb-ys"),yrat=yardiPicks(".fb-yr");
@@ -3981,7 +4040,7 @@ else init();
 // Only default scoring settings are
 // uploaded, so one person's custom weights never leak into everyone's answers.
 (function(){
-  var SNAP_VER="v57";
+  var SNAP_VER="v58";
   function isDefaultScoring(){
     try{
       var ok=["wHold","wMat","wDist","wMkt"].every(function(id){var e=document.getElementById(id);return e&&String(e.value)===String(e.defaultValue);});
@@ -4029,7 +4088,9 @@ else init();
       yardi:ys.map(function(y){var w=function(pre){return {company:y[pre],contact:[y[pre+"_contact_first_name"],y[pre+"_contact_last_name"]].filter(Boolean).join(" "),phone:y[pre+"_contact_phone_number"],email:y[pre+"_contact_email"],website:y[pre+"_website"]};};
         return {name:window.yardiName?yardiName(y.property_name):y.property_name,status:y.property_special_status,improvement_rating:y.impr_rating,location_rating:y.loc_rating,
           property_phone:y.phone_number,owner:w("owner"),manager:w("manager"),special_servicer:y.special_servicer||null};}),
-      substitute_trustee_filings:(p._rod||[]).map(function(f){return {recorded:f.recorded,document:f.doc,lenders:f.lenders,substitute_trustees:f.trustees,borrowers:f.borrowers,link:f.link};}),
+      recorder_filings:(p._rod||[]).map(function(f){return {recorded:f.recorded,type:f.type,document:f.doc,lenders:f.lenders,substitute_trustees:f.trustees,borrowers:f.borrowers,link:f.link};}),
+      recorder_summary:(p._rodLots||[]).map(function(L){return L.summary&&L.summary.text;}).filter(Boolean).join(" ")||null,
+      recorder_status:(p._rodLots||[]).map(function(L){return L.status?L.status+(L.sale_date?" (sale "+L.sale_date+")":""):"";}).filter(Boolean).join("; ")||null,
       assessed_value:window.asrOf?asrOf(p):null,
       link:link
     })||{};
