@@ -573,7 +573,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v60</div>
+<div id="verBadge">v61</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -938,7 +938,8 @@ function scoreProperty(p){
   // notice or a trustee's deed scores like an active preforeclosure and fades with age like every
   // filing; a filing older than a recorded cancellation counts half.
   {const rf=p._rod||[],cancel=rf.filter(f=>f.code==='NOTF').map(f=>String(f.recorded)).sort().pop()||'';
-   const BASE={APPT:100,FOR:100,FORE:100,FORA:90,FORM:70,TSTD:100};
+   // a trust assignment (the loan sold or transferred) is distress too (Mason, 2026-11-10)
+   const BASE={APPT:100,FOR:100,FORE:100,FORA:90,FORM:70,TSTD:100,ASST:70};
    const sale=rf.map(f=>f.saleDate).filter(d=>d&&d>=new Date().toISOString().slice(0,10)).sort()[0];
    if(sale)dSignals.push({s:100,label:`${IC.alert}Foreclosure sale scheduled ${fmtDate(sale)} (DC Recorder of Deeds)`});
    rf.forEach(f=>{
@@ -946,6 +947,7 @@ function scoreProperty(p){
      if(ROD_RESOLVED[f.lotStatus]){dSignals.push({s:0,label:`${f.type||'Foreclosure filing'} — recorded ${fmtDate(f.recorded)} (${ROD_RESOLVED[f.lotStatus]}: not scored)`});return;}
      const ld=f.lenders||[],tr=f.trustees||[],half=cancel&&String(f.recorded)<cancel;
      const lbl=f.code==='APPT'?`${IC.alert}Substitute trustee appointed${ld.length?' by '+ld.slice(0,2).join(', ')+(ld.length>2?` +${ld.length-2} more`:''):''} — recorded ${fmtDate(f.recorded)}${tr.length?` — Trustee${tr.length>1?'s':''}: `+tr.slice(0,3).join('; ')+(tr.length>3?` +${tr.length-3} more`:''):''}`
+       :f.code==='ASST'?`${IC.alert}Loan assigned${(f.grantors||[]).length?' by '+f.grantors.slice(0,2).join(', '):''}${(f.grantees||[]).length?' to '+f.grantees.slice(0,2).join(', '):''} — recorded ${fmtDate(f.recorded)}`
        :`${IC.alert}${f.type||'Foreclosure filing'} — recorded ${fmtDate(f.recorded)}`;
      aged(half?Math.round((BASE[f.code]||80)/2):(BASE[f.code]||80),fw(f.recorded,1),lbl+(half?' (a later notice cancelled the foreclosure)':''));});}
   if(t){
@@ -1723,7 +1725,8 @@ function buildChips(p){
    if(sale){const d=parseD(sale);chips.push({cls:'distress',label:'Sale '+(d?d.toLocaleDateString(undefined,{month:'short',day:'numeric'}):sale)});}
    if(has(['TSTD']))chips.push({cls:'distress',label:'Foreclosure Sale'});
    if(has(['FOR','FORE','FORA','FORM']))chips.push({cls:'distress',label:'Foreclosure Notice'});
-   if(has(['APPT']))chips.push({cls:'distress',label:'Substitute Trustee'});}
+   if(has(['APPT']))chips.push({cls:'distress',label:'Substitute Trustee'});
+   if(has(['ASST']))chips.push({cls:'distress',label:'Loan Assigned'});}
   // same date the Loan Maturity filter uses (⬡ = Trepp, plain = Reonomy mortgage)
   const lm=window.loanMat?loanMat(p):null;
   if(lm&&(lm.ms-now)>STALE){const bestMat=new Date(lm.ms);const d=daysUntil(bestMat);chips.push({cls:'maturity',label:`${lm.src==='trepp'?'⬡ ':''}Mat. ${fmtDate(bestMat)}${d<0?' (past)':''}`});}
@@ -2224,7 +2227,7 @@ function sslLabel(p){
 function buildRodBlock(p){
   const lots=p._rodLots||[];if(!lots.length)return '';
   const e=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const DOC='https://washington.dc.publicsearch.us/doc/',TRIG=new Set(['APPT','FOR','FORE','FORA','FORM','NOTF','TSTD']);
+  const DOC='https://washington.dc.publicsearch.us/doc/',TRIG=new Set(['APPT','FOR','FORE','FORA','FORM','NOTF','TSTD','ASST']);
   const who=a=>(a||[]).slice(0,3).map(e).join('; ')+((a||[]).length>3?` +${a.length-3} more`:'');
   const row=d=>`<tr class="${TRIG.has(d.code)?'rod-trig':''}"><td>${e(fmtDate(d.recorded))}</td><td>${d.id?`<a href="${DOC}${encodeURIComponent(d.id)}" target="_blank" rel="noopener">${e(d.type)}</a>`:e(d.type)}</td><td>${who(d.grantor)}</td><td>${who(d.grantee)}</td></tr>`;
   const table=rows=>`<table class="rod-chain"><thead><tr><th>Recorded</th><th>Document</th><th>From (grantor)</th><th>To (grantee)</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table>`;
@@ -2236,7 +2239,7 @@ function buildRodBlock(p){
     if(start<0)start=ch.length-1;
     start=Math.min(start,39);
     const recent=ch.slice(0,start+1),older=ch.slice(start+1);
-    const ST={active:'Foreclosure under way',sold:'Sold at foreclosure',deed_in_lieu:'Deeded to the lender',paid_off:'Loan paid off, no foreclosure sale',cancelled:'Foreclosure cancelled',not_foreclosure:'Not a foreclosure'};
+    const ST={assigned:'Loan assigned',active:'Foreclosure under way',sold:'Sold at foreclosure',deed_in_lieu:'Deeded to the lender',paid_off:'Loan paid off, no foreclosure sale',cancelled:'Foreclosure cancelled',not_foreclosure:'Not a foreclosure'};
     const st=ST[L.status]?`<div class="rod-st ${ROD_RESOLVED[L.status]?'ok':''}">${e(ST[L.status])}${L.sale_date&&L.status==='active'?' · sale scheduled '+e(fmtDate(L.sale_date)):''}</div>`:'';
     const sm=L.summary&&L.summary.text?`<div class="rod-sum"><div class="rod-sum-h">AI summary from the land records<span>${e(fmtDate(L.summary.written))}</span></div>${st}${e(L.summary.text)}</div>`:'';
     const [sq,lot]=String(L.key||'').split('-');
