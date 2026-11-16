@@ -573,7 +573,7 @@ body.dots-off #map .leaflet-control-zoom{opacity:0;transition:none}
     <div class="ag-foot">One sign-in covers LoanID, GreyHub and the PBS8 database.</div>
   </div>
 </div>
-<div id="verBadge">v61</div>
+<div id="verBadge">v62</div>
 <div id="landing">
   <div id="landingMap"></div>
   <div class="lp-scrim"></div>
@@ -2393,6 +2393,13 @@ function detect(headers){
   if(h.indexOf("Impr. Rating")>=0&&h.indexOf("Property Special Status")>=0)return "yardi";   // Yardi Matrix Quick Search
   return null;
 }
+/* CoStar's Excel export carries UTF-8 text that was read as Windows-1252 ("Engel & VÃ¶lkers"). Repair it on upload.
+   Same rule as fix_text in MarketIQ tools/common.py. */
+var CP1252_REV=(function(){var m={},s="€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008dŽ\u008f\u0090‘’“”•–—˜™š›œ\u009džŸ";for(var i=0;i<s.length;i++)m[s.charCodeAt(i)]=0x80+i;return m;})();
+function fixRun(r){var b=[];for(var i=0;i<r.length;i++){var c=r.charCodeAt(i);if(c<0x80)b.push(c);else if(CP1252_REV[c]!=null)b.push(CP1252_REV[c]);else if(c<0x100)b.push(c);else return r;}
+  try{return new TextDecoder("utf-8",{fatal:true}).decode(new Uint8Array(b));}catch(e){return r;}}
+function fixText(s){if(typeof s!=="string"||!/[ÂÃ][\u0080-ÿ]|â€/.test(s))return s;var w=fixRun(s);if(w!==s)return w;
+  return s.replace(/[Â-ô][\u0080-¿Œ-™]+/g,fixRun);}
 function parseFile(buf,fname){
   var wb=XLSX.read(buf,{type:"array"});
   var ws=wb.Sheets[wb.SheetNames[0]];
@@ -2460,6 +2467,7 @@ function parseFile(buf,fname){
       for(var j4=0;j4<hd4.length;j4++){if(hd4[j4]==null)continue;var v4=rows[i4][j4];o4[String(hd4[j4]).trim()]=v4==null?"":String(v4);if(!isBlank(v4))any4=true;}
       if(any4)out.push(o4);}
   }
+  out.forEach(function(o){for(var k in o)if(typeof o[k]==="string")o[k]=fixText(o[k]);});
   return {source:src,rows:out,fname:fname,note:note};
 }
 
